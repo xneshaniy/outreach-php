@@ -1,0 +1,100 @@
+# Hostinger Deployment Configuration for Laravel
+# This file configures the deployment pipeline for Laravel PHP applications
+
+# Application type - MUST be "php" for Laravel, not "static"
+application_type: php
+
+# PHP version (Hostinger supports 8.1, 8.2, 8.3)
+php_version: "8.3"
+
+# Build commands - run in order during deployment
+build:
+  # Composer dependencies
+  - command: "composer install --no-dev --optimize-autoloader --no-interaction"
+    description: "Install PHP dependencies"
+  
+  # Frontend dependencies
+  - command: "npm ci"
+    description: "Install Node.js dependencies"
+  
+  # Production build
+  - command: "npm run build"
+    description: "Build frontend assets with Vite"
+
+# Deployment settings
+deploy:
+  # The directory that becomes the web root (document root)
+  # For Laravel, this MUST be the public/ directory
+  document_root: "public"
+  
+  # Directories to preserve between deployments (shared storage)
+  shared_dirs:
+    - "storage"
+    - "bootstrap/cache"
+  
+  # Files to preserve between deployments
+  shared_files:
+    - ".env"
+
+# Post-deployment commands (run after files are deployed)
+post_deploy:
+  - command: "php artisan migrate --force"
+    description: "Run database migrations"
+    run_once: false  # Run on every deploy
+  
+  - command: "php artisan optimize:clear && php artisan optimize"
+    description: "Clear and rebuild Laravel caches"
+    run_once: false
+  
+  - command: "php artisan storage:link"
+    description: "Create storage symlink"
+    run_once: true  # Only run once
+
+# Cron jobs for Laravel scheduler and queues
+cron:
+  # Laravel Scheduler - runs every minute
+  - schedule: "* * * * *"
+    command: "cd {DEPLOY_PATH} && php artisan schedule:run >> /dev/null 2>&1"
+    description: "Laravel Task Scheduler"
+  
+  # Queue Worker - processes background jobs
+  # Using a bounded worker that restarts every hour
+  - schedule: "* * * * *"
+    command: "cd {DEPLOY_PATH} && php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --stop-when-empty >> /dev/null 2>&1"
+    description: "Laravel Queue Worker"
+
+# Environment variables (configured in Hostinger hPanel, not here)
+# This is just documentation of required variables
+environment:
+  required:
+    - APP_KEY
+    - APP_ENV
+    - APP_DEBUG
+    - APP_URL
+    - DB_CONNECTION
+    - DB_HOST
+    - DB_PORT
+    - DB_DATABASE
+    - DB_USERNAME
+    - DB_PASSWORD
+    - MAIL_MAILER
+    - MAIL_HOST
+    - MAIL_PORT
+    - MAIL_USERNAME
+    - MAIL_PASSWORD
+    - MAIL_ENCRYPTION
+    - MAIL_FROM_ADDRESS
+    - MAIL_FROM_NAME
+    - SANCTUM_STATEFUL_DOMAINS
+    - SESSION_DOMAIN
+    - SESSION_SECURE_COOKIE
+
+# Health check endpoint
+health_check:
+  path: "/up"
+  expected_status: 200
+
+# SSL/HTTPS
+ssl:
+  force_https: true
+  hsts: true

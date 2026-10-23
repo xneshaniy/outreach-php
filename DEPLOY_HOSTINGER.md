@@ -1,319 +1,407 @@
 # Hostinger Shared Hosting Deployment Guide
+## Outreach CRM - Laravel 11 + Inertia.js + Vue 3
 
-This guide covers deploying the Outreach CRM Laravel application to Hostinger shared hosting (no VPS).
+**Repository:** https://github.com/xneshaniy/outreach-php  
+**Branch:** `main`  
+**Domain:** `outreach.click`  
+**PHP Version:** 8.3  
+**Laravel Version:** 11.x  
 
-## 1. Requirements
+---
 
-### PHP Version & Extensions
-- **PHP 8.2 or higher** (Laravel 11 requirement)
-- Required PHP extensions:
-  - `bcmath`
-  - `ctype`
-  - `curl`
-  - `dom`
-  - `fileinfo`
-  - `gd` (for DomPDF)
-  - `iconv`
-  - `intl`
-  - `mbstring`
-  - `openssl`
-  - `pdo`
-  - `pdo_mysql`
-  - `tokenizer`
-  - `xml`
-  - `zip`
+## ⚠️ CRITICAL: Deployment Mode
 
-### Composer
-- Composer 2.x (available on Hostinger shared hosting)
+**Hostinger MUST be configured as a PHP Application, NOT a Static Website.**
 
-### Node.js & npm
-- Node.js 18+ (for building frontend assets)
-- npm 9+
+| Setting | Correct Value |
+|---------|---------------|
+| **Application Type** | `PHP` (or "PHP Application") |
+| **Document Root** | `public` (not `dist`, not project root) |
+| **Build Command** | See build steps below |
+| **Output Directory** | `public/build` (Vite output), NOT `dist` |
 
-## 2. Connect GitHub Repository in Hostinger
+**Why this fails:** Hostinger's "Static Publish Mode" looks for `dist/` folder and serves static files. Laravel requires PHP execution, database connections, sessions, and queue workers. Static hosting cannot run Laravel.
 
-1. Log in to **Hostinger hPanel**
-2. Go to **Websites** → **Manage** (for your domain `outreach.click`)
-3. Navigate to **Git** → **Deploy**
-4. Click **Connect Repository**
-5. Select **GitHub** and authorize Hostinger
-6. Choose repository: `xneshaniy/outreach-php`
-7. Select branch: `main`
-8. Set **Deployment Path**: `public_html` (or your domain's document root)
-9. Click **Deploy**
+---
 
-## 3. Branch & Deployment Directory
-
-| Setting | Value |
-|---------|-------|
-| **Branch** | `main` |
-| **Deployment Directory** | `public_html` (document root) |
-| **Auto-deploy** | Enabled (optional) |
-
-> **Important**: The Laravel `public` folder must be the document root. On Hostinger shared hosting, this is typically `public_html`. The root `.htaccess` redirects all requests to the `public` folder.
-
-## 4. Environment Variables Configuration
+## 1. Hostinger Git Deployment Setup
 
 ### In Hostinger hPanel:
-1. Go to **Websites** → **Manage** → **Environment Variables**
-2. Add the following variables (use **production values**, not placeholders):
+
+1. **Websites** → **Manage** (for `outreach.click`)
+2. **Git** → **Deploy** (or **Git** in sidebar)
+3. **Connect Repository**:
+   - Select **GitHub**
+   - Authorize Hostinger
+   - Repository: `xneshaniy/outreach-php`
+   - Branch: `main`
+4. **Deployment Path**: `~/domains/outreach.click/public_html` (or your domain's root)
+5. **Application Type**: Select **PHP** / **PHP Application**
+6. **Document Root**: Set to `public` (relative to deployment path)
+   - Full path: `~/domains/outreach.click/public_html/public`
+7. **PHP Version**: `8.3`
+
+---
+
+## 2. Build Commands (Configure in Hostinger Git Deploy Settings)
+
+Hostinger runs these commands automatically during deployment. Configure in **Git Deploy → Build Settings**:
+
+```bash
+# 1. Install PHP dependencies
+composer install --no-dev --optimize-autoloader --no-interaction
+
+# 2. Install Node.js dependencies  
+npm ci
+
+# 3. Build frontend assets (Vite outputs to public/build/)
+npm run build
+```
+
+**Important:** 
+- Do NOT use `npm run build` output directory `dist` - Vite with laravel-vite-plugin outputs to `public/build/`
+- The `public/build/manifest.json` MUST exist after build
+- `package-lock.json` is committed for reproducible `npm ci`
+
+---
+
+## 3. Environment Variables (Hostinger hPanel → Environment Variables)
+
+Add ALL of these in Hostinger's Environment Variables section:
 
 ```env
+# Application
 APP_NAME="Outreach CRM"
 APP_ENV=production
-APP_KEY=base64:YOUR_GENERATED_KEY_HERE
 APP_DEBUG=false
 APP_URL=https://outreach.click
+APP_KEY=base64:YOUR_GENERATED_KEY_HERE
+APP_TIMEZONE=UTC
 
+# Logging
 LOG_CHANNEL=stack
 LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=error
 
+# Database (use YOUR Hostinger MySQL credentials)
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=your_database_name
-DB_USERNAME=your_database_user
-DB_PASSWORD=your_strong_password
+DB_DATABASE=u311221303_haseeb
+DB_USERNAME=u311221303_admin
+DB_PASSWORD=your_database_password
 
-BROADCAST_DRIVER=log
+# Cache & Session
 CACHE_DRIVER=file
-FILESYSTEM_DISK=local
-QUEUE_CONNECTION=database
 SESSION_DRIVER=file
 SESSION_LIFETIME=120
+SESSION_DOMAIN=outreach.click
+SESSION_SECURE_COOKIE=true
+SANCTUM_STATEFUL_DOMAINS=outreach.click
 
+# Queue
+QUEUE_CONNECTION=database
+
+# Mail (use YOUR Hostinger SMTP credentials)
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.hostinger.com
 MAIL_PORT=465
-MAIL_USERNAME=your_email@outreach.click
+MAIL_USERNAME=admin@outreach.click
 MAIL_PASSWORD=your_email_password
 MAIL_ENCRYPTION=ssl
-MAIL_FROM_ADDRESS="your_email@outreach.click"
+MAIL_FROM_ADDRESS="admin@outreach.click"
 MAIL_FROM_NAME="${APP_NAME}"
 
-SANCTUM_STATEFUL_DOMAINS=outreach.click
-SESSION_DOMAIN=outreach.click
-SESSION_SECURE_COOKIE=true
-
+# App-specific
 CRM_DEFAULT_TIMEZONE=UTC
 CRM_DAILY_SEND_LIMIT=200
 CRM_BATCH_SIZE=50
 CRM_MAX_RETRIES=3
 CRM_RETRY_DELAY=300
-
-APP_TIMEZONE=UTC
 ```
 
 ### Generate APP_KEY:
 ```bash
+# Run locally, copy output including "base64:"
 php artisan key:generate --show
 ```
-Copy the output (including `base64:`) to the `APP_KEY` variable.
 
-### Security Notes:
-- **Never** commit `.env` or `.env.production` to Git
-- Use strong, unique passwords for database and email
-- Set `APP_DEBUG=false` in production
-- Use `SESSION_SECURE_COOKIE=true` for HTTPS
+---
 
-## 5. Install Composer Dependencies
-
-### On Hostinger (via SSH or Terminal in hPanel):
-```bash
-# Navigate to your project root
-cd ~/public_html
-
-# Install production dependencies (optimized autoloader)
-composer install --no-dev --optimize-autoloader --no-interaction
-
-# If you need to regenerate autoloader after changes
-composer dump-autoload --optimize
-```
-
-### Build Frontend Assets:
-```bash
-# Install npm dependencies
-npm ci
-
-# Build for production
-npm run build
-```
-
-> **Note**: Hostinger shared hosting may have limited Node.js support. If `npm run build` fails, build assets locally and upload the `public/build` folder via FTP/SFTP.
-
-## 6. Configure Document Root
-
-### Option A: Root .htaccess (Already Configured)
-The project includes a root `.htaccess` that redirects all requests to the `public` folder. This works on Hostinger shared hosting.
-
-### Option B: Symlink (If Supported)
-If Hostinger allows, create a symlink:
-```bash
-# In hPanel Terminal/SSH
-cd ~/public_html
-ln -s public public_html
-```
-
-### Verify public/index.php Exists
-Ensure `public/index.php` is present (created during preparation).
-
-## 7. Configure Writable Directories
-
-Set proper permissions (755 for directories, 644 for files):
+## 4. Post-Deployment Commands (Run in Hostinger Terminal AFTER first deploy)
 
 ```bash
-# Storage directories
-chmod -R 775 storage/
-chmod -R 775 bootstrap/cache/
+# Navigate to deployment directory
+cd ~/domains/outreach.click/public_html
 
-# Ensure storage subdirectories exist
-mkdir -p storage/framework/cache/data
-mkdir -p storage/framework/sessions
-mkdir -p storage/framework/views
-mkdir -p storage/logs
-```
-
-> **Hostinger Note**: On shared hosting, permissions are often managed via hPanel File Manager. Use 755 for directories and 644 for files. The `storage` and `bootstrap/cache` directories must be writable by the web server.
-
-## 8. Database Setup & Migrations
-
-### Create Database in hPanel:
-1. Go to **Databases** → **MySQL Databases**
-2. Create new database and user
-3. Assign user to database with all privileges
-4. Note the credentials for environment variables
-
-### Run Migrations:
-```bash
-# Run migrations
+# Run migrations (only after DB is configured in hPanel)
 php artisan migrate --force
 
-# If you need to seed initial data
-php artisan db:seed --force
-```
-
-### Verify Database Connection:
-```bash
-php artisan migrate:status
-```
-
-## 9. Clear & Rebuild Laravel Caches
-
-```bash
-# Clear all caches
-php artisan cache:clear
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
+# Clear and rebuild caches
 php artisan optimize:clear
+php artisan optimize
 
-# Rebuild caches for production
+# Create storage symlink (for public file access)
+php artisan storage:link
+
+# Verify
+php artisan migrate:status
+php artisan route:list
+```
+
+---
+
+## 5. Cron Jobs (Hostinger hPanel → Cron Jobs)
+
+### Laravel Scheduler (runs every minute)
+```
+* * * * * cd ~/domains/outreach.click/public_html && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### Queue Worker (processes background jobs)
+**Option A: Bounded worker (recommended for shared hosting)**
+```
+* * * * * cd ~/domains/outreach.click/public_html && php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --stop-when-empty >> /dev/null 2>&1
+```
+
+**Option B: If Hostinger has Process Manager, use persistent worker instead**
+
+---
+
+## 6. SSL & Security
+
+1. **hPanel → SSL** → Enable **Force HTTPS**
+2. **hPanel → SSL** → Enable **HSTS**
+3. Verify `SESSION_SECURE_COOKIE=true` in env vars
+4. Verify `APP_URL=https://outreach.click`
+
+---
+
+## 7. File Permissions (Hostinger File Manager)
+
+Set these directories to **755**:
+- `storage/` (and all subdirectories)
+- `bootstrap/cache/`
+
+Set files to **644**.
+
+---
+
+## 8. Verification Checklist
+
+After deployment, test these URLs:
+
+| URL | Expected Behavior |
+|-----|-------------------|
+| `https://outreach.click/` | Redirects to `/login` |
+| `https://outreach.click/login` | Shows login page (Vue/Inertia) |
+| `https://outreach.click/register` | Shows registration page |
+| `https://outreach.click/dashboard` | Redirects to login if not authenticated |
+| `https://outreach.click/up` | Returns 200 OK (health check) |
+
+### Functional Tests:
+1. Register new account → verify workspace created
+2. Login → redirects to `/dashboard`
+3. Navigate to Leads, Campaigns, Pipeline → all load
+4. Logout → redirects to login
+5. Vite assets load (no 404s in browser console)
+5. No debug info exposed (APP_DEBUG=false)
+
+---
+
+## 9. Troubleshooting
+
+### Build Fails: "No output directory found"
+- **Cause:** Hostinger configured as Static site
+- **Fix:** Change Application Type to **PHP** in Git Deploy settings
+
+### Build Fails: Vite manifest not found
+- **Cause:** `npm run build` didn't run or failed
+- **Fix:** Check build logs; ensure `public/build/manifest.json` exists after build
+
+### HTTP 500 Error
+```bash
+# Check logs
+tail -f ~/domains/outreach.click/public_html/storage/logs/laravel.log
+
+# Common fixes:
+php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan event:cache
-php artisan optimize
 ```
 
-> **Important**: Run `optimize:clear` before `optimize` to ensure clean state.
+### Database Connection Failed
+- Verify DB credentials in Hostinger Environment Variables
+- Ensure DB user has ALL PRIVILEGES on the database
+- Check `DB_HOST=127.0.0.1` (not localhost)
 
-## 10. Verification Checklist
+### Assets Not Loading (404)
+- Verify `APP_URL=https://outreach.click` matches domain
+- Verify `public/build/` exists with manifest.json and assets
+- Check browser console for mixed content (HTTP vs HTTPS)
 
-After deployment, verify:
+### Session/Cookie Issues
+- Verify `SESSION_DOMAIN=outreach.click`
+- Verify `SESSION_SECURE_COOKIE=true`
+- Verify `SANCTUM_STATEFUL_DOMAINS=outreach.click`
+- Clear browser cookies for the domain
 
-| Check | Command / URL |
-|-------|---------------|
-| **Homepage** | Visit `https://outreach.click/` (should redirect to login) |
-| **Login Page** | Visit `https://outreach.click/login` |
-| **Database Connection** | `php artisan migrate:status` |
-| **Route List** | `php artisan route:list` |
-| **Queue Worker** | `php artisan queue:work --once` |
-| **Schedule** | `php artisan schedule:run` |
+### Permission Denied (storage/logs)
+```bash
+chmod -R 755 storage/
+chmod -R 755 bootstrap/cache/
+```
 
-### Test Login Flow:
-1. Register a new account at `/register`
-2. Verify workspace creation
-3. Login at `/login`
-4. Access dashboard at `/dashboard`
+### Class Not Found
+```bash
+composer dump-autoload --optimize
+```
 
-## 11. Rollback Procedure
+### Queue Not Processing
+- Check cron job is running: `crontab -l`
+- Verify `QUEUE_CONNECTION=database`
+- Check `jobs` table exists: `php artisan migrate:status`
+- View failed jobs: `php artisan queue:failed`
 
-If deployment fails:
+---
+
+## 10. Rollback Procedure
 
 ### Quick Rollback (Git):
 ```bash
-# In hPanel Terminal
-cd ~/public_html
-git log --oneline -5          # Find previous commit
-git checkout <previous-commit> # Checkout previous version
-composer install --no-dev --optimize-autoloader
-npm run build                  # If needed
-php artisan migrate --force    # If migrations were run
+cd ~/domains/outreach.click/public_html
+git log --oneline -5
+git checkout <previous-commit-hash>
+composer install --no-dev --optimize-autoloader --no-interaction
+npm ci && npm run build
+php artisan migrate --force
 php artisan optimize:clear && php artisan optimize
 ```
 
-### Full Rollback:
-1. In hPanel **Git Deploy**, click **History**
-2. Select previous successful deployment
-3. Click **Rollback** or **Re-deploy**
-4. Run post-deployment commands (migrations, cache clear, etc.)
+### Hostinger Git Deploy Rollback:
+1. hPanel → **Git Deploy** → **History**
+2. Click **Rollback** on previous successful deployment
+3. Run post-deploy commands
 
-### Database Rollback (if migration caused issues):
+### Database Rollback:
 ```bash
-# Rollback last migration batch
 php artisan migrate:rollback --force
-
-# Or rollback specific steps
+# Or specific step:
 php artisan migrate:rollback --step=1 --force
 ```
 
-## Additional Hostinger-Specific Notes
+---
 
-### Cron Jobs (for Scheduler)
-In hPanel → **Cron Jobs**, add:
-```bash
-* * * * * cd ~/public_html && php artisan schedule:run >> /dev/null 2>&1
+## 11. Project Structure Reference
+
+```
+~/domains/outreach.click/public_html/          ← Deployment root
+├── app/                                       ← Laravel app code
+├── bootstrap/
+│   └── cache/                                 ← Writable (755)
+├── config/
+├── database/
+├── public/                                    ← DOCUMENT ROOT
+│   ├── index.php                              ← Entry point
+│   ├── .htaccess                              ← Laravel rewrite rules
+│   └── build/                                 ← Vite output (auto-generated)
+│       ├── manifest.json                      ← REQUIRED
+│       └── assets/
+├── resources/
+├── routes/
+├── storage/                                   ← Writable (755)
+│   ├── framework/
+│   │   ├── cache/data/
+│   │   ├── sessions/
+│   │   └── views/
+│   └── logs/
+├── vendor/                                    ← Composer (auto-generated)
+├── .env                                       ← Hostinger manages (NOT in Git)
+├── .hostinger.yaml                            ← Deployment config
+├── hostinger-build.sh                         ← Build script
+├── artisan
+├── composer.json
+├── composer.lock
+├── package.json
+├── package-lock.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
 ```
 
-### Queue Worker (for Background Jobs)
-In hPanel → **Cron Jobs** (or use Process Manager if available):
-```bash
-* * * * * cd ~/public_html && php artisan queue:work --sleep=3 --tries=3 --max-time=3600 >> /dev/null 2>&1
+---
+
+## 12. Key Files for Deployment
+
+### `.hostinger.yaml` - Deployment configuration
+```yaml
+application_type: php
+php_version: "8.3"
+document_root: "public"
+build:
+  - composer install --no-dev --optimize-autoloader --no-interaction
+  - npm ci
+  - npm run build
 ```
 
-### SSL Certificate
-- Hostinger provides free SSL via Let's Encrypt
-- Enable in hPanel → **SSL** → **Force HTTPS**
-
-### File Permissions Issues
-If you get "Permission denied" errors:
-1. In hPanel File Manager, set `storage/` and `bootstrap/cache/` to **755**
-2. Ensure the web server user owns these directories (usually automatic on shared hosting)
-
-### Memory Limit
-If Composer or Artisan runs out of memory:
-```bash
-# Increase memory limit for specific commands
-php -d memory_limit=512M artisan migrate --force
-php -d memory_limit=512M composer install --no-dev --optimize-autoloader
+### `vite.config.js` - Vite outputs to `public/build/`
+```js
+import laravel from 'laravel-vite-plugin';
+export default defineConfig({
+    plugins: [
+        laravel({
+            input: ['resources/css/app.css', 'resources/js/app.js'],
+            refresh: true,
+        }),
+        vue(),
+    ],
+});
 ```
 
-### PHP Version
-Ensure PHP 8.2+ is selected in hPanel → **PHP Configuration** → **PHP Version**
+### Root `.htaccess` - Redirects to public/
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+```
 
-## Troubleshooting Common Issues
+---
 
-| Issue | Solution |
-|-------|----------|
-| **500 Error** | Check `storage/logs/laravel.log`; run `php artisan optimize:clear` |
-| **Database Connection Failed** | Verify DB credentials in environment variables; ensure DB user has privileges |
-| **Assets Not Loading** | Run `npm run build`; verify `public/build` exists; check `APP_URL` |
-| **Session/Cookie Issues** | Verify `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `SANCTUM_STATEFUL_DOMAINS` |
-| **Permission Denied** | Set `storage/` and `bootstrap/cache/` to 755; check ownership |
-| **Class Not Found** | Run `composer dump-autoload --optimize` |
+## 13. Commands Summary
 
-## Support Commands
+### Local Development:
+```bash
+composer install
+npm install
+npm run build
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+```
+
+### Hostinger Deployment (Auto):
+1. Push to `main` branch
+2. Hostinger runs build commands
+3. Hostinger runs post-deploy commands
+4. Site goes live
+
+### Hostinger Manual (if auto-deploy fails):
+```bash
+cd ~/domains/outreach.click/public_html
+git pull origin main
+composer install --no-dev --optimize-autoloader --no-interaction
+npm ci
+npm run build
+php artisan migrate --force
+php artisan optimize:clear && php artisan optimize
+```
+
+---
+
+## 14. Support Commands
 
 ```bash
 # Check Laravel version
@@ -325,7 +413,15 @@ php artisan env
 # View logs
 tail -f storage/logs/laravel.log
 
-# Test email configuration
-php artisan tinker
->>> Mail::raw('Test', function($m) { $m->to('test@example.com')->subject('Test'); });
+# Test queue
+php artisan queue:work --once
+
+# Test scheduler
+php artisan schedule:run
+
+# Clear all caches
+php artisan optimize:clear
+
+# Rebuild caches
+php artisan optimize
 ```
