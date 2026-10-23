@@ -16,6 +16,7 @@
     "dependencies": {
         "@inertiajs/vue3": "^1.0",
         "@inertiajs/progress": "^0.2",
-        "alpinejs": "^3.13"
+        "alpinejs": "^3.13",
+        "ziggy-js": "^2.0"
     }
 }
