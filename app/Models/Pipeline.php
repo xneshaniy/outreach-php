@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Pipeline extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'workspace_id',
+        'created_by',
+        'name',
+        'description',
+        'is_default',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function stages(): HasMany
+    {
+        return $this->hasMany(PipelineStage::class)->orderBy('order');
+    }
+
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class);
+    }
+
+    public function getDefaultStage(): ?PipelineStage
+    {
+        return $this->stages()->orderBy('order')->first();
+    }
+
+    public function getWonStage(): ?PipelineStage
+    {
+        return $this->stages()->where('is_won', true)->first();
+    }
+
+    public function getLostStage(): ?PipelineStage
+    {
+        return $this->stages()->where('is_lost', true)->first();
+    }
+}

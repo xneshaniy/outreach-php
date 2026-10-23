@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Requests\Campaign;
+
+use Illuminate\Foundation\Http\FormRequest;
+use App\Models\Campaign;
+
+class StoreCampaignRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->currentWorkspace !== null
+            && $this->user()->can('create campaigns');
+    }
+
+    public function rules(): array
+    {
+        $workspaceId = $this->user()->currentWorkspace->id;
+
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'email_account_id' => ['nullable', 'exists:email_accounts,id', Rule::where('workspace_id', $workspaceId)->where('is_active', true)],
+            'lead_list_id' => ['nullable', 'exists:lead_lists,id', Rule::where('workspace_id', $workspaceId)],
+            'timezone' => ['sometimes', 'string', 'timezone'],
+            'sending_window' => ['nullable', 'array'],
+            'sending_window.start' => ['required_with:sending_window', 'date_format:H:i'],
+            'sending_window.end' => ['required_with:sending_window', 'date_format:H:i', 'after:sending_window.start'],
+            'sending_window.days' => ['sometimes', 'array'],
+            'sending_window.days.*' => ['integer', 'between:0,6'],
+            'daily_send_limit' => ['sometimes', 'integer', 'min:1', 'max:10000'],
+            'delay_between_emails' => ['sometimes', 'integer', 'min:0', 'max:86400'],
+            'steps' => ['nullable', 'array'],
+            'steps.*.name' => ['required', 'string', 'max:255'],
+            'steps.*.subject' => ['required', 'string', 'max:255'],
+            'steps.*.body_html' => ['required', 'string'],
+            'steps.*.body_text' => ['nullable', 'string'],
+            'steps.*.email_account_id' => ['nullable', 'exists:email_accounts,id', Rule::where('workspace_id', $workspaceId)->where('is_active', true)],
+            'steps.*.delay_days' => ['sometimes', 'integer', 'min:0', 'max:365'],
+            'steps.*.delay_hours' => ['sometimes', 'integer', 'min:0', 'max:23'],
+            'steps.*.delay_minutes' => ['sometimes', 'integer', 'min:0', 'max:59'],
+            'steps.*.conditions' => ['nullable', 'array'],
+            'steps.*.is_active' => ['sometimes', 'boolean'],
+        ];
+    }
+}
