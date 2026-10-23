@@ -1,11 +1,11 @@
 # Hostinger Shared Hosting Deployment Guide
-## Outreach CRM - Laravel 11 + Inertia.js + Vue 3
+## Outreach CRM - Laravel 12 + Inertia.js + Vue 3
 
 **Repository:** https://github.com/xneshaniy/outreach-php  
 **Branch:** `main`  
 **Domain:** `outreach.click`  
 **PHP Version:** 8.3  
-**Laravel Version:** 11.x  
+**Laravel Version:** 12.x  
 
 ---
 
@@ -205,7 +205,7 @@ After deployment, test these URLs:
 3. Navigate to Leads, Campaigns, Pipeline → all load
 4. Logout → redirects to login
 5. Vite assets load (no 404s in browser console)
-5. No debug info exposed (APP_DEBUG=false)
+6. No debug info exposed (APP_DEBUG=false)
 
 ---
 
@@ -425,3 +425,15 @@ php artisan optimize:clear
 # Rebuild caches
 php artisan optimize
 ```
+
+---
+
+## 15. Known Pre-Existing Issues
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| `\App\Exports\LeadsExport` class missing | Pre-existing | Referenced in LeadController::export() but class not created |
+| Pest TestCase.php missing | Pre-existing | Tests use PHPUnit-style `Tests\TestCase` base class |
+| Unit tests directory empty | Pre-existing | No unit tests written yet |
+
+These issues exist in the codebase prior to this deployment fix and do not affect core authentication, dashboard, or CRM functionality.

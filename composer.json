@@ -5,26 +5,26 @@
     "keywords": ["laravel", "crm", "outreach", "email-automation"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "laravel/framework": "^11.0",
-        "laravel/tinker": "^2.9",
+        "php": "^8.3",
+        "laravel/framework": "^12.0",
+        "laravel/tinker": "^2.10",
         "laravel/sanctum": "^4.0",
         "spatie/laravel-permission": "^6.0",
         "spatie/laravel-activitylog": "^4.8",
-        "maatwebsite/excel": "^3.1",
+        "maatwebsite/excel": "^4.0",
         "league/csv": "^9.16",
         "doctrine/dbal": "^3.8",
-        "barryvdh/laravel-dompdf": "^3.0",
+        "barryvdh/laravel-dompdf": "^3.1",
         "laravel/pint": "^1.15"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/sail": "^1.26",
+        "laravel/sail": "^1.30",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.0",
-        "pestphp/pest": "^2.34",
-        "pestphp/pest-plugin-laravel": "^2.3",
-        "pestphp/pest-plugin-livewire": "^2.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "pestphp/pest-plugin-livewire": "^3.0",
         "laravel/pint": "^1.15"
     },
     "autoload": {
@@ -62,6 +62,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
+        },
+        "audit": {
+            "ignored-advisories": []
         }
     },
     "minimum-stability": "stable",
