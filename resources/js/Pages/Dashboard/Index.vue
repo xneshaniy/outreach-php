@@ -4,7 +4,6 @@ import { Link } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import StatCard from '@/Components/StatCard.vue'
 import DataTable from '@/Components/DataTable.vue'
-import ChartCard from '@/Components/ChartCard.vue'
 
 const props = defineProps({
     stats: Object,
