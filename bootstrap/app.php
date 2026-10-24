@@ -73,7 +73,7 @@ return Application::configure(basePath: dirname(__DIR__))
         Illuminate\Encryption\EncryptionServiceProvider::class,
         Illuminate\Filesystem\FilesystemServiceProvider::class,
         Illuminate\Foundation\Providers\FoundationServiceProvider::class,
-        Illuminate\Hashing\HashingServiceProvider::class,
+        Illuminate\Hashing\HashServiceProvider::class,
         Illuminate\Mail\MailServiceProvider::class,
         Illuminate\Notifications\NotificationsServiceProvider::class,
         Illuminate\Pagination\PaginationServiceProvider::class,
