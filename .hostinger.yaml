@@ -7,19 +7,16 @@ application_type: php
 # PHP version (Hostinger supports 8.1, 8.2, 8.3)
 php_version: "8.3"
 
-# Build commands - run in order during deployment
+# Build commands - run in order during deployment.
+# public/build/ (Vite output) is committed, so Node.js is not required on the server.
 build:
   # Composer dependencies
   - command: "composer install --no-dev --optimize-autoloader --no-interaction"
     description: "Install PHP dependencies"
-  
-  # Frontend dependencies
-  - command: "npm ci"
-    description: "Install Node.js dependencies"
-  
-  # Production build
-  - command: "npm run build"
-    description: "Build frontend assets with Vite"
+
+  # Warm Laravel caches (fails fast if config or routes are broken)
+  - command: "php artisan optimize:clear && php artisan optimize"
+    description: "Clear and rebuild Laravel caches"
 
 # Deployment settings
 deploy:
@@ -37,15 +34,13 @@ deploy:
     - ".env"
 
 # Post-deployment commands (run after files are deployed)
+# Migrations are intentionally NOT automatic: the site owner applies them with
+# `php artisan migrate --force` after taking a backup.
 post_deploy:
-  - command: "php artisan migrate --force"
-    description: "Run database migrations"
-    run_once: false  # Run on every deploy
-  
   - command: "php artisan optimize:clear && php artisan optimize"
     description: "Clear and rebuild Laravel caches"
     run_once: false
-  
+
   - command: "php artisan storage:link"
     description: "Create storage symlink"
     run_once: true  # Only run once
@@ -57,10 +52,10 @@ cron:
     command: "cd {DEPLOY_PATH} && php artisan schedule:run >> /dev/null 2>&1"
     description: "Laravel Task Scheduler"
   
-  # Queue Worker - processes background jobs
-  # Using a bounded worker that restarts every hour
-  - schedule: "* * * * *"
-    command: "cd {DEPLOY_PATH} && php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --stop-when-empty >> /dev/null 2>&1"
+  # Queue Worker - processes campaign emails and CSV imports.
+  # Bounded worker restarts every 5 minutes so it cannot run forever on shared hosting.
+  - schedule: "*/5 * * * *"
+    command: "cd {DEPLOY_PATH} && php artisan queue:work --sleep=3 --tries=3 --max-time=280 --stop-when-empty >> /dev/null 2>&1"
     description: "Laravel Queue Worker"
 
 # Environment variables (configured in Hostinger hPanel, not here)

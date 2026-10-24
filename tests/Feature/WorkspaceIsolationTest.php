@@ -37,9 +37,9 @@ class WorkspaceIsolationTest extends TestCase
         $response = $this->get('/leads');
         $response->assertOk();
         
-        $leads = $response->viewData('leads') ?? $response->original['leads']['data'] ?? [];
+        $leads = $response->inertiaProps('leads.data') ?? [];
         $leadIds = collect($leads)->pluck('id')->toArray();
-        
+
         $this->assertContains($lead1->id, $leadIds);
         $this->assertNotContains($lead2->id, $leadIds);
 
@@ -48,9 +48,9 @@ class WorkspaceIsolationTest extends TestCase
         $response = $this->get('/leads');
         $response->assertOk();
         
-        $leads = $response->viewData('leads') ?? $response->original['leads']['data'] ?? [];
+        $leads = $response->inertiaProps('leads.data') ?? [];
         $leadIds = collect($leads)->pluck('id')->toArray();
-        
+
         $this->assertContains($lead2->id, $leadIds);
         $this->assertNotContains($lead1->id, $leadIds);
     }
@@ -131,5 +131,27 @@ class WorkspaceIsolationTest extends TestCase
 
         $response = $this->get("/leads/{$lead1->id}");
         $response->assertOk();
+    }
+
+    public function test_switching_workspaces_keeps_membership_of_the_other_workspace()
+    {
+        $user = User::factory()->create();
+        $workspace1 = Workspace::factory()->create();
+        $workspace2 = Workspace::factory()->create();
+
+        $user->workspaces()->attach($workspace1->id, ['is_owner' => true, 'is_active' => true]);
+        $user->workspaces()->attach($workspace2->id, ['is_owner' => true, 'is_active' => true]);
+
+        $user->setCurrentWorkspace($workspace1);
+        $this->assertSame($workspace1->id, $user->fresh()->currentWorkspace->id);
+
+        // Selecting another workspace must not revoke access to the previous one.
+        $this->travel(5)->seconds();
+        $user->setCurrentWorkspace($workspace2);
+
+        $fresh = $user->fresh();
+        $this->assertSame($workspace2->id, $fresh->currentWorkspace->id);
+        $this->assertTrue($fresh->hasAccessToWorkspace($workspace1));
+        $this->assertTrue($fresh->hasAccessToWorkspace($workspace2));
     }
 }

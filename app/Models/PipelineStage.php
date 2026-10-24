@@ -37,7 +37,7 @@ class PipelineStage extends Model
 
     public function deals(): HasMany
     {
-        return $this->hasMany(Deal::class);
+        return $this->hasMany(Deal::class, 'stage_id');
     }
 
     public function isOpen(): bool

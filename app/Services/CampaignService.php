@@ -118,10 +118,8 @@ class CampaignService
             throw new \Exception('Campaign must have at least one active step');
         }
 
-        if ($campaign->pendingRecipients()->count() === 0) {
-            throw new \Exception('Campaign has no recipients');
-        }
-
+        // Recipients are optional at activation time: a campaign can be turned
+        // on and will simply have nothing to send until recipients are added.
         $campaign->activate();
 
         // Schedule first step for all pending recipients

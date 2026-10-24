@@ -180,9 +180,16 @@ class LeadController extends Controller
         $action = $request->action;
         $leadIds = $request->lead_ids;
 
-        $leads = Lead::where('workspace_id', $workspace->id)
-            ->whereIn('id', $leadIds)
-            ->get();
+        $query = Lead::where('workspace_id', $workspace->id)
+            ->whereIn('id', $leadIds);
+
+        // Archived leads are soft deleted, so they must be looked up
+        // explicitly when the requested action is "restore".
+        if ($action === 'restore') {
+            $query->withTrashed();
+        }
+
+        $leads = $query->get();
 
         $count = 0;
         foreach ($leads as $lead) {

@@ -49,6 +49,27 @@ class Pipeline extends Model
         return $this->stages()->orderBy('order')->first();
     }
 
+    /**
+     * Deals require a stage, so create the first ("New") stage when a pipeline
+     * was created without one (for example through a seeder or the API).
+     */
+    public function ensureDefaultStage(): PipelineStage
+    {
+        if ($stage = $this->getDefaultStage()) {
+            return $stage;
+        }
+
+        return $this->stages()->create([
+            'name' => 'New',
+            'color' => '#6366f1',
+            'order' => 1,
+            'probability' => 10,
+            'is_won' => false,
+            'is_lost' => false,
+            'is_closed' => false,
+        ]);
+    }
+
     public function getWonStage(): ?PipelineStage
     {
         return $this->stages()->where('is_won', true)->first();

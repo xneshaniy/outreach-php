@@ -13,12 +13,9 @@ class RouteServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Routes are loaded by bootstrap/app.php (Laravel 11+ style).
+        // This provider only configures named rate limiters.
         $this->configureRateLimiting();
-
-        $this->routes(function () {
-            $this->mapApiRoutes();
-            $this->mapWebRoutes();
-        });
     }
 
     protected function configureRateLimiting(): void
@@ -34,22 +31,5 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('email-send', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
-    }
-
-    protected function mapWebRoutes(): void
-    {
-        $this->app->routes()->group([
-            'middleware' => 'web',
-            'namespace' => 'App\Http\Controllers',
-        ], base_path('routes/web.php'));
-    }
-
-    protected function mapApiRoutes(): void
-    {
-        $this->app->routes()->group([
-            'middleware' => 'api',
-            'prefix' => 'api',
-            'namespace' => 'App\Http\Controllers\Api',
-        ], base_path('routes/api.php'));
     }
 }

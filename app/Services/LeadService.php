@@ -96,7 +96,8 @@ class LeadService
 
     public function findOrCreateCompany(Workspace $workspace, User $creator, array $data): ?Company
     {
-        $domain = $data['company_domain'] ?? ($data['website'] ? parse_url($data['website'], PHP_URL_HOST) : null);
+        $website = $data['website'] ?? null;
+        $domain = $data['company_domain'] ?? ($website ? parse_url($website, PHP_URL_HOST) : null);
         $name = $data['company'] ?? $data['company_name'] ?? null;
 
         if (!$name && !$domain) {
@@ -231,17 +232,27 @@ class LeadService
 
     public function archiveLead(Lead $lead): void
     {
-        $lead->update(['status' => 'archived']);
-        // Pause any active campaigns for this lead
-        $lead->activeCampaignRecipients()->update([
-            'status' => 'suppressed',
-            'next_send_at' => null,
-        ]);
+        DB::transaction(function () use ($lead) {
+            // Stop any active campaign sends for this lead before hiding it.
+            $lead->activeCampaignRecipients()->update([
+                'status' => 'suppressed',
+                'next_send_at' => null,
+            ]);
+
+            $lead->update(['status' => 'archived']);
+            $lead->delete(); // soft delete: archived leads are hidden from lists
+        });
     }
 
     public function restoreLead(Lead $lead): void
     {
-        $lead->update(['status' => 'new']);
+        DB::transaction(function () use ($lead) {
+            if ($lead->trashed()) {
+                $lead->restore();
+            }
+
+            $lead->update(['status' => 'new']);
+        });
     }
 
     public function search(Workspace $workspace, array $filters = [], array $sort = [], int $perPage = 25)

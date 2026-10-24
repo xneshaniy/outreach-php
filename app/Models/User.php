@@ -74,16 +74,32 @@ class User extends Authenticatable
 
     public function currentWorkspace(): ?Workspace
     {
-        return $this->workspaces()
-            ->wherePivot('is_active', true)
+        // A user can be a member of several workspaces. The most recently
+        // selected one is the current workspace; membership itself is tracked
+        // by workspace_user.is_active.
+        return $this->activeWorkspaces()
             ->where('workspaces.is_active', true)
+            ->orderByDesc('workspace_user.last_accessed_at')
             ->first();
+    }
+
+    /**
+     * Allow $user->currentWorkspace property access (used across middleware,
+     * controllers and Inertia shared props).
+     */
+    public function getCurrentWorkspaceAttribute(): ?Workspace
+    {
+        return $this->currentWorkspace();
     }
 
     public function setCurrentWorkspace(Workspace $workspace): void
     {
-        $this->workspaces()->updateExistingPivot($workspace->id, ['is_active' => true]);
-        $this->workspaces()->where('workspace_id', '!=', $workspace->id)->update(['is_active' => false]);
+        // Only remember which workspace was selected last. Membership of the
+        // other workspaces must stay untouched so the user can switch back.
+        $this->workspaces()->updateExistingPivot($workspace->id, [
+            'is_active' => true,
+            'last_accessed_at' => now(),
+        ]);
     }
 
     public function hasAccessToWorkspace(Workspace $workspace): bool

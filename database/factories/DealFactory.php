@@ -20,6 +20,19 @@ class DealFactory extends Factory
         $workspace = Workspace::inRandomOrder()->first() ?? Workspace::factory()->create();
         $pipeline = Pipeline::where('workspace_id', $workspace->id)->inRandomOrder()->first() ?? Pipeline::factory()->create(['workspace_id' => $workspace->id]);
         $defaultStage = $pipeline->getDefaultStage();
+
+        if (! $defaultStage) {
+            $defaultStage = PipelineStage::create([
+                'pipeline_id' => $pipeline->id,
+                'name' => 'New',
+                'color' => '#6366f1',
+                'order' => 0,
+                'probability' => 10,
+                'is_won' => false,
+                'is_lost' => false,
+                'is_closed' => false,
+            ]);
+        }
         $owner = User::whereHas('workspaces', fn($q) => $q->where('workspace_id', $workspace->id))->inRandomOrder()->first();
         $creator = User::whereHas('workspaces', fn($q) => $q->where('workspace_id', $workspace->id))->inRandomOrder()->first();
         $lead = Lead::where('workspace_id', $workspace->id)->inRandomOrder()->first();

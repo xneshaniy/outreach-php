@@ -15,7 +15,7 @@ class UpdateLeadRequest extends FormRequest
     public function rules(): array
     {
         $workspaceId = $this->user()->currentWorkspace->id;
-        $leadId = $this->route('lead')->id ?? null;
+        $leadId = $this->route('lead')?->id;
 
         return [
             'first_name' => ['sometimes', 'required', 'string', 'max:100'],

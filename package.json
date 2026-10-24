@@ -18,7 +18,7 @@
         "postcss-import": "^16.1.0"
     },
     "dependencies": {
-        "@inertiajs/vue3": "^1.0",
+        "@inertiajs/vue3": "^2.0",
         "@inertiajs/progress": "^0.2",
         "alpinejs": "^3.13",
         "ziggy-js": "^2.0"

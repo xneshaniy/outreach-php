@@ -1,43 +1,31 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Create The Application
-|--------------------------------------------------------------------------
-|
-| The first thing we will do is create a new Laravel application instance
-| which serves as the "glue" for all the components of Laravel, and is
-| the IoC container for the system binding all the various parts.
-|
-*/
-
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
-        
-        $middleware->group('web', [
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\EnsureWorkspaceSelected::class,
-            \App\Http\Middleware\WorkspaceAuthorization::class,
-        ]);
 
-        $middleware->group('api', [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        $middleware->web(append: [
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->alias([
@@ -57,24 +45,46 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
-    })
-    ->withProviders([
-        /*
-         * Package Service Providers...
-         */
-        Spatie\Permission\PermissionServiceProvider::class,
-        Spatie\Activitylog\ActivitylogServiceProvider::class,
-        Maatwebsite\Excel\ExcelServiceProvider::class,
-        Barryvdh\DomPDF\ServiceProvider::class,
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Not found'], 404);
+            }
 
-        /*
-         * Application Service Providers...
-         */
-        App\Providers\AppServiceProvider::class,
-        App\Providers\AuthServiceProvider::class,
-        App\Providers\EventServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
-        App\Providers\WorkspaceServiceProvider::class,
-    ])
+            return Inertia::render('Error', [
+                'status' => 404,
+                'message' => 'Page not found',
+            ])->toResponse($request)->setStatusCode(404);
+        });
+
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+
+            return Inertia::render('Error', [
+                'status' => 403,
+                'message' => 'Access denied',
+            ])->toResponse($request)->setStatusCode(403);
+        });
+
+        $exceptions->render(function (Throwable $e, Request $request) {
+            // Validation errors, authentication redirects and HTTP exceptions
+            // have their own framework handling; never swallow them into a 500.
+            if ($request->expectsJson()
+                || $e instanceof HttpExceptionInterface
+                || $e instanceof ValidationException
+                || $e instanceof AuthenticationException) {
+                return null;
+            }
+
+            if (config('app.debug')) {
+                return null;
+            }
+
+            return Inertia::render('Error', [
+                'status' => 500,
+                'message' => 'Something went wrong',
+            ])->toResponse($request)->setStatusCode(500);
+        });
+    })
     ->create();

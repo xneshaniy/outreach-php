@@ -19,6 +19,11 @@ class LeadFactory extends Factory
         $owner = User::whereHas('workspaces', fn($q) => $q->where('workspace_id', $workspace->id))->inRandomOrder()->first();
         $creator = User::whereHas('workspaces', fn($q) => $q->where('workspace_id', $workspace->id))->inRandomOrder()->first();
 
+        if (! $creator) {
+            $creator = User::factory()->create();
+            $workspace->users()->attach($creator->id, ['is_owner' => false, 'is_active' => true]);
+        }
+
         $firstName = fake()->firstName();
         $lastName = fake()->lastName();
         $email = \Illuminate\Support\Str::lower("{$firstName}.{$lastName}@" . fake()->domainName());
@@ -26,8 +31,8 @@ class LeadFactory extends Factory
         return [
             'workspace_id' => $workspace->id,
             'company_id' => $company?->id,
-            'owner_id' => $owner?->id,
-            'created_by' => $creator?->id ?? $workspace->users()->first()?->id,
+            'owner_id' => $owner?->id ?? $creator->id,
+            'created_by' => $creator->id,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => $email,
@@ -55,7 +60,7 @@ class LeadFactory extends Factory
         ];
     }
 
-    public function new(): static
+    public function withStatusNew(): static
     {
         return $this->state(fn (array $attributes) => [
             'status' => 'new',

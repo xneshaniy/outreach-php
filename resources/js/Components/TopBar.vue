@@ -1,8 +1,8 @@
 <script setup>
-import { ref } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
 
-const props = defineProps({
+defineProps({
     workspace: Object,
     user: Object,
 })
@@ -12,6 +12,10 @@ const emit = defineEmits(['menu-click'])
 const mobileMenuOpen = ref(false)
 const notificationsOpen = ref(false)
 const userMenuOpen = ref(false)
+
+const logout = () => {
+    router.post(route('logout'))
+}
 
 const notifications = [
     { id: 1, message: 'New lead added: John Doe', time: '2 min ago', read: false },
@@ -77,7 +81,7 @@ const unreadCount = computed(() => notifications.filter(n => !n.read).length)
                         </span>
                     </button>
 
-                    <div v-show="notificationsOpen" @click.outside="notificationsOpen = false" class="dropdown-menu w-80">
+                    <div v-show="notificationsOpen" class="dropdown-menu w-80">
                         <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                             <button v-if="unreadCount > 0" class="text-sm text-primary-600 hover:text-primary-700">Mark all read</button>
@@ -87,8 +91,8 @@ const unreadCount = computed(() => notifications.filter(n => !n.read).length)
                                 <p class="text-sm text-gray-900 dark:text-white">{{ notification.message }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notification.time }}</p>
                             </div>
-                            <div class="px-4 py-3 text-center">
-                                <Link :href="route('notifications.index')" class="text-sm text-primary-600 hover:text-primary-700">View all notifications</Link>
+                            <div class="px-4 py-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                Notifications are also sent by email.
                             </div>
                         </div>
                     </div>
@@ -110,7 +114,7 @@ const unreadCount = computed(() => notifications.filter(n => !n.read).length)
                         </svg>
                     </button>
 
-                    <div v-show="userMenuOpen" @click.outside="userMenuOpen = false" class="dropdown-menu">
+                    <div v-show="userMenuOpen" class="dropdown-menu">
                         <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                             <p class="font-medium text-gray-900 dark:text-white">{{ user?.name }}</p>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ user?.email }}</p>

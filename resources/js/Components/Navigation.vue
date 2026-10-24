@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { h, ref } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
 
-const props = defineProps({
+defineProps({
     open: Boolean,
     workspaces: Array,
     currentWorkspace: Object,
@@ -10,49 +10,19 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const leadsOpen = ref(false)
-const campaignsOpen = ref(false)
-const reportsOpen = ref(false)
+const openMenus = ref({
+    leads: false,
+    campaigns: false,
+    reports: false,
+})
 
-const navigation = [
-        { name: 'Dashboard', href: route('dashboard'), icon: DashboardIcon, active: route().current('dashboard') },
-    {
-        name: 'Leads',
-        icon: LeadsIcon,
-        active: route().current('leads.*'),
-        children: [
-            { name: 'All Leads', href: route('leads.index') },
-            { name: 'Add Lead', href: route('leads.create') },
-            { name: 'Import Leads', href: route('leads.import.form') },
-            { name: 'Import History', href: route('leads.imports.index') },
-        ]
-    },
-    { name: 'Companies', href: route('companies.index'), icon: CompaniesIcon, active: route().current('companies.*') },
-    {
-        name: 'Campaigns',
-        icon: CampaignsIcon,
-        active: route().current('campaigns.*'),
-        children: [
-            { name: 'All Campaigns', href: route('campaigns.index') },
-            { name: 'Create Campaign', href: route('campaigns.create') },
-        ]
-    },
-    { name: 'Email Accounts', href: route('email-accounts.index'), icon: EmailIcon, active: route().current('email-accounts.*') },
-    { name: 'Pipeline', href: route('pipeline.index'), icon: PipelineIcon, active: route().current('pipeline.*') },
-    { name: 'Tasks', href: route('tasks.index'), icon: TasksIcon, active: route().current('tasks.*') },
-    {
-        name: 'Reports',
-        icon: ReportsIcon,
-        active: route().current('reports.*'),
-        children: [
-            { name: 'Leads Report', href: route('reports.leads') },
-            { name: 'Campaign Performance', href: route('reports.campaigns') },
-            { name: 'Sales Pipeline', href: route('reports.deals') },
-            { name: 'Team Performance', href: route('reports.team') },
-            { name: 'Email Analytics', href: route('reports.email') },
-        ]
-    },
-]
+const toggleMenu = (key) => {
+    openMenus.value[key] = !openMenus.value[key]
+}
+
+const logout = () => {
+    router.post(route('logout'))
+}
 
 // SVG Icons as components
 const DashboardIcon = () => h('svg', { class: 'w-5 h-5 mr-3', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
@@ -98,6 +68,49 @@ const UserIcon = () => h('svg', { class: 'w-5 h-5 mr-3', fill: 'none', stroke: '
 const LogoutIcon = () => h('svg', { class: 'w-5 h-5 mr-3', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
     h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' })
 ])
+
+const navigation = [
+    { name: 'Dashboard', href: route('dashboard'), icon: DashboardIcon, active: route().current('dashboard') },
+    {
+        name: 'Leads',
+        key: 'leads',
+        icon: LeadsIcon,
+        active: route().current('leads.*'),
+        children: [
+            { name: 'All Leads', href: route('leads.index') },
+            { name: 'Add Lead', href: route('leads.create') },
+            { name: 'Import Leads', href: route('leads.import.form') },
+            { name: 'Import History', href: route('leads.imports.index') },
+        ]
+    },
+    { name: 'Companies', href: route('companies.index'), icon: CompaniesIcon, active: route().current('companies.*') },
+    {
+        name: 'Campaigns',
+        key: 'campaigns',
+        icon: CampaignsIcon,
+        active: route().current('campaigns.*'),
+        children: [
+            { name: 'All Campaigns', href: route('campaigns.index') },
+            { name: 'Create Campaign', href: route('campaigns.create') },
+        ]
+    },
+    { name: 'Email Accounts', href: route('email-accounts.index'), icon: EmailIcon, active: route().current('email-accounts.*') },
+    { name: 'Pipeline', href: route('pipeline.index'), icon: PipelineIcon, active: route().current('pipeline.*') },
+    { name: 'Tasks', href: route('tasks.index'), icon: TasksIcon, active: route().current('tasks.*') },
+    {
+        name: 'Reports',
+        key: 'reports',
+        icon: ReportsIcon,
+        active: route().current('reports.*'),
+        children: [
+            { name: 'Leads Report', href: route('reports.leads') },
+            { name: 'Campaign Performance', href: route('reports.campaigns') },
+            { name: 'Sales Pipeline', href: route('reports.deals') },
+            { name: 'Team Performance', href: route('reports.team') },
+            { name: 'Email Analytics', href: route('reports.email') },
+        ]
+    },
+]
 </script>
 
 <template>
@@ -124,16 +137,16 @@ const LogoutIcon = () => h('svg', { class: 'w-5 h-5 mr-3', fill: 'none', stroke:
                 <template v-for="item in navigation" :key="item.name">
                     <div v-if="item.children" class="relative">
                         <button
-                            @click="$refs[`menu-${item.name}`]?.$el?.click?.() || (eval(`this.${item.name.toLowerCase().replace(' ', '')}Open = !this.${item.name.toLowerCase().replace(' ', '')}Open`))"
+                            type="button"
+                            @click="toggleMenu(item.key)"
                             class="sidebar-link w-full text-left"
                             :class="{ 'sidebar-link-active': item.active }"
-                            :ref="`menu-${item.name}`"
                         >
                             <component :is="item.icon" />
                             {{ item.name }}
-                            <ChevronRightIcon :class="{ 'rotate-90': eval(`${item.name.toLowerCase().replace(' ', '')}Open`) }" />
+                            <ChevronRightIcon :class="{ 'rotate-90': openMenus[item.key] }" />
                         </button>
-                        <div v-show="eval(`${item.name.toLowerCase().replace(' ', '')}Open`)" x-transition class="pl-10 space-y-1">
+                        <div v-show="openMenus[item.key]" class="pl-10 space-y-1">
                             <Link 
                                 v-for="child in item.children" 
                                 :key="child.name" 
@@ -195,12 +208,14 @@ const LogoutIcon = () => h('svg', { class: 'w-5 h-5 mr-3', fill: 'none', stroke:
                         </svg>
                         Workspace Settings
                     </Link>
-                    <form @submit.prevent="logout">
-                        <button type="submit" class="sidebar-link w-full text-left text-red-400 hover:bg-red-900/20">
-                            <LogoutIcon />
-                            Logout
-                        </button>
-                    </form>
+                    <button
+                        type="button"
+                        @click="logout"
+                        class="sidebar-link w-full text-left text-red-400 hover:bg-red-900/20"
+                    >
+                        <LogoutIcon />
+                        Logout
+                    </button>
                 </div>
             </div>
         </div>

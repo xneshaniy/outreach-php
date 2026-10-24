@@ -21,8 +21,8 @@ class UpdateCampaignRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'email_account_id' => ['nullable', 'exists:email_accounts,id', Rule::where('workspace_id', $workspaceId)->where('is_active', true)],
-            'lead_list_id' => ['nullable', 'exists:lead_lists,id', Rule::where('workspace_id', $workspaceId)],
+            'email_account_id' => ['nullable', 'exists:email_accounts,id', Rule::exists('email_accounts', 'id')->where('workspace_id', $workspaceId)->where('is_active', true)],
+            'lead_list_id' => ['nullable', 'exists:lead_lists,id', Rule::exists('lead_lists', 'id')->where('workspace_id', $workspaceId)],
             'status' => ['sometimes', 'string', Rule::in(Campaign::STATUSES)],
             'timezone' => ['sometimes', 'string', 'timezone'],
             'sending_window' => ['nullable', 'array'],

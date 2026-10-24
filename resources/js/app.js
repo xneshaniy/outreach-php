@@ -68,9 +68,21 @@ window.confirmAction = (message, callback) => {
 // Create Inertia App
 const appName = import.meta.env.VITE_APP_NAME || 'Outreach CRM';
 
+const pages = import.meta.glob('./Pages/**/*.vue');
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
-    resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
+    resolve: (name) => {
+        const page = `./Pages/${name}.vue`;
+
+        if (pages[page]) {
+            return resolvePageComponent(page, pages);
+        }
+
+        // Screens without a Vue component fall back to a friendly placeholder
+        // instead of crashing the whole page.
+        return pages['./Pages/Placeholder.vue']();
+    },
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)

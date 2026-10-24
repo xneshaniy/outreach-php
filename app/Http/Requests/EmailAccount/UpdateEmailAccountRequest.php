@@ -16,7 +16,7 @@ class UpdateEmailAccountRequest extends FormRequest
     public function rules(): array
     {
         $workspaceId = $this->user()->currentWorkspace->id;
-        $accountId = $this->route('email_account')->id ?? null;
+        $accountId = $this->route('account')?->id;
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],

@@ -30,7 +30,6 @@ return new class extends Migration
 
             $table->index(['workspace_id', 'assigned_to', 'status']);
             $table->index(['workspace_id', 'due_at']);
-            $table->index(['related_type', 'related_id']);
         });
 
         Schema::create('pipelines', function (Blueprint $table) {
@@ -50,7 +49,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('color', 7)->default('#6366f1');
             $table->unsignedInteger('order')->default(0);
-            $table->integer 'probability'->default(0); // 0-100
+            $table->integer('probability')->default(0); // 0-100
             $table->boolean('is_won')->default(false);
             $table->boolean('is_lost')->default(false);
             $table->boolean('is_closed')->default(false);

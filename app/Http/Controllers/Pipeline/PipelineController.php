@@ -180,12 +180,12 @@ class PipelineController extends Controller
     {
         $this->authorize('create', [Deal::class, $pipeline]);
 
-        $defaultStage = $pipeline->getDefaultStage();
+        $defaultStage = $pipeline->ensureDefaultStage();
 
         $deal = Deal::create(array_merge($request->validated(), [
             'workspace_id' => $pipeline->workspace_id,
             'pipeline_id' => $pipeline->id,
-            'stage_id' => $defaultStage?->id,
+            'stage_id' => $defaultStage->id,
             'owner_id' => $request->owner_id ?? $request->user()->id,
             'created_by' => $request->user()->id,
         ]));

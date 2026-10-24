@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
+use App\Models\CampaignRecipient;
 use App\Models\Lead;
 use App\Models\Message;
 use App\Models\Deal;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;

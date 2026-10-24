@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Leads\LeadController;
@@ -33,7 +34,7 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified', 'workspace.selected', 'workspace.auth'])->group(function () {
+Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -91,12 +92,12 @@ Route::middleware(['auth', 'verified', 'workspace.selected', 'workspace.auth'])-
         Route::get('/', [EmailAccountController::class, 'index'])->name('index');
         Route::get('/create', [EmailAccountController::class, 'create'])->name('create');
         Route::post('/', [EmailAccountController::class, 'store'])->name('store');
-        Route::get('/{emailAccount}', [EmailAccountController::class, 'show'])->name('show');
-        Route::get('/{emailAccount}/edit', [EmailAccountController::class, 'edit'])->name('edit');
-        Route::put('/{emailAccount}', [EmailAccountController::class, 'update'])->name('update');
-        Route::delete('/{emailAccount}', [EmailAccountController::class, 'destroy'])->name('destroy');
-        Route::post('/{emailAccount}/test', [EmailAccountController::class, 'test'])->name('test');
-        Route::post('/{emailAccount}/set-default', [EmailAccountController::class, 'setDefault'])->name('set-default');
+        Route::get('/{account}', [EmailAccountController::class, 'show'])->name('show');
+        Route::get('/{account}/edit', [EmailAccountController::class, 'edit'])->name('edit');
+        Route::put('/{account}', [EmailAccountController::class, 'update'])->name('update');
+        Route::delete('/{account}', [EmailAccountController::class, 'destroy'])->name('destroy');
+        Route::post('/{account}/test', [EmailAccountController::class, 'test'])->name('test');
+        Route::post('/{account}/set-default', [EmailAccountController::class, 'setDefault'])->name('set-default');
     });
 
     // Pipeline
@@ -183,7 +184,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/track/open/{message}/{token}', function ($message, $token) {
     // Track email open
     $msg = \App\Models\Message::find($message);
-    if ($msg && \App\Services\EmailService::class) {
+    if ($msg) {
         $service = app(\App\Services\EmailService::class);
         if ($service->verifyTrackingToken($msg, $token)) {
             $msg->markOpened();
@@ -205,9 +206,19 @@ Route::get('/track/click/{message}/{token}', function ($message, $token, Request
         }
     }
     $url = $request->query('url');
-    if ($url) {
-        return redirect(base64_decode($url));
+    if ($url && is_string($url)) {
+        $decoded = base64_decode($url, true);
+
+        // Only redirect to absolute HTTP(S) URLs; never to javascript: or data:.
+        if ($decoded !== false && filter_var($decoded, FILTER_VALIDATE_URL)) {
+            $scheme = strtolower((string) parse_url($decoded, PHP_URL_SCHEME));
+
+            if (in_array($scheme, ['http', 'https'], true)) {
+                return redirect()->away($decoded);
+            }
+        }
     }
+
     abort(404);
 })->name('tracking.click');
 

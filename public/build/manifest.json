@@ -1,0 +1,108 @@
+{
+  "_MainLayout-!~{00a}~.js": {
+    "file": "assets/MainLayout-BgMyGFG6.css",
+    "src": "_MainLayout-!~{00a}~.js"
+  },
+  "_MainLayout-yk1IeR_k.js": {
+    "file": "assets/MainLayout-yk1IeR_k.js",
+    "name": "MainLayout",
+    "imports": [
+      "resources/js/app.js"
+    ],
+    "css": [
+      "assets/MainLayout-BgMyGFG6.css"
+    ]
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-BERq1BhW.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/Pages/Auth/Login.vue": {
+    "file": "assets/Login-a5nsNT9N.js",
+    "name": "Login",
+    "src": "resources/js/Pages/Auth/Login.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/Pages/Auth/Register.vue": {
+    "file": "assets/Register-CFpRhxHA.js",
+    "name": "Register",
+    "src": "resources/js/Pages/Auth/Register.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/Pages/Auth/WorkspaceSwitcher.vue": {
+    "file": "assets/WorkspaceSwitcher-7WjynuJJ.js",
+    "name": "WorkspaceSwitcher",
+    "src": "resources/js/Pages/Auth/WorkspaceSwitcher.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/Pages/Dashboard/Index.vue": {
+    "file": "assets/Index-CQug9jFN.js",
+    "name": "Index",
+    "src": "resources/js/Pages/Dashboard/Index.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_MainLayout-yk1IeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Error.vue": {
+    "file": "assets/Error-uDhS_ZTF.js",
+    "name": "Error",
+    "src": "resources/js/Pages/Error.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/Pages/Leads/Index.vue": {
+    "file": "assets/Index-RXm659Kx.js",
+    "name": "Index",
+    "src": "resources/js/Pages/Leads/Index.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_MainLayout-yk1IeR_k.js"
+    ],
+    "css": [
+      "assets/Index-CWp6_1RK.css"
+    ]
+  },
+  "resources/js/Pages/Placeholder.vue": {
+    "file": "assets/Placeholder-DxwnbBkT.js",
+    "name": "Placeholder",
+    "src": "resources/js/Pages/Placeholder.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_MainLayout-yk1IeR_k.js"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-DfGGhSsU.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/Pages/Auth/Login.vue",
+      "resources/js/Pages/Auth/Register.vue",
+      "resources/js/Pages/Auth/WorkspaceSwitcher.vue",
+      "resources/js/Pages/Dashboard/Index.vue",
+      "resources/js/Pages/Error.vue",
+      "resources/js/Pages/Leads/Index.vue",
+      "resources/js/Pages/Placeholder.vue"
+    ],
+    "css": [
+      "assets/app-BERq1BhW.css"
+    ]
+  }
+}

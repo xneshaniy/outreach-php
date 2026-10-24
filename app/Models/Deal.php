@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Deal extends Model
@@ -78,7 +79,7 @@ class Deal extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function tasks(): HasMany
+    public function tasks(): MorphMany
     {
         return $this->morphMany(Task::class, 'related');
     }
@@ -105,32 +106,52 @@ class Deal extends Model
 
     public function win(): void
     {
-        $wonStage = $this->pipeline->getWonStage();
-        $this->update([
+        $wonStage = $this->pipeline?->getWonStage();
+
+        $attributes = [
             'status' => self::STATUS_WON,
-            'stage_id' => $wonStage?->id,
             'actual_close_date' => now()->toDateString(),
-        ]);
+        ];
+
+        // Keep the current stage when the pipeline has no dedicated Won stage.
+        if ($wonStage) {
+            $attributes['stage_id'] = $wonStage->id;
+        }
+
+        $this->update($attributes);
     }
 
     public function lose(): void
     {
-        $lostStage = $this->pipeline->getLostStage();
-        $this->update([
+        $lostStage = $this->pipeline?->getLostStage();
+
+        $attributes = [
             'status' => self::STATUS_LOST,
-            'stage_id' => $lostStage?->id,
             'actual_close_date' => now()->toDateString(),
-        ]);
+        ];
+
+        // Keep the current stage when the pipeline has no dedicated Lost stage.
+        if ($lostStage) {
+            $attributes['stage_id'] = $lostStage->id;
+        }
+
+        $this->update($attributes);
     }
 
     public function reopen(): void
     {
-        $defaultStage = $this->pipeline->getDefaultStage();
-        $this->update([
+        $defaultStage = $this->pipeline?->getDefaultStage();
+
+        $attributes = [
             'status' => self::STATUS_OPEN,
-            'stage_id' => $defaultStage?->id,
             'actual_close_date' => null,
-        ]);
+        ];
+
+        if ($defaultStage) {
+            $attributes['stage_id'] = $defaultStage->id;
+        }
+
+        $this->update($attributes);
     }
 
     public function getWeightedValue(): float

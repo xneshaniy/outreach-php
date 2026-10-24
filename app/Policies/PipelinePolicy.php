@@ -4,8 +4,6 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Pipeline;
-use App\Models\PipelineStage;
-use App\Models\Deal;
 use Illuminate\Auth\Access\Response;
 
 class PipelinePolicy
@@ -42,27 +40,5 @@ class PipelinePolicy
     {
         return $pipeline->workspace_id === $user->currentWorkspace?->id
             && $user->can('manage pipelines');
-    }
-
-    public function viewDeal(User $user, Deal $deal): bool
-    {
-        return $deal->workspace_id === $user->currentWorkspace?->id;
-    }
-
-    public function createDeal(User $user, Pipeline $pipeline): bool
-    {
-        return $pipeline->workspace_id === $user->currentWorkspace?->id
-            && $user->can('create deals');
-    }
-
-    public function updateDeal(User $user, Deal $deal): bool
-    {
-        return $deal->workspace_id === $user->currentWorkspace?->id;
-    }
-
-    public function deleteDeal(User $user, Deal $deal): bool
-    {
-        return $deal->workspace_id === $user->currentWorkspace?->id
-            && $user->can('delete deals');
     }
 }

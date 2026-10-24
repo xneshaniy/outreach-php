@@ -19,8 +19,13 @@ class SettingsController extends Controller
 {
     public function profile(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Settings/Profile', [
-            'user' => $request->user()->load('currentWorkspace'),
+            'user' => array_merge(
+                $user->only(['id', 'name', 'email', 'phone', 'job_title', 'timezone', 'locale', 'avatar_path']),
+                ['current_workspace' => $user->currentWorkspace?->only(['id', 'name', 'slug'])]
+            ),
         ]);
     }
 
@@ -57,15 +62,29 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateWorkspace(UpdateWorkspaceRequest $request, Workspace $workspace): RedirectResponse
+    public function updateWorkspace(UpdateWorkspaceRequest $request): RedirectResponse
     {
+        $workspace = $request->user()->currentWorkspace;
+
+        abort_if($workspace === null, 403);
+
         $this->authorize('update', $workspace);
 
         $workspace->update($request->only(['name', 'description', 'primary_color', 'secondary_color']));
 
         // Update settings
         foreach ($request->except(['name', 'description', 'primary_color', 'secondary_color', '_token', '_method']) as $key => $value) {
-            $workspace->setSetting($key, $value, is_bool($value) ? 'boolean' : (is_numeric($value) ? 'integer' : 'string'), true);
+            // The settings table stores scalar values only.
+            if ($value !== null && ! is_scalar($value)) {
+                continue;
+            }
+
+            $workspace->setSetting(
+                $key,
+                $value,
+                is_bool($value) ? 'boolean' : (is_numeric($value) ? 'integer' : 'string'),
+                true
+            );
         }
 
         return back()->with('success', 'Workspace settings updated.');
@@ -157,8 +176,12 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function inviteUser(Request $request, Workspace $workspace): RedirectResponse
+    public function inviteUser(Request $request): RedirectResponse
     {
+        $workspace = $request->user()->currentWorkspace;
+
+        abort_if($workspace === null, 403);
+
         $this->authorize('manageUsers', $workspace);
 
         $request->validate([
@@ -188,9 +211,15 @@ class SettingsController extends Controller
         return back()->with('success', 'Invitation sent.');
     }
 
-    public function removeUser(Request $request, Workspace $workspace, User $user): RedirectResponse
+    public function removeUser(Request $request, User $user): RedirectResponse
     {
+        $workspace = $request->user()->currentWorkspace;
+
+        abort_if($workspace === null, 403);
+
         $this->authorize('manageUsers', $workspace);
+
+        abort_unless($workspace->users()->whereKey($user->id)->exists(), 404);
 
         if ($workspace->users()->where('user_id', $user->id)->wherePivot('is_owner', true)->exists()) {
             return back()->with('error', 'Cannot remove workspace owner.');
@@ -201,9 +230,15 @@ class SettingsController extends Controller
         return back()->with('success', 'User removed from workspace.');
     }
 
-    public function updateUserRole(Request $request, Workspace $workspace, User $user): RedirectResponse
+    public function updateUserRole(Request $request, User $user): RedirectResponse
     {
+        $workspace = $request->user()->currentWorkspace;
+
+        abort_if($workspace === null, 403);
+
         $this->authorize('manageUsers', $workspace);
+
+        abort_unless($workspace->users()->whereKey($user->id)->exists(), 404);
 
         $request->validate([
             'role_id' => 'nullable|exists:roles,id',

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -113,7 +114,7 @@ class Lead extends Model
             ->whereHas('campaign', fn($q) => $q->whereIn('status', ['active', 'paused']));
     }
 
-    public function tasks(): HasMany
+    public function tasks(): MorphMany
     {
         return $this->morphMany(Task::class, 'related');
     }
