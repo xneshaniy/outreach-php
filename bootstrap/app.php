@@ -7,14 +7,13 @@
 |
 | The first thing we will do is create a new Laravel application instance
 | which serves as the "glue" for all the components of Laravel, and is
-| the IoC container for the system binding all of the various parts.
+| the IoC container for the system binding all the various parts.
 |
 */
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Foundation\Configuration\Providers;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -60,54 +59,48 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })
-    ->withProviders(function (Providers $providers) {
+    ->withProviders([
         /*
          * Laravel Framework Service Providers...
          */
-        $providers->register([
-            Illuminate\Auth\AuthServiceProvider::class,
-            Illuminate\Broadcasting\BroadcastServiceProvider::class,
-            Illuminate\Bus\BusServiceProvider::class,
-            Illuminate\Cache\CacheServiceProvider::class,
-            Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
-            Illuminate\Cookie\CookieServiceProvider::class,
-            Illuminate\Database\DatabaseServiceProvider::class,
-            Illuminate\Encryption\EncryptionServiceProvider::class,
-            Illuminate\Filesystem\FilesystemServiceProvider::class,
-            Illuminate\Foundation\Providers\FoundationServiceProvider::class,
-            Illuminate\Hashing\HashingServiceProvider::class,
-            Illuminate\Mail\MailServiceProvider::class,
-            Illuminate\Notifications\NotificationsServiceProvider::class,
-            Illuminate\Pagination\PaginationServiceProvider::class,
-            Illuminate\Pipeline\PipelineServiceProvider::class,
-            Illuminate\Queue\QueueServiceProvider::class,
-            Illuminate\Redis\RedisServiceProvider::class,
-            Illuminate\Auth\Passwords\PasswordResetServiceProvider::class,
-            Illuminate\Session\SessionServiceProvider::class,
-            Illuminate\Translation\TranslationServiceProvider::class,
-            Illuminate\Validation\ValidationServiceProvider::class,
-            Illuminate\View\ViewServiceProvider::class,
-        ]);
+        Illuminate\Auth\AuthServiceProvider::class,
+        Illuminate\Broadcasting\BroadcastServiceProvider::class,
+        Illuminate\Bus\BusServiceProvider::class,
+        Illuminate\Cache\CacheServiceProvider::class,
+        Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
+        Illuminate\Cookie\CookieServiceProvider::class,
+        Illuminate\Database\DatabaseServiceProvider::class,
+        Illuminate\Encryption\EncryptionServiceProvider::class,
+        Illuminate\Filesystem\FilesystemServiceProvider::class,
+        Illuminate\Foundation\Providers\FoundationServiceProvider::class,
+        Illuminate\Hashing\HashingServiceProvider::class,
+        Illuminate\Mail\MailServiceProvider::class,
+        Illuminate\Notifications\NotificationsServiceProvider::class,
+        Illuminate\Pagination\PaginationServiceProvider::class,
+        Illuminate\Pipeline\PipelineServiceProvider::class,
+        Illuminate\Queue\QueueServiceProvider::class,
+        Illuminate\Redis\RedisServiceProvider::class,
+        Illuminate\Auth\Passwords\PasswordResetServiceProvider::class,
+        Illuminate\Session\SessionServiceProvider::class,
+        Illuminate\Translation\TranslationServiceProvider::class,
+        Illuminate\Validation\ValidationServiceProvider::class,
+        Illuminate\View\ViewServiceProvider::class,
 
         /*
          * Package Service Providers...
          */
-        $providers->register([
-            Spatie\Permission\PermissionServiceProvider::class,
-            Spatie\Activitylog\ActivitylogServiceProvider::class,
-            Maatwebsite\Excel\ExcelServiceProvider::class,
-            Barryvdh\DomPDF\ServiceProvider::class,
-        ]);
+        Spatie\Permission\PermissionServiceProvider::class,
+        Spatie\Activitylog\ActivitylogServiceProvider::class,
+        Maatwebsite\Excel\ExcelServiceProvider::class,
+        Barryvdh\DomPDF\ServiceProvider::class,
 
         /*
          * Application Service Providers...
          */
-        $providers->register([
-            App\Providers\AppServiceProvider::class,
-            App\Providers\AuthServiceProvider::class,
-            App\Providers\EventServiceProvider::class,
-            App\Providers\RouteServiceProvider::class,
-            App\Providers\WorkspaceServiceProvider::class,
-        ]);
-    })
+        App\Providers\AppServiceProvider::class,
+        App\Providers\AuthServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
+        App\Providers\WorkspaceServiceProvider::class,
+    ])
     ->create();
