@@ -152,6 +152,7 @@ php artisan about
 php artisan migrate:status
 php artisan route:list --except-vendor
 php artisan config:show app | head -n 20
+php artisan schedule:list
 php artisan queue:failed
 ```
 
