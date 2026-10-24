@@ -39,9 +39,9 @@ return [
                 env('MEMCACHED_USERNAME'),
                 env('MEMCACHED_PASSWORD'),
             ],
-            'options' => [
+            'options' => class_exists(Memcached::class) ? [
                 Memcached::OPT_CONNECT_TIMEOUT => 2000,
-            ],
+            ] : [],
             'servers' => [
                 [
                     'host' => env('MEMCACHED_HOST', '127.0.0.1'),
