@@ -66,8 +66,8 @@ php artisan storage:link
 ### Create Database via hPanel
 1. Log into hPanel
 2. Go to **Databases** → **MySQL Databases**
-3. Create new database: `u311221303_Haseeb`
-4. Create user: `u311221303_vps` with password: `@Haseeb786@!$`
+3. Create new database: `u311221303_outrach`
+4. Create user: `u311221303_admin` with password: `CHANGE_ME_DB_PASSWORD`
 5. Assign user to database with **All Privileges**
 
 ### Import Schema (if not using migrations)
@@ -96,9 +96,9 @@ LOG_LEVEL=error
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=u311221303_Haseeb
-DB_USERNAME=u311221303_vps
-DB_PASSWORD=@Haseeb786@!$
+DB_DATABASE=u311221303_outrach
+DB_USERNAME=u311221303_admin
+DB_PASSWORD=CHANGE_ME_DB_PASSWORD
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -355,7 +355,7 @@ tail -f storage/logs/laravel.log
 #### Database Connection Failed
 ```bash
 # Verify credentials
-mysql -u u311221303_vps -p -h 127.0.0.1 u311221303_Haseeb
+mysql -u u311221303_admin -p -h 127.0.0.1 u311221303_outrach
 
 # Check .env DB_* values match exactly
 ```
@@ -403,7 +403,7 @@ memory_limit = 512M
 ### Backup Strategy
 ```bash
 # Database backup (add to daily cron)
-mysqldump -u u311221303_vps -p u311221303_Haseeb > backup_$(date +%F).sql
+mysqldump -u u311221303_admin -p u311221303_outrach > backup_$(date +%F).sql
 
 # Files backup
 tar -czf files_backup_$(date +%F).tar.gz public_html --exclude='public_html/storage/logs/*'
@@ -507,7 +507,7 @@ php -r "echo ini_get('memory_limit');"
 
 ```bash
 # 1. Restore database
-mysql -u u311221303_vps -p u311221303_Haseeb < backup_2024-01-15.sql
+mysql -u u311221303_admin -p u311221303_outrach < backup_2024-01-15.sql
 
 # 2. Restore files
 tar -xzf files_backup_2024-01-15.tar.gz -C /home/u311221303/

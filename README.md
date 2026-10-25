@@ -141,7 +141,7 @@ php artisan serve
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete Hostinger shared hosting deployment guide.
 
 **Quick Summary:**
-1. Create database in hPanel: `u311221303_Haseeb` / `u311221303_vps`
+1. Create database in hPanel: `u311221303_outrach` / `u311221303_admin`
 2. Upload files to `public_html/`
 3. Set document root to `public_html/public`
 4. Configure `.env` with production values
@@ -219,9 +219,9 @@ APP_URL=https://your-domain.com
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=u311221303_Haseeb
-DB_USERNAME=u311221303_vps
-DB_PASSWORD=@Haseeb786@!$
+DB_DATABASE=u311221303_outrach
+DB_USERNAME=u311221303_admin
+DB_PASSWORD=CHANGE_ME_DB_PASSWORD
 
 QUEUE_CONNECTION=database
 SESSION_DRIVER=file

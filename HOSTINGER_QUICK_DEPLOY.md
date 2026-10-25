@@ -2,17 +2,17 @@
 
 ## Your Credentials
 - **Domain**: `outreach.click`
-- **Email**: `admin@outreach.click` / `outreach@123`
+- **Email**: `admin@outreach.click` / `CHANGE_ME_EMAIL_PASSWORD`
 - **SMTP**: `smtp.hostinger.com:465` (SSL)
-- **Database**: `u311221303_Haseeb` / `u311221303_vps` / `@Haseeb786@!$`
+- **Database**: `u311221303_outrach` / `u311221303_admin` / `CHANGE_ME_DB_PASSWORD`
 
 ---
 
 ## STEP 1: Prepare Database in hPanel (Do This First)
 
 1. Login to **hPanel** → **Databases** → **MySQL Databases**
-2. Create database: `u311221303_Haseeb`
-3. Create user: `u311221303_vps` with password: `@Haseeb786@!$`
+2. Create database: `u311221303_outrach`
+3. Create user: `u311221303_admin` with password: `CHANGE_ME_DB_PASSWORD`
 4. **Assign user to database** with **All Privileges**
 5. Note the database host: `127.0.0.1` (not localhost)
 
@@ -32,8 +32,8 @@
 
 ### Option B: Using FTP (FileZilla)
 - Host: `ftp.outreach.click` (or your server IP)
-- User: `u311221303_vps` (or your FTP username)
-- Password: `@Haseeb786@!$`
+- User: your Hostinger FTP username
+- Password: <ftp-password>
 - Upload to `/public_html/`
 
 ---
@@ -56,9 +56,9 @@ LOG_LEVEL=error
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=u311221303_Haseeb
-DB_USERNAME=u311221303_vps
-DB_PASSWORD=@Haseeb786@!$
+DB_DATABASE=u311221303_outrach
+DB_USERNAME=u311221303_admin
+DB_PASSWORD=CHANGE_ME_DB_PASSWORD
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -71,7 +71,7 @@ MAIL_MAILER=smtp
 MAIL_HOST=smtp.hostinger.com
 MAIL_PORT=465
 MAIL_USERNAME=admin@outreach.click
-MAIL_PASSWORD=outreach@123
+MAIL_PASSWORD=CHANGE_ME_EMAIL_PASSWORD
 MAIL_ENCRYPTION=ssl
 MAIL_FROM_ADDRESS="admin@outreach.click"
 MAIL_FROM_NAME="${APP_NAME}"
