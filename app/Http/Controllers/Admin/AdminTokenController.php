@@ -50,7 +50,7 @@ class AdminTokenController extends Controller
 
         // 3. SMTP & OAuth Credentials status
         $emailCredentials = EmailAccount::with(['user:id,name,email', 'workspace:id,name'])
-            ->select('id', 'user_id', 'workspace_id', 'name', 'email', 'provider', 'smtp_host', 'smtp_port', 'smtp_encryption', 'status', 'last_tested_at', 'last_error')
+            ->select('id', 'user_id', 'workspace_id', 'name', 'email', 'provider', 'host as smtp_host', 'port as smtp_port', 'encryption as smtp_encryption', 'is_active', 'last_tested_at', 'last_test_status', 'last_test_message as last_error')
             ->orderBy('email')
             ->get();
 

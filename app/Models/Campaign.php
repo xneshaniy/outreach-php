@@ -71,6 +71,16 @@ class Campaign extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
     public function emailAccount(): BelongsTo
     {
         return $this->belongsTo(EmailAccount::class);

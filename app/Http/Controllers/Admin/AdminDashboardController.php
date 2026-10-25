@@ -36,11 +36,11 @@ class AdminDashboardController extends Controller
 
         // 3. Email accounts
         $totalEmailAccounts = EmailAccount::count();
-        $connectedEmailAccounts = EmailAccount::where('status', 'active')->count();
-        $pausedEmailAccounts = EmailAccount::where('status', 'paused')->count();
-        $errorEmailAccounts = EmailAccount::where('status', 'error')->count();
+        $connectedEmailAccounts = EmailAccount::where('is_active', true)->count();
+        $pausedEmailAccounts = EmailAccount::where('is_active', false)->count();
+        $errorEmailAccounts = EmailAccount::where('last_test_status', 'failed')->count();
         $emailsSentToday = (int) EmailAccount::sum('sent_today');
-        $totalDailyQuota = (int) EmailAccount::where('status', 'active')->sum('daily_limit');
+        $totalDailyQuota = (int) EmailAccount::where('is_active', true)->sum('daily_send_limit');
 
         // 4. Campaigns
         $totalCampaigns = Campaign::count();
@@ -111,7 +111,7 @@ class AdminDashboardController extends Controller
 
         // 9. Recent activities
         $recentUsers = User::orderByDesc('created_at')->take(5)->get(['id', 'name', 'email', 'is_active', 'is_super_admin', 'created_at']);
-        $recentCampaigns = Campaign::with(['user:id,name'])->orderByDesc('created_at')->take(5)->get();
+        $recentCampaigns = Campaign::with(['creator:id,name'])->orderByDesc('created_at')->take(5)->get();
 
         // 10. Queue & System health
         $queueBacklog = DB::table('jobs')->count();

@@ -20,12 +20,18 @@ class AdminEmailAccountController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                   ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('smtp_host', 'like', "%{$search}%");
+                  ->orWhere('host', 'like', "%{$search}%");
             });
         }
 
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            if ($status === 'active') {
+                $query->where('is_active', true);
+            } elseif ($status === 'paused') {
+                $query->where('is_active', false);
+            } elseif ($status === 'error') {
+                $query->where('last_test_status', 'failed');
+            }
         }
 
         $accounts = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
@@ -35,11 +41,11 @@ class AdminEmailAccountController extends Controller
             'filters' => $request->only(['search', 'status']),
             'summary' => [
                 'total' => EmailAccount::count(),
-                'active' => EmailAccount::where('status', 'active')->count(),
-                'paused' => EmailAccount::where('status', 'paused')->count(),
-                'error' => EmailAccount::where('status', 'error')->count(),
+                'active' => EmailAccount::where('is_active', true)->count(),
+                'paused' => EmailAccount::where('is_active', false)->count(),
+                'error' => EmailAccount::where('last_test_status', 'failed')->count(),
                 'sentToday' => (int) EmailAccount::sum('sent_today'),
-                'totalDailyQuota' => (int) EmailAccount::sum('daily_limit'),
+                'totalDailyQuota' => (int) EmailAccount::sum('daily_send_limit'),
             ],
         ]);
     }
@@ -51,26 +57,27 @@ class AdminEmailAccountController extends Controller
 
             if ($result['success']) {
                 $account->update([
-                    'status' => 'active',
+                    'is_active' => true,
                     'last_tested_at' => now(),
-                    'last_error' => null,
+                    'last_test_status' => 'success',
+                    'last_test_message' => null,
                 ]);
 
-                return back()->with('success', "Connection successful! Connected to {$account->smtp_host}:{$account->smtp_port}");
+                return back()->with('success', "Connection successful! Connected to {$account->host}:{$account->port}");
             } else {
                 $account->update([
-                    'status' => 'error',
                     'last_tested_at' => now(),
-                    'last_error' => $result['message'],
+                    'last_test_status' => 'failed',
+                    'last_test_message' => $result['message'],
                 ]);
 
                 return back()->withErrors(['error' => "Connection failed: {$result['message']}"]);
             }
         } catch (\Throwable $e) {
             $account->update([
-                'status' => 'error',
                 'last_tested_at' => now(),
-                'last_error' => $e->getMessage(),
+                'last_test_status' => 'failed',
+                'last_test_message' => $e->getMessage(),
             ]);
 
             return back()->withErrors(['error' => "Connection test error: {$e->getMessage()}"]);
@@ -79,25 +86,27 @@ class AdminEmailAccountController extends Controller
 
     public function toggleStatus(EmailAccount $account): RedirectResponse
     {
-        $newStatus = ($account->status === 'active') ? 'paused' : 'active';
-        $account->update(['status' => $newStatus]);
+        $newActive = ! $account->is_active;
+        $account->update(['is_active' => $newActive]);
+        $statusStr = $newActive ? 'active' : 'paused';
 
         activity()
             ->causedBy(auth()->user())
             ->performedOn($account)
-            ->log("Email account status changed to {$newStatus}");
+            ->log("Email account status changed to {$statusStr}");
 
-        return back()->with('success', "Email account is now {$newStatus}.");
+        return back()->with('success', "Email account is now {$statusStr}.");
     }
 
     public function updateLimits(EmailAccount $account, Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'daily_limit' => 'required|integer|min:1|max:10000',
-            'hourly_limit' => 'nullable|integer|min:1|max:1000',
+            'daily_send_limit' => 'nullable|integer|min:1|max:10000',
+            'daily_limit' => 'nullable|integer|min:1|max:10000',
         ]);
 
-        $account->update($validated);
+        $limit = $validated['daily_send_limit'] ?? $validated['daily_limit'] ?? 200;
+        $account->update(['daily_send_limit' => $limit]);
 
         return back()->with('success', 'Email account limits updated.');
     }

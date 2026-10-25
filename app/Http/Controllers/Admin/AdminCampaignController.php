@@ -14,8 +14,8 @@ class AdminCampaignController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = Campaign::with(['user:id,name,email', 'workspace:id,name'])
-            ->withCount(['recipients', 'messages']);
+        $query = Campaign::with(['creator:id,name,email', 'workspace:id,name'])
+            ->withCount(['recipients']);
 
         if ($search = $request->input('search')) {
             $query->where('name', 'like', "%{$search}%");

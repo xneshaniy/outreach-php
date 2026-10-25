@@ -59,6 +59,42 @@ class EmailAccount extends Model
 
     protected $hidden = ['password_encrypted'];
 
+    public function getStatusAttribute(): string
+    {
+        if (! $this->is_active) {
+            return 'paused';
+        }
+        if ($this->last_test_status === 'failed') {
+            return 'error';
+        }
+        return 'active';
+    }
+
+    public function getDailyLimitAttribute(): int
+    {
+        return (int) $this->daily_send_limit;
+    }
+
+    public function getSmtpHostAttribute(): ?string
+    {
+        return $this->host;
+    }
+
+    public function getSmtpPortAttribute(): ?int
+    {
+        return $this->port;
+    }
+
+    public function getSmtpEncryptionAttribute(): ?string
+    {
+        return $this->encryption;
+    }
+
+    public function getLastErrorAttribute(): ?string
+    {
+        return $this->last_test_message;
+    }
+
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
