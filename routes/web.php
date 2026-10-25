@@ -38,8 +38,9 @@ Route::get('/', fn() => redirect()->route('dashboard'))->name('home');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-    Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
+    // Public registration disabled - Account creation is strictly invitation-based.
+    Route::get('/register', fn() => redirect()->route('login')->with('warning', 'Public registration is disabled. Accounts are created by invitation only.'))->name('register');
+    Route::post('/register', fn() => abort(403, 'Public registration is disabled. You must accept an invitation link to create an account.'))->middleware('throttle:6,1');
 
     Route::get('/forgot-password', [PasswordResetController::class, 'create'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'store'])
