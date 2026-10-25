@@ -44,3 +44,8 @@ deploy-update.tar.gz
 !/storage/framework/cache/data/.gitkeep
 !/storage/framework/sessions/.gitkeep
 !/storage/framework/views/.gitkeep
+# Never commit secrets or build artifacts
+setup_admin.php
+set_admin.php
+*.bat
+/public/build

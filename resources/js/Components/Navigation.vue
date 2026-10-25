@@ -170,6 +170,20 @@ const navigation = [
                 </template>
             </div>
 
+                        <!-- Super Admin Center Banner -->
+            <div v-if="$page.props.auth.user?.is_super_admin" class="p-3 mx-3 my-2 rounded-xl bg-gradient-to-r from-indigo-950 to-slate-900 border border-indigo-700/60 shadow-sm">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Super Admin</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                </div>
+                <Link
+                    :href="route('admin.dashboard')"
+                    class="block text-center py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow-sm"
+                >
+                    Super Admin Center →
+                </Link>
+            </div>
+
             <!-- User Section -->
             <div class="p-4 border-t border-navy-800">
                 <div class="flex items-center space-x-3 mb-4">

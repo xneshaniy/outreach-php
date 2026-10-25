@@ -15,6 +15,17 @@ use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\AI\AIController;
 use App\Http\Controllers\Notification\NotificationController;
+use App\Http\Controllers\Auth\InvitationController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminInvitationController;
+use App\Http\Controllers\Admin\AdminEmailAccountController;
+use App\Http\Controllers\Admin\AdminCampaignController;
+use App\Http\Controllers\Admin\AdminTokenController;
+use App\Http\Controllers\Admin\AdminCostController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Admin\AdminLogController;
+use App\Http\Controllers\Admin\AdminSecurityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -284,3 +295,82 @@ Route::get('/unsubscribe/{campaign}/{lead}/{token}', function ($campaign, $lead,
 
     abort(404);
 })->name('unsubscribe');
+
+/*
+|--------------------------------------------------------------------------
+| Public Invitation Acceptance Routes
+|--------------------------------------------------------------------------
+*/
+Route::get('/invite/{token}', [InvitationController::class, 'showAcceptForm'])->name('invitations.accept.form');
+Route::post('/invite/{token}', [InvitationController::class, 'accept'])->name('invitations.accept');
+
+/*
+|--------------------------------------------------------------------------
+| Super Admin Control Center Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', fn() => redirect()->route('admin.dashboard'));
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+    // Users
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', [AdminUserController::class, 'index'])->name('index');
+        Route::get('/{user}', [AdminUserController::class, 'show'])->name('show');
+        Route::post('/{user}/status', [AdminUserController::class, 'toggleStatus'])->name('status');
+        Route::put('/{user}/limits', [AdminUserController::class, 'updateRoleAndLimits'])->name('limits');
+        Route::delete('/{user}', [AdminUserController::class, 'destroy'])->name('destroy');
+    });
+
+    // Invitations
+    Route::prefix('invitations')->name('invitations.')->group(function () {
+        Route::get('/', [AdminInvitationController::class, 'index'])->name('index');
+        Route::post('/', [AdminInvitationController::class, 'store'])->name('store');
+        Route::post('/{invitation}/resend', [AdminInvitationController::class, 'resend'])->name('resend');
+        Route::delete('/{invitation}', [AdminInvitationController::class, 'revoke'])->name('revoke');
+    });
+
+    // Email Accounts
+    Route::prefix('email-accounts')->name('email-accounts.')->group(function () {
+        Route::get('/', [AdminEmailAccountController::class, 'index'])->name('index');
+        Route::post('/{account}/test', [AdminEmailAccountController::class, 'testConnection'])->name('test');
+        Route::post('/{account}/toggle', [AdminEmailAccountController::class, 'toggleStatus'])->name('toggle');
+        Route::put('/{account}/limits', [AdminEmailAccountController::class, 'updateLimits'])->name('limits');
+    });
+
+    // Campaigns
+    Route::prefix('campaigns')->name('campaigns.')->group(function () {
+        Route::get('/', [AdminCampaignController::class, 'index'])->name('index');
+        Route::post('/{campaign}/pause', [AdminCampaignController::class, 'pause'])->name('pause');
+        Route::post('/{campaign}/resume', [AdminCampaignController::class, 'resume'])->name('resume');
+        Route::post('/{campaign}/cancel', [AdminCampaignController::class, 'cancel'])->name('cancel');
+    });
+
+    // Token Management
+    Route::prefix('tokens')->name('tokens.')->group(function () {
+        Route::get('/', [AdminTokenController::class, 'index'])->name('index');
+        Route::delete('/api/{id}', [AdminTokenController::class, 'revokeApiToken'])->name('revoke-api');
+    });
+
+    // Cost Monitoring & Rates
+    Route::prefix('costs')->name('costs.')->group(function () {
+        Route::get('/', [AdminCostController::class, 'index'])->name('index');
+        Route::put('/rates', [AdminCostController::class, 'updateRates'])->name('rates.update');
+    });
+
+    // Notifications
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
+        Route::put('/', [AdminNotificationController::class, 'update'])->name('update');
+        Route::post('/test', [AdminNotificationController::class, 'sendTest'])->name('test');
+    });
+
+    // Logs
+    Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
+
+    // Security
+    Route::prefix('security')->name('security.')->group(function () {
+        Route::get('/', [AdminSecurityController::class, 'index'])->name('index');
+        Route::put('/', [AdminSecurityController::class, 'update'])->name('update');
+    });
+});

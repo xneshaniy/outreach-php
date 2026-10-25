@@ -151,4 +151,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Deal::class, 'owner_id');
     }
+
+    public function tokenUsageRecords(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\TokenUsageRecord::class);
+    }
 }
