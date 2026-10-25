@@ -1,3 +1,6 @@
+# Make PHP the default document, ahead of any default.php left by hPanel.
+DirectoryIndex index.php index.html
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -35,7 +38,7 @@
     Deny from all
 </FilesMatch>
 
-<FilesMatch "\.(env|log|sql|sqlite|db)$">
+<FilesMatch "\.(env|log|sql|sqlite|db|md|json|lock|sh)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
@@ -53,9 +56,7 @@
     ExpiresByType application/pdf "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
     ExpiresByType application/x-javascript "access plus 1 month"
-    ExpiresByType application/x-shockwave-flash "access plus 1 month"
     ExpiresByType image/x-icon "access plus 1 year"
-    ExpiresDefault "access plus 2 days"
 </IfModule>
 
 # Gzip compression

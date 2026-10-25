@@ -13,6 +13,21 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/*
+ * Some shared hosts keep environment variables from an earlier .env inside
+ * the PHP-FPM worker process. Dotenv refuses to overwrite existing variables,
+ * so a stale DB_DATABASE would silently win over the current .env on those
+ * workers. Drop inherited database settings so .env is always authoritative.
+ * Only web requests are affected: CLI processes (artisan, queue workers,
+ * PHPUnit) start fresh and must keep their own environment overrides.
+ */
+if (PHP_SAPI !== 'cli') {
+    foreach (['DB_CONNECTION', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'] as $envKey) {
+        putenv($envKey);
+        unset($_ENV[$envKey], $_SERVER[$envKey]);
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
