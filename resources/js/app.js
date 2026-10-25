@@ -6,6 +6,7 @@ import { createInertiaApp, Link, Head } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import axios from 'axios';
+import AppLogo from './Components/AppLogo.vue';
 
 // Configure axios with CSRF token for all requests
 const csrfMeta = document.head.querySelector('meta[name="csrf-token"]');
@@ -98,6 +99,7 @@ createInertiaApp({
             .use(ZiggyVue)
             .component('Link', Link)
             .component('Head', Head)
+            .component('AppLogo', AppLogo)
             .mount(el);
     },
     progress: {

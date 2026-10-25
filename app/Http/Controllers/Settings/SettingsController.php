@@ -149,9 +149,45 @@ class SettingsController extends Controller
         return Inertia::render('Settings/Integrations', [
             'workspace' => $workspace,
             'availableIntegrations' => [
-                ['id' => 'webhook', 'name' => 'Webhooks', 'description' => 'Receive real-time events via HTTP callbacks'],
-                ['id' => 'zapier', 'name' => 'Zapier', 'description' => 'Connect with 5000+ apps'],
-                ['id' => 'slack', 'name' => 'Slack', 'description' => 'Send notifications to Slack channels'],
+                [
+                    'id' => 'google_sheets',
+                    'name' => 'Google Sheets',
+                    'description' => 'Import contacts directly from Google Sheets shareable links with automatic column mapping.',
+                    'status' => 'connected',
+                    'badge' => 'Active',
+                    'action_label' => 'Import Leads',
+                    'action_url' => route('leads.import'),
+                ],
+                [
+                    'id' => 'csv',
+                    'name' => 'CSV / Text Import',
+                    'description' => 'Upload standard CSV files to create or update leads in bulk.',
+                    'status' => 'connected',
+                    'badge' => 'Active',
+                    'action_label' => 'Upload CSV',
+                    'action_url' => route('leads.import'),
+                ],
+                [
+                    'id' => 'webhook',
+                    'name' => 'Webhooks',
+                    'description' => 'Receive real-time events via HTTP callbacks',
+                    'status' => 'available',
+                    'badge' => 'Coming Soon',
+                ],
+                [
+                    'id' => 'zapier',
+                    'name' => 'Zapier',
+                    'description' => 'Connect with 5,000+ apps via automated zaps',
+                    'status' => 'available',
+                    'badge' => 'Coming Soon',
+                ],
+                [
+                    'id' => 'slack',
+                    'name' => 'Slack',
+                    'description' => 'Send notification alerts to designated Slack channels',
+                    'status' => 'available',
+                    'badge' => 'Coming Soon',
+                ],
             ],
         ]);
     }
@@ -169,10 +205,18 @@ class SettingsController extends Controller
             ->orWhereNull('workspace_id')
             ->get();
 
+        $pendingInvitations = \App\Models\Invitation::where('workspace_id', $workspace->id)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', \Illuminate\Support\Carbon::now())
+            ->with('invitedBy:id,name')
+            ->latest()
+            ->get();
+
         return Inertia::render('Settings/Users', [
             'workspace' => $workspace,
             'members' => $members,
             'roles' => $roles,
+            'pendingInvitations' => $pendingInvitations,
         ]);
     }
 
@@ -185,29 +229,68 @@ class SettingsController extends Controller
         $this->authorize('manageUsers', $workspace);
 
         $request->validate([
-            'email' => 'required|email',
-            'role_id' => 'nullable|exists:roles,id',
+            'email' => 'required|email|max:255',
+            'role' => 'nullable|string',
+            'role_id' => 'nullable',
         ]);
 
-        // Check if user exists
-        $user = User::where('email', $request->email)->first();
+        $email = strtolower(trim($request->email));
 
-        if (! $user) {
-            return back()->with('error', 'No account uses that email address yet. Ask the person to register first, then invite them again.');
+        // 1. Check if user already exists
+        $user = User::where('email', $email)->first();
+
+        if ($user) {
+            if ($workspace->users()->where('user_id', $user->id)->exists()) {
+                return back()->with('error', 'User is already a member of this workspace.');
+            }
+
+            $workspace->users()->attach($user->id, [
+                'role_id' => $request->role_id,
+                'is_owner' => false,
+                'is_active' => true,
+                'joined_at' => now(),
+            ]);
+
+            return back()->with('success', "{$user->name} has been added to the workspace.");
         }
 
-        if ($workspace->users()->where('user_id', $user->id)->exists()) {
-            return back()->with('error', 'User is already a member of this workspace.');
+        // 2. If user does not exist, create an invitation since public registration is disabled
+        $existingInvite = \App\Models\Invitation::where('email', $email)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', \Illuminate\Support\Carbon::now())
+            ->first();
+
+        if ($existingInvite) {
+            return back()->with('error', 'An active invitation is already pending for this email address.');
         }
 
-        $workspace->users()->attach($user->id, [
-            'role_id' => $request->role_id,
-            'is_owner' => false,
-            'is_active' => true,
-            'joined_at' => now(),
+        $pair = \App\Models\Invitation::createTokenPair();
+        $assignedRole = $request->input('role', 'user');
+        if (!in_array($assignedRole, ['user', 'admin', 'manager', 'campaign_manager'])) {
+            $assignedRole = 'user';
+        }
+
+        $invitation = \App\Models\Invitation::create([
+            'workspace_id' => $workspace->id,
+            'email' => $email,
+            'role' => $assignedRole,
+            'token_hash' => $pair['hash'],
+            'status' => 'pending',
+            'invited_by_id' => auth()->id(),
+            'expires_at' => \Illuminate\Support\Carbon::now()->addDays(7),
         ]);
 
-        return back()->with('success', 'User added to the workspace.');
+        $inviteUrl = url("/invite/{$pair['raw']}");
+
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($invitation)
+                ->withProperties(['email' => $email, 'role' => $assignedRole])
+                ->log('Invitation created from Workspace Settings');
+        }
+
+        return back()->with('success', "Invitation generated for {$email}! Share this link: {$inviteUrl}");
     }
 
     public function removeUser(Request $request, User $user): RedirectResponse

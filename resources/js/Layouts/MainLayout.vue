@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { usePage, Head } from '@inertiajs/vue3'
 import Navigation from '@/Components/Navigation.vue'
 import TopBar from '@/Components/TopBar.vue'
@@ -39,6 +39,21 @@ const showToast = (event) => {
 }
 
 const toast = ref(null)
+
+watch(
+    () => page.props.flash,
+    (flash) => {
+        if (flash?.success) {
+            toast.value = { message: flash.success, type: 'success' }
+            setTimeout(() => { toast.value = null }, 5000)
+        }
+        if (flash?.error) {
+            toast.value = { message: flash.error, type: 'error' }
+            setTimeout(() => { toast.value = null }, 6000)
+        }
+    },
+    { immediate: true, deep: true }
+)
 
 onMounted(() => {
     window.addEventListener('toast', showToast)

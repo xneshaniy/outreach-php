@@ -235,22 +235,40 @@ class LeadController extends Controller
     public function importPreview(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10240',
+            "file" => "nullable|file|mimes:csv,txt|max:10240",
+            "google_sheet_url" => "nullable|url|max:500",
         ]);
 
-        $path = $request->file('file')->store('imports', 'local');
-        $columns = $this->importService->detectColumns(storage_path('app/' . $path));
-        $preview = $this->importService->previewImport(storage_path('app/' . $path));
+        if (! $request->hasFile("file") && ! $request->filled("google_sheet_url")) {
+            return response()->json(["message" => "Please provide a CSV file or a valid Google Sheets URL."], 422);
+        }
+
+        if ($request->filled("google_sheet_url")) {
+            try {
+                $sheetData = app(\App\Services\GoogleSheetsService::class)->fetchAndStoreCsv($request->input("google_sheet_url"));
+                $path = $sheetData["stored_path"];
+                $originalFilename = $sheetData["original_filename"];
+            } catch (\Throwable $e) {
+                return response()->json(["message" => $e->getMessage()], 422);
+            }
+        } else {
+            $path = $request->file("file")->store("imports", "local");
+            $originalFilename = $request->file("file")->getClientOriginalName();
+        }
+
+        $fullPath = storage_path("app/" . $path);
+        $columns = $this->importService->detectColumns($fullPath);
+        $preview = $this->importService->previewImport($fullPath);
         $suggestedMapping = $this->importService->suggestMapping($columns);
 
         return response()->json([
-            'columns' => $columns,
-            'preview' => $preview,
-            'suggested_mapping' => $suggestedMapping,
-            'stored_path' => $path,
+            "columns" => $columns,
+            "preview" => $preview,
+            "suggested_mapping" => $suggestedMapping,
+            "stored_path" => $path,
+            "original_filename" => $originalFilename,
         ]);
     }
-
     public function importProcess(Request $request): RedirectResponse
     {
         $request->validate([
