@@ -132,8 +132,10 @@ Add both cron entries in hPanel → Cron Jobs:
 
 ```cron
 * * * * * cd ~/domains/outreach.click/hbuilds/source/repository && php artisan schedule:run >> /dev/null 2>&1
-*/5 * * * * cd ~/domains/outreach.click/hbuilds/source/repository && php artisan queue:work --stop-when-empty --sleep=3 --tries=3 --max-time=280 >> /dev/null 2>&1
+*/5 * * * * cd ~/domains/outreach.click/hbuilds/source/repository && php artisan queue:drain --max=100 >> /dev/null 2>&1
 ```
+
+> Note: The scheduler (`schedule:run`) already incorporates the in-process queue drain every minute. The 5-minute `queue:drain` entry acts as an additional backup.
 
 Without the queue cron, imports stay `pending` and campaigns show no delivery
 progress even though the UI works.

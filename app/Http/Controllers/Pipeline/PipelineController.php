@@ -25,6 +25,46 @@ class PipelineController extends Controller
     {
         $workspace = $request->user()->currentWorkspace;
 
+        // Standard 9 CRM Sales Pipeline Stages
+        $pipelineStages = [
+            ['id' => 'new_lead', 'name' => 'New Lead', 'color' => '#6366f1', 'order' => 1],
+            ['id' => 'contacted', 'name' => 'Contacted', 'color' => '#3b82f6', 'order' => 2],
+            ['id' => 'replied', 'name' => 'Replied', 'color' => '#8b5cf6', 'order' => 3],
+            ['id' => 'interested', 'name' => 'Interested', 'color' => '#ec4899', 'order' => 4],
+            ['id' => 'meeting_scheduled', 'name' => 'Meeting Scheduled', 'color' => '#f59e0b', 'order' => 5],
+            ['id' => 'proposal_sent', 'name' => 'Proposal Sent', 'color' => '#f97316', 'order' => 6],
+            ['id' => 'negotiation', 'name' => 'Negotiation', 'color' => '#eab308', 'order' => 7],
+            ['id' => 'won', 'name' => 'Won', 'color' => '#10b981', 'order' => 8],
+            ['id' => 'lost', 'name' => 'Lost', 'color' => '#ef4444', 'order' => 9],
+        ];
+
+        // Fetch leads for the workspace with relevant relations
+        $leads = Lead::where('workspace_id', $workspace->id)
+            ->with(['company', 'owner', 'assignedCampaign', 'deals'])
+            ->latest()
+            ->get()
+            ->map(function ($lead) {
+                return [
+                    'id' => $lead->id,
+                    'name' => $lead->full_name ?: $lead->email,
+                    'email' => $lead->email,
+                    'company' => $lead->company ?: ($lead->company?->name ?? '—'),
+                    'score' => $lead->score ?? 0,
+                    'category' => $lead->category ?? 'cold',
+                    'pipeline_stage' => $lead->pipeline_stage ?: 'new_lead',
+                    'last_contacted_at' => $lead->last_contacted_at?->diffForHumans() ?? 'Never',
+                    'follow_up_at' => $lead->follow_up_at?->format('M d, Y') ?? null,
+                    'campaign_name' => $lead->assignedCampaign?->name ?? null,
+                    'deal_value' => $lead->deals->sum('value') ?: null,
+                ];
+            });
+
+        // Group leads by stage
+        $groupedLeads = [];
+        foreach ($pipelineStages as $stage) {
+            $groupedLeads[$stage['id']] = $leads->where('pipeline_stage', $stage['id'])->values();
+        }
+
         $pipelines = Pipeline::where('workspace_id', $workspace->id)
             ->with(['stages', 'deals' => fn($q) => $q->where('status', Deal::STATUS_OPEN)])
             ->withCount('deals')
@@ -33,8 +73,46 @@ class PipelineController extends Controller
         $defaultPipeline = $pipelines->firstWhere('is_default', true) ?? $pipelines->first();
 
         return Inertia::render('Pipeline/Index', [
+            'stages' => $pipelineStages,
+            'groupedLeads' => $groupedLeads,
+            'totalLeads' => $leads->count(),
             'pipelines' => $pipelines,
             'defaultPipeline' => $defaultPipeline,
+        ]);
+    }
+
+    public function moveLeadStage(Request $request, Lead $lead): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('update', $lead);
+
+        $request->validate([
+            'stage' => 'required|string',
+        ]);
+
+        $stage = $request->stage;
+        $updates = ['pipeline_stage' => $stage];
+
+        if ($stage === 'won') {
+            $updates['status'] = 'converted';
+            $updates['converted_at'] = now();
+        } elseif ($stage === 'lost') {
+            $updates['status'] = 'unqualified';
+        } elseif ($stage === 'contacted') {
+            $updates['status'] = 'contacted';
+            $updates['last_contacted_at'] = now();
+        } elseif ($stage === 'replied') {
+            $updates['status'] = 'contacted';
+        }
+
+        $lead->update($updates);
+        app(\App\Services\LeadScoreService::class)->calculateScore($lead);
+
+        return response()->json([
+            'success' => true,
+            'lead_id' => $lead->id,
+            'stage' => $stage,
+            'score' => $lead->fresh()->score,
+            'category' => $lead->fresh()->category,
         ]);
     }
 

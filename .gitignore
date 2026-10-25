@@ -8,6 +8,8 @@
 .env.production
 .env.local
 .phpunit.result.cache
+.phpunit.cache/
+/storage/framework/cache/laravel-excel/
 Homestead.json
 Homestead.yaml
 auth.json
@@ -31,6 +33,7 @@ eclipse/.project
 *.sqlite
 *.sqlite3
 /database/*.sqlite
+deploy-update.tar.gz
 /storage/logs/*
 /storage/framework/cache/data/*
 /storage/framework/sessions/*

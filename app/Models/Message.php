@@ -45,6 +45,10 @@ class Message extends Model
         'error_message',
         'retry_count',
         'idempotency_key',
+        'reply_classification',
+        'classification_reason',
+        'return_date',
+        'classification_confidence',
     ];
 
     protected $casts = [

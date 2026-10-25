@@ -18,6 +18,8 @@ define('LARAVEL_START', microtime(true));
 
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;
+} elseif (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
+    require $maintenance;
 }
 
 /*
@@ -32,7 +34,14 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 |
 */
 
-require __DIR__.'/../vendor/autoload.php';
+if (file_exists(__DIR__.'/../vendor/autoload.php')) {
+    require __DIR__.'/../vendor/autoload.php';
+} elseif (file_exists(__DIR__.'/vendor/autoload.php')) {
+    require __DIR__.'/vendor/autoload.php';
+} else {
+    http_response_code(500);
+    exit('Unable to locate vendor/autoload.php. Please ensure Composer dependencies are installed.');
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -46,7 +55,14 @@ require __DIR__.'/../vendor/autoload.php';
 |
 */
 
-$app = require_once __DIR__.'/../bootstrap/app.php';
+if (file_exists(__DIR__.'/../bootstrap/app.php')) {
+    $app = require_once __DIR__.'/../bootstrap/app.php';
+} elseif (file_exists(__DIR__.'/bootstrap/app.php')) {
+    $app = require_once __DIR__.'/bootstrap/app.php';
+} else {
+    http_response_code(500);
+    exit('Unable to locate bootstrap/app.php.');
+}
 
 $kernel = $app->make(Kernel::class);
 

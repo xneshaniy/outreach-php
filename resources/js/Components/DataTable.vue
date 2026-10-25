@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 
 const props = defineProps({
     columns: Array,
@@ -115,7 +115,7 @@ const renderCell = (row, column) => {
             <div class="flex items-center space-x-2">
                 <button
                     v-if="pagination.current_page > 1"
-                    @click="$page.reload({ page: pagination.current_page - 1, preserveScroll: true })"
+                    @click="router.get(route().current(), { ...route().params, page: pagination.current_page - 1 }, { preserveScroll: true, preserveState: true })"
                     class="btn-secondary text-sm"
                     :disabled="loading"
                 >
@@ -126,7 +126,7 @@ const renderCell = (row, column) => {
                 </span>
                 <button
                     v-if="pagination.current_page < pagination.last_page"
-                    @click="$page.reload({ page: pagination.current_page + 1, preserveScroll: true })"
+                    @click="router.get(route().current(), { ...route().params, page: pagination.current_page + 1 }, { preserveScroll: true, preserveState: true })"
                     class="btn-secondary text-sm"
                     :disabled="loading"
                 >

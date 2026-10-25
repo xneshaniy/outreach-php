@@ -48,6 +48,22 @@ class HandleInertiaRequests extends Middleware
                 'name' => $user->currentWorkspace->name,
                 'slug' => $user->currentWorkspace->slug,
             ] : null,
+            'notifications' => fn () => $user && $user->currentWorkspace ? \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)
+                ->whereNull('read_at')
+                ->latest()
+                ->limit(10)
+                ->get(['id', 'type', 'title', 'message', 'created_at'])
+                ->map(fn($n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'title' => $n->title,
+                    'message' => $n->message,
+                    'time' => $n->created_at->diffForHumans(),
+                    'read' => false,
+                ]) : [],
+            'unreadNotificationsCount' => fn () => $user && $user->currentWorkspace
+                ? \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)->whereNull('read_at')->count()
+                : 0,
             'navWorkspaces' => fn () => $user
                 ? $user->activeWorkspaces()->get(['workspaces.id', 'workspaces.name', 'workspaces.slug'])->toArray()
                 : [],

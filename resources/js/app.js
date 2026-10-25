@@ -5,6 +5,15 @@ import { createApp, h } from 'vue';
 import { createInertiaApp, Link, Head } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
+import axios from 'axios';
+
+// Configure axios with CSRF token for all requests
+const csrfMeta = document.head.querySelector('meta[name="csrf-token"]');
+if (csrfMeta) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfMeta.getAttribute('content');
+}
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+window.axios = axios;
 
 // Alpine.js for lightweight interactivity
 import Alpine from 'alpinejs';

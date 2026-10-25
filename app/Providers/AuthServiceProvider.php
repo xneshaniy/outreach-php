@@ -61,8 +61,36 @@ class AuthServiceProvider extends ServiceProvider
             return function (User $user) use ($permission): bool {
                 $workspace = $user->currentWorkspace;
 
-                return $workspace !== null
-                    && ($user->isOwnerOf($workspace) || $user->checkPermissionTo($permission));
+                if ($workspace === null) {
+                    return false;
+                }
+
+                if ($user->isOwnerOf($workspace)) {
+                    return true;
+                }
+
+                if ($user->checkPermissionTo($permission)) {
+                    return true;
+                }
+
+                /*
+                 * The settings UI stores a member's role in
+                 * workspace_user.role_id instead of Spatie's model_has_roles
+                 * pivot. Honour that assignment as well, otherwise invited
+                 * members would silently lose every permission.
+                 */
+                $roleId = $user->workspaces()
+                    ->where('workspaces.id', $workspace->id)
+                    ->value('role_id');
+
+                if (! $roleId) {
+                    return false;
+                }
+
+                $role = \Spatie\Permission\Models\Role::find($roleId);
+
+                return $role !== null
+                    && $role->permissions()->where('name', $permission)->exists();
             };
         };
 

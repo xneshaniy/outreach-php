@@ -21,6 +21,9 @@ class Campaign extends Model
         'name',
         'description',
         'status',
+        'distribution_strategy',
+        'start_date',
+        'start_time',
         'timezone',
         'sending_window',
         'daily_send_limit',
@@ -35,6 +38,7 @@ class Campaign extends Model
         'sending_window' => 'array',
         'daily_send_limit' => 'integer',
         'delay_between_emails' => 'integer',
+        'start_date' => 'date',
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -70,6 +74,18 @@ class Campaign extends Model
     public function emailAccount(): BelongsTo
     {
         return $this->belongsTo(EmailAccount::class);
+    }
+
+    public function campaignEmailAccounts(): HasMany
+    {
+        return $this->hasMany(CampaignEmailAccount::class);
+    }
+
+    public function emailAccounts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(EmailAccount::class, 'campaign_email_accounts')
+            ->withPivot(['allocation_count', 'sent_count', 'failed_count'])
+            ->withTimestamps();
     }
 
     public function leadList(): BelongsTo

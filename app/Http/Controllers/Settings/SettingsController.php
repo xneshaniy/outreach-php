@@ -192,23 +192,22 @@ class SettingsController extends Controller
         // Check if user exists
         $user = User::where('email', $request->email)->first();
 
-        if ($user) {
-            if ($workspace->users()->where('user_id', $user->id)->exists()) {
-                return back()->with('error', 'User is already a member of this workspace.');
-            }
-
-            $workspace->users()->attach($user->id, [
-                'role_id' => $request->role_id,
-                'is_owner' => false,
-                'is_active' => true,
-                'joined_at' => now(),
-            ]);
-        } else {
-            // TODO: Send invitation email
-            // For now, just create a pending invitation record
+        if (! $user) {
+            return back()->with('error', 'No account uses that email address yet. Ask the person to register first, then invite them again.');
         }
 
-        return back()->with('success', 'Invitation sent.');
+        if ($workspace->users()->where('user_id', $user->id)->exists()) {
+            return back()->with('error', 'User is already a member of this workspace.');
+        }
+
+        $workspace->users()->attach($user->id, [
+            'role_id' => $request->role_id,
+            'is_owner' => false,
+            'is_active' => true,
+            'joined_at' => now(),
+        ]);
+
+        return back()->with('success', 'User added to the workspace.');
     }
 
     public function removeUser(Request $request, User $user): RedirectResponse

@@ -1,23 +1,30 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # Redirect all requests to public folder
+
+    # Prevent direct access to public folder in URL
+    RewriteCond %{THE_REQUEST} /public/([^\s?]*) [NC]
+    RewriteRule ^ %1 [L,NE,R=301]
+
+    # Force HTTPS (Hostinger compatible with reverse proxy)
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Block direct access to protected application folders
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor)(/.*)?$ - [F,L,NC]
+
+    # Rewrite remaining requests to public/
+    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
-# Prevent access to sensitive files
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
+# Prevent access to sensitive files (Apache 2.2 and 2.4 compatible)
+<FilesMatch "(^\.|\.(env|log|sql|sqlite|db|md|json|lock|sh|yaml|yml)|artisan|composer\.|package\.|phpunit\.)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
-
-<FilesMatch "\.(env|log|sql|sqlite|db)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Block access to artisan
-<Files "artisan">
-    Order allow,deny
-    Deny from all
-</Files>

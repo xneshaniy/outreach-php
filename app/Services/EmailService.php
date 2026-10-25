@@ -116,6 +116,32 @@ class EmailService
         }
     }
 
+    public function testCredentials(array $config): array
+    {
+        try {
+            $encryption = match ($config['encryption'] ?? 'tls') {
+                'ssl' => 'ssl',
+                'tls' => 'tls',
+                default => null,
+            };
+
+            $transport = new EsmtpTransport(
+                $config['host'],
+                (int)($config['port'] ?? 587),
+                $encryption,
+                $config['username'] ?? '',
+                $config['password'] ?? ''
+            );
+            $mailer = new Mailer($transport);
+            $mailer->getTransport()->start();
+            $mailer->getTransport()->stop();
+
+            return ['success' => true, 'message' => 'SMTP connection tested successfully!'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
     public function buildTrackingPixelUrl(Message $message): string
     {
         return route('tracking.open', ['message' => $message->id, 'token' => $this->generateTrackingToken($message)]);

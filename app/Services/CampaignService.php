@@ -29,11 +29,38 @@ class CampaignService
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 'status' => Campaign::STATUS_DRAFT,
+                'distribution_strategy' => $data['distribution_strategy'] ?? 'round_robin',
+                'start_date' => $data['start_date'] ?? null,
+                'start_time' => $data['start_time'] ?? null,
                 'timezone' => $data['timezone'] ?? 'UTC',
                 'sending_window' => $data['sending_window'] ?? null,
                 'daily_send_limit' => $data['daily_send_limit'] ?? 200,
                 'delay_between_emails' => $data['delay_between_emails'] ?? 60,
             ]);
+
+            // Sync multiple email accounts
+            $accountIds = $data['email_account_ids'] ?? [];
+            if (empty($accountIds) && !empty($data['email_account_id'])) {
+                $accountIds = [$data['email_account_id']];
+            }
+
+            if (!empty($accountIds)) {
+                $allocations = $data['allocations'] ?? [];
+                $pivotData = [];
+                foreach ($accountIds as $accId) {
+                    $pivotData[$accId] = [
+                        'allocation_count' => $allocations[$accId] ?? null,
+                        'sent_count' => 0,
+                        'failed_count' => 0,
+                    ];
+                }
+                $campaign->emailAccounts()->sync($pivotData);
+
+                // Set primary email_account_id for fallback
+                if (empty($campaign->email_account_id)) {
+                    $campaign->update(['email_account_id' => $accountIds[0]]);
+                }
+            }
 
             if (!empty($data['steps'])) {
                 foreach ($data['steps'] as $index => $stepData) {
@@ -42,6 +69,65 @@ class CampaignService
             }
 
             return $campaign->load('steps');
+        });
+    }
+
+    public function updateCampaign(Campaign $campaign, array $data): Campaign
+    {
+        return DB::transaction(function () use ($campaign, $data) {
+            $campaign->update($data);
+
+            if (isset($data['email_account_ids'])) {
+                $accountIds = $data['email_account_ids'];
+                $allocations = $data['allocations'] ?? [];
+                $pivotData = [];
+                foreach ($accountIds as $accId) {
+                    $pivotData[$accId] = [
+                        'allocation_count' => $allocations[$accId] ?? null,
+                    ];
+                }
+                $campaign->emailAccounts()->sync($pivotData);
+
+                if (!empty($accountIds) && (empty($campaign->email_account_id) || !in_array($campaign->email_account_id, $accountIds))) {
+                    $campaign->update(['email_account_id' => $accountIds[0]]);
+                }
+            }
+
+            return $campaign->load(['steps', 'emailAccounts']);
+        });
+    }
+
+    public function duplicateCampaign(Campaign $campaign): Campaign
+    {
+        return DB::transaction(function () use ($campaign) {
+            $newCampaign = $campaign->replicate([
+                'status', 'scheduled_at', 'started_at', 'completed_at', 'paused_at',
+            ]);
+            $newCampaign->name = $campaign->name . ' (Copy)';
+            $newCampaign->status = Campaign::STATUS_DRAFT;
+            $newCampaign->save();
+
+            // Duplicate steps
+            foreach ($campaign->steps as $step) {
+                $newStep = $step->replicate();
+                $newStep->campaign_id = $newCampaign->id;
+                $newStep->save();
+            }
+
+            // Duplicate attached email accounts
+            $pivotData = [];
+            foreach ($campaign->campaignEmailAccounts as $pivot) {
+                $pivotData[$pivot->email_account_id] = [
+                    'allocation_count' => $pivot->allocation_count,
+                    'sent_count' => 0,
+                    'failed_count' => 0,
+                ];
+            }
+            if (!empty($pivotData)) {
+                $newCampaign->emailAccounts()->sync($pivotData);
+            }
+
+            return $newCampaign->load(['steps', 'emailAccounts']);
         });
     }
 
@@ -110,12 +196,16 @@ class CampaignService
 
     public function activateCampaign(Campaign $campaign): void
     {
-        if (!$campaign->emailAccount || !$campaign->emailAccount->is_active) {
-            throw new \Exception('Campaign requires an active email account');
+        // Allow activation if there are multi-account pivot accounts OR a single email_account_id
+        $hasMultiAccounts = $campaign->emailAccounts()->where('is_active', true)->exists();
+        $hasSingleAccount = $campaign->emailAccount && $campaign->emailAccount->is_active;
+
+        if (!$hasMultiAccounts && !$hasSingleAccount) {
+            throw new \Exception('Campaign requires at least one active email account. Please add an email account before starting.');
         }
 
         if (!$campaign->steps()->where('is_active', true)->exists()) {
-            throw new \Exception('Campaign must have at least one active step');
+            throw new \Exception('Campaign must have at least one active step (email sequence).');
         }
 
         // Recipients are optional at activation time: a campaign can be turned
@@ -153,7 +243,7 @@ class CampaignService
             return 0;
         }
 
-        // Check daily limit
+        // Check daily limit for campaign
         $sentToday = $campaign->recipients()
             ->whereDate('last_sent_at', today())
             ->sum('emails_sent');
@@ -165,6 +255,20 @@ class CampaignService
         $remainingLimit = $campaign->daily_send_limit - $sentToday;
         $batchSize = min($batchSize, $remainingLimit);
 
+        // Get assigned active email accounts
+        $emailAccounts = $campaign->emailAccounts()
+            ->where('is_active', true)
+            ->get();
+
+        if ($emailAccounts->isEmpty() && $campaign->emailAccount && $campaign->emailAccount->is_active) {
+            $emailAccounts = collect([$campaign->emailAccount]);
+        }
+
+        $availableAccounts = $emailAccounts->filter(fn($acc) => $acc->canSendToday())->values();
+        if ($availableAccounts->isEmpty()) {
+            return 0;
+        }
+
         $recipients = $campaign->recipients()
             ->whereIn('status', [CampaignRecipient::STATUS_PENDING, CampaignRecipient::STATUS_ACTIVE])
             ->where('next_send_at', '<=', now())
@@ -173,6 +277,9 @@ class CampaignService
             ->get();
 
         $sent = 0;
+        $roundRobinIndex = 0;
+        $strategy = $campaign->distribution_strategy ?? 'round_robin';
+
         foreach ($recipients as $recipient) {
             // Check suppression
             if (SuppressionList::isSuppressed($campaign->workspace_id, $recipient->lead->email)) {
@@ -180,21 +287,67 @@ class CampaignService
                 continue;
             }
 
-            // Check email account daily limit
-            $emailAccount = $recipient->campaign->emailAccount;
-            if ($emailAccount && !$emailAccount->canSendToday()) {
-                break; // Stop processing, try next cron run
+            // Pick account using distribution strategy
+            $account = $this->selectEmailAccountForRecipient(
+                $campaign,
+                $availableAccounts,
+                $strategy,
+                $roundRobinIndex
+            );
+
+            if (!$account) {
+                break;
             }
 
-            // Dispatch send job
-            $this->dispatchSendJob($recipient);
+            $roundRobinIndex++;
+
+            // Dispatch send job with chosen account
+            $this->dispatchSendJob($recipient, $account->id);
             $sent++;
+
+            if (!$account->canSendToday()) {
+                $availableAccounts = $availableAccounts->filter(fn($a) => $a->id !== $account->id)->values();
+                if ($availableAccounts->isEmpty()) {
+                    break;
+                }
+            }
         }
 
         return $sent;
     }
 
-    public function dispatchSendJob(CampaignRecipient $recipient): void
+    public function selectEmailAccountForRecipient(
+        Campaign $campaign,
+        \Illuminate\Support\Collection $availableAccounts,
+        string $strategy,
+        int $index
+    ): ?EmailAccount {
+        if ($availableAccounts->isEmpty()) {
+            return null;
+        }
+
+        switch ($strategy) {
+            case 'account_based':
+                foreach ($availableAccounts as $acc) {
+                    $pivot = $campaign->campaignEmailAccounts()->where('email_account_id', $acc->id)->first();
+                    $allocation = $pivot?->allocation_count;
+                    if ($allocation === null || ($pivot?->sent_count < $allocation)) {
+                        return $acc;
+                    }
+                }
+                return $availableAccounts->sortByDesc(fn($a) => $a->getRemainingToday())->first();
+
+            case 'capacity_based':
+                return $availableAccounts->sortByDesc(fn($a) => $a->getRemainingToday())->first();
+
+            case 'round_robin':
+            default:
+                $count = $availableAccounts->count();
+                return $availableAccounts[$index % $count];
+        }
+    }
+
+    public function dispatchSendJob(CampaignRecipient $recipient, ?int $emailAccountId = null): void
     {
         $step = $recipient->campaign->steps()
             ->where('step_order', $recipient->current_step)
@@ -210,12 +363,11 @@ class CampaignService
 
         // Check if already sent (idempotency)
         if (Message::where('idempotency_key', $idempotencyKey)->exists()) {
-            // Already sent, schedule next step
             $recipient->scheduleNextStep();
             return;
         }
 
-        SendCampaignEmailJob::dispatch($recipient, $step, $idempotencyKey)
+        SendCampaignEmailJob::dispatch($recipient, $step, $idempotencyKey, $emailAccountId)
             ->onQueue('emails');
     }
 
@@ -248,11 +400,69 @@ class CampaignService
         ]);
     }
 
-    public function handleReply(CampaignRecipient $recipient): void
+    public function handleReply(CampaignRecipient $recipient, string $replyContent = ''): void
     {
         $recipient->markReplied();
+        $lead = $recipient->lead;
+        $workspace = $recipient->campaign->workspace;
 
-        // Add to suppression list
+        $classification = 'replied';
+        if (!empty($replyContent)) {
+            $analysis = app(\App\Services\AIService::class)->classifyReply($workspace, $replyContent);
+            $classification = $analysis['classification'] ?? 'replied';
+
+            // Store classified message record if relevant
+            if ($recipient->campaign && $lead) {
+                \App\Models\Message::create([
+                    'workspace_id' => $workspace->id,
+                    'email_account_id' => $recipient->email_account_id ?: $recipient->campaign->email_account_id,
+                    'campaign_id' => $recipient->campaign_id,
+                    'lead_id' => $lead->id,
+                    'subject' => "Re: " . ($recipient->campaign->name ?? 'Campaign outreach'),
+                    'body_html' => nl2br(e($replyContent)),
+                    'body_text' => $replyContent,
+                    'from_email' => $lead->email,
+                    'from_name' => $lead->full_name,
+                    'to_emails' => [['email' => $recipient->campaign->emailAccount?->email ?? 'admin@outreach.click']],
+                    'status' => 'delivered',
+                    'replied_at' => now(),
+                    'reply_classification' => $classification,
+                    'classification_reason' => $analysis['reason'] ?? null,
+                    'return_date' => $analysis['return_date'] ?? null,
+                ]);
+            }
+        }
+
+        // Action on classifications
+        if ($classification === 'unsubscribe') {
+            $this->handleUnsubscribe($recipient);
+            return;
+        }
+
+        if (in_array($classification, ['interested', 'positive', 'meeting_requested'])) {
+            $lead->update([
+                'status' => 'qualified',
+                'pipeline_stage' => $classification === 'meeting_requested' ? 'meeting_scheduled' : 'interested',
+            ]);
+            app(\App\Services\LeadScoreService::class)->calculateScore($lead);
+
+            // Notify admin
+            app(\App\Services\NotificationService::class)->notify(
+                $workspace,
+                $classification === 'meeting_requested' ? 'meeting_requested' : 'positive_reply',
+                $classification === 'meeting_requested' ? "Meeting Requested by {$lead->full_name}" : "Positive Reply from {$lead->full_name}",
+                "Lead {$lead->full_name} ({$lead->email}) responded positively to campaign '{$recipient->campaign->name}'.",
+                ['lead_id' => $lead->id, 'campaign_id' => $recipient->campaign_id]
+            );
+        } else {
+            $lead->update([
+                'status' => 'contacted',
+                'pipeline_stage' => 'replied',
+            ]);
+            app(\App\Services\LeadScoreService::class)->calculateScore($lead);
+        }
+
+        // Add to suppression list for this campaign
         SuppressionList::suppress(
             $recipient->campaign->workspace_id,
             $recipient->lead->email,
@@ -291,6 +501,14 @@ class CampaignService
                 'source' => "campaign_{$recipient->campaign_id}",
                 'campaign_id' => $recipient->campaign_id,
             ]
+        );
+
+        app(\App\Services\NotificationService::class)->notify(
+            $recipient->campaign->workspace,
+            'unsubscribe',
+            "New Unsubscribe: {$recipient->lead->email}",
+            "{$recipient->lead->full_name} ({$recipient->lead->email}) opted out of future emails.",
+            ['lead_id' => $recipient->lead->id, 'campaign_id' => $recipient->campaign_id]
         );
     }
 

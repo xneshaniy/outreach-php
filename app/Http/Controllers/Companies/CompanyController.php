@@ -40,8 +40,8 @@ class CompanyController extends Controller
             $query->where('country', $request->country);
         }
 
-        $sortField = $request->get('sort_field', 'name');
-        $sortDirection = $request->get('sort_direction', 'asc');
+        $sortField = $request->input('sort_field', 'name');
+        $sortDirection = $request->input('sort_direction', 'asc');
         $allowedSorts = ['name', 'domain', 'industry', 'country', 'created_at', 'leads_count', 'deals_count'];
         if (in_array($sortField, $allowedSorts)) {
             $query->orderBy($sortField, $sortDirection);

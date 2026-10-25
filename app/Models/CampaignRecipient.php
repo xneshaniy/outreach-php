@@ -16,6 +16,7 @@ class CampaignRecipient extends Model
         'campaign_id',
         'lead_id',
         'lead_list_id',
+        'email_account_id',
         'status',
         'current_step',
         'next_send_at',
@@ -26,6 +27,9 @@ class CampaignRecipient extends Model
         'emails_sent',
         'emails_opened',
         'links_clicked',
+        'retry_count',
+        'error_message',
+        'last_response',
         'personalization_data',
     ];
 
@@ -35,6 +39,7 @@ class CampaignRecipient extends Model
         'emails_sent' => 'integer',
         'emails_opened' => 'integer',
         'links_clicked' => 'integer',
+        'retry_count' => 'integer',
         'next_send_at' => 'datetime',
         'last_sent_at' => 'datetime',
         'replied_at' => 'datetime',
@@ -70,6 +75,11 @@ class CampaignRecipient extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    public function emailAccount(): BelongsTo
+    {
+        return $this->belongsTo(EmailAccount::class);
     }
 
     public function leadList(): BelongsTo

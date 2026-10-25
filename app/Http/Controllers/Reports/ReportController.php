@@ -35,7 +35,7 @@ class ReportController extends Controller
     public function leads(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $days = $request->get('days', 30);
+        $days = (int) $request->input('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $totalLeads = Lead::where('workspace_id', $workspace->id)->count();
@@ -90,7 +90,7 @@ class ReportController extends Controller
     public function campaigns(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $days = $request->get('days', 30);
+        $days = (int) $request->input('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $campaigns = Campaign::where('workspace_id', $workspace->id)
@@ -138,7 +138,7 @@ class ReportController extends Controller
     public function deals(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $days = $request->get('days', 90);
+        $days = (int) $request->input('days', 90);
         $startDate = Carbon::now()->subDays($days);
 
         $totalDeals = Deal::where('workspace_id', $workspace->id)->count();
@@ -197,7 +197,7 @@ class ReportController extends Controller
     public function team(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $days = $request->get('days', 30);
+        $days = (int) $request->input('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $users = User::whereHas('workspaces', fn($q) => $q->where('workspace_id', $workspace->id))
@@ -218,7 +218,7 @@ class ReportController extends Controller
     public function email(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $days = $request->get('days', 30);
+        $days = (int) $request->input('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $messages = Message::where('workspace_id', $workspace->id)

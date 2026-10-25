@@ -9,6 +9,7 @@ use App\Models\EmailAccount;
 use App\Services\EmailService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +26,32 @@ class EmailAccountController extends Controller
         $accounts = EmailAccount::where('workspace_id', $workspace->id)
             ->with(['user'])
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->through(function ($acc) {
+                return [
+                    'id' => $acc->id,
+                    'name' => $acc->name,
+                    'email' => $acc->email,
+                    'provider' => $acc->provider,
+                    'host' => $acc->host,
+                    'port' => $acc->port,
+                    'encryption' => $acc->encryption,
+                    'username' => $acc->username,
+                    'from_name' => $acc->from_name,
+                    'reply_to' => $acc->reply_to,
+                    'daily_send_limit' => $acc->daily_send_limit,
+                    'sent_today' => $acc->last_sent_date === now()->toDateString() ? $acc->sent_today : 0,
+                    'remaining_today' => $acc->getRemainingToday(),
+                    'bounced_count' => $acc->bounced_count ?? 0,
+                    'failed_count' => $acc->failed_count ?? 0,
+                    'is_active' => (bool)$acc->is_active,
+                    'is_default' => (bool)$acc->is_default,
+                    'last_tested_at' => $acc->last_tested_at?->toIso8601String(),
+                    'last_test_status' => $acc->last_test_status,
+                    'last_test_message' => $acc->last_test_message,
+                    'created_at' => $acc->created_at?->toIso8601String(),
+                ];
+            });
 
         return Inertia::render('EmailAccounts/Index', [
             'accounts' => $accounts,
@@ -60,13 +86,19 @@ class EmailAccountController extends Controller
             'normalized_email' => strtolower(trim($request->email)),
         ]));
 
-        // If this is the first account, make it default
+        // Test connection immediately on save
+        $testResult = $account->testConnection();
+
         if ($workspace->emailAccounts()->count() === 1) {
             $account->update(['is_default' => true]);
         }
 
-        return redirect()->route('email-accounts.show', $account)
-            ->with('success', 'Email account created successfully.');
+        $msg = $testResult['success']
+            ? 'Email account connected and verified successfully.'
+            : 'Email account saved, but SMTP test failed: ' . $testResult['message'];
+
+        return redirect()->route('email-accounts.index')
+            ->with($testResult['success'] ? 'success' : 'warning', $msg);
     }
 
     public function show(Request $request, EmailAccount $account): Response
@@ -110,9 +142,14 @@ class EmailAccountController extends Controller
             $data['normalized_email'] = strtolower(trim($data['email']));
         }
 
+        // Only update password if provided
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
         $account->update($data);
 
-        return redirect()->route('email-accounts.show', $account)
+        return redirect()->route('email-accounts.index')
             ->with('success', 'Email account updated successfully.');
     }
 
@@ -123,7 +160,6 @@ class EmailAccountController extends Controller
         $wasDefault = $account->is_default;
         $account->delete();
 
-        // If deleted account was default, make another one default
         if ($wasDefault) {
             $newDefault = EmailAccount::where('workspace_id', $request->user()->currentWorkspace->id)
                 ->where('is_active', true)
@@ -134,16 +170,45 @@ class EmailAccountController extends Controller
         }
 
         return redirect()->route('email-accounts.index')
-            ->with('success', 'Email account deleted successfully.');
+            ->with('success', 'Email account removed successfully.');
     }
 
-    public function test(Request $request, EmailAccount $account): \Illuminate\Http\JsonResponse
+    public function test(Request $request, EmailAccount $account): JsonResponse
     {
         $this->authorize('update', $account);
 
-        $result = $this->emailService->testConnection($account);
+        $result = $account->testConnection();
 
         return response()->json($result);
+    }
+
+    public function testUnsaved(Request $request): JsonResponse
+    {
+        $request->validate([
+            'host' => 'required|string',
+            'port' => 'required|integer',
+            'username' => 'required|string',
+            'password' => 'required|string',
+            'encryption' => 'required|string|in:ssl,tls,none',
+        ]);
+
+        $result = $this->emailService->testCredentials($request->only([
+            'host', 'port', 'username', 'password', 'encryption'
+        ]));
+
+        return response()->json($result);
+    }
+
+    public function toggle(Request $request, EmailAccount $account): RedirectResponse
+    {
+        $this->authorize('update', $account);
+
+        $account->update([
+            'is_active' => !$account->is_active
+        ]);
+
+        $state = $account->is_active ? 'enabled' : 'disabled';
+        return back()->with('success', "Email account {$account->email} has been {$state}.");
     }
 
     public function setDefault(Request $request, EmailAccount $account): RedirectResponse

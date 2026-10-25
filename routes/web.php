@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Leads\LeadController;
 use App\Http\Controllers\Companies\CompanyController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\Pipeline\PipelineController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\AI\AIController;
+use App\Http\Controllers\Notification\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,9 +26,18 @@ Route::get('/', fn() => redirect()->route('dashboard'))->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
+
+    Route::get('/forgot-password', [PasswordResetController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])
+        ->middleware('throttle:6,1')
+        ->name('password.store');
 });
 
 /*
@@ -50,10 +62,18 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/imports/{import}', [LeadController::class, 'importShow'])->name('imports.show');
         Route::get('/export', [LeadController::class, 'export'])->name('export');
         Route::post('/bulk-action', [LeadController::class, 'bulkAction'])->name('bulk-action');
+        Route::post('/remove-duplicates', [LeadController::class, 'removeDuplicates'])->name('remove-duplicates');
         Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
         Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
         Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
         Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
+        Route::post('/{lead}/validate-email', [LeadController::class, 'validateEmail'])->name('validate-email');
+        Route::post('/{lead}/assign-campaign', [LeadController::class, 'assignCampaign'])->name('assign-campaign');
+        Route::post('/{lead}/notes', [LeadController::class, 'addNote'])->name('notes.store');
+        Route::post('/{lead}/recalculate-score', [LeadController::class, 'recalculateScore'])->name('recalculate-score');
+        Route::post('/{lead}/pipeline-stage', [LeadController::class, 'updatePipelineStage'])->name('pipeline-stage');
+        Route::post('/{lead}/research', [AIController::class, 'researchLead'])->name('research');
+        Route::post('/{lead}/personalize', [AIController::class, 'personalizeLead'])->name('personalize');
     });
 
     // Companies
@@ -76,6 +96,10 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('edit');
         Route::put('/{campaign}', [CampaignController::class, 'update'])->name('update');
         Route::delete('/{campaign}', [CampaignController::class, 'destroy'])->name('destroy');
+        Route::post('/{campaign}/duplicate', [CampaignController::class, 'duplicate'])->name('duplicate');
+        Route::get('/{campaign}/report', [CampaignController::class, 'report'])->name('report');
+        Route::get('/{campaign}/report/export', [CampaignController::class, 'exportReport'])->name('report.export');
+        Route::post('/{campaign}/send-batch', [CampaignController::class, 'sendBatch'])->name('send-batch');
         Route::post('/{campaign}/recipients', [CampaignController::class, 'addRecipients'])->name('recipients.add');
         Route::post('/{campaign}/recipients/list', [CampaignController::class, 'addRecipientsFromList'])->name('recipients.add-from-list');
         Route::post('/{campaign}/schedule', [CampaignController::class, 'schedule'])->name('schedule');
@@ -84,7 +108,6 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{campaign}/resume', [CampaignController::class, 'resume'])->name('resume');
         Route::post('/{campaign}/cancel', [CampaignController::class, 'cancel'])->name('cancel');
         Route::post('/{campaign}/test', [CampaignController::class, 'testSend'])->name('test');
-        Route::get('/{campaign}/steps/{step}/preview', [CampaignController::class, 'preview'])->name('preview');
     });
 
     // Email Accounts
@@ -92,11 +115,13 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/', [EmailAccountController::class, 'index'])->name('index');
         Route::get('/create', [EmailAccountController::class, 'create'])->name('create');
         Route::post('/', [EmailAccountController::class, 'store'])->name('store');
+        Route::post('/test-connection', [EmailAccountController::class, 'testUnsaved'])->name('test-connection');
         Route::get('/{account}', [EmailAccountController::class, 'show'])->name('show');
         Route::get('/{account}/edit', [EmailAccountController::class, 'edit'])->name('edit');
         Route::put('/{account}', [EmailAccountController::class, 'update'])->name('update');
         Route::delete('/{account}', [EmailAccountController::class, 'destroy'])->name('destroy');
         Route::post('/{account}/test', [EmailAccountController::class, 'test'])->name('test');
+        Route::post('/{account}/toggle', [EmailAccountController::class, 'toggle'])->name('toggle');
         Route::post('/{account}/set-default', [EmailAccountController::class, 'setDefault'])->name('set-default');
     });
 
@@ -123,6 +148,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/deals/{deal}/move', [PipelineController::class, 'moveDeal'])->name('deals.move');
         Route::post('/deals/{deal}/win', [PipelineController::class, 'winDeal'])->name('deals.win');
         Route::post('/deals/{deal}/lose', [PipelineController::class, 'loseDeal'])->name('deals.lose');
+        Route::post('/leads/{lead}/move-stage', [PipelineController::class, 'moveLeadStage'])->name('leads.move-stage');
     });
 
     // Tasks
@@ -161,6 +187,10 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/appearance', [SettingsController::class, 'appearance'])->name('appearance');
         Route::put('/appearance', [SettingsController::class, 'updateAppearance'])->name('appearance.update');
         Route::get('/integrations', [SettingsController::class, 'integrations'])->name('integrations');
+        Route::get('/ai', [AIController::class, 'settings'])->name('ai');
+        Route::put('/ai', [AIController::class, 'updateSettings'])->name('ai.update');
+        Route::post('/ai/test', [AIController::class, 'testConnection'])->name('ai.test');
+        Route::put('/ai/scoring-rules', [AIController::class, 'updateScoringRules'])->name('ai.scoring-rules');
         Route::get('/users', [SettingsController::class, 'users'])->name('users');
         Route::post('/users/invite', [SettingsController::class, 'inviteUser'])->name('users.invite');
         Route::delete('/users/{user}', [SettingsController::class, 'removeUser'])->name('users.remove');
@@ -169,6 +199,18 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         // Workspace switcher
         Route::get('/workspace/switch', [AuthController::class, 'showWorkspaceSwitcher'])->name('workspace.switch');
         Route::post('/workspace/switch', [AuthController::class, 'switchWorkspace'])->name('workspace.switch.post');
+    });
+
+    // AI Assistant routes
+    Route::prefix('ai')->name('ai.')->group(function () {
+        Route::post('/assistant-suggestions', [AIController::class, 'assistantSuggestions'])->name('assistant-suggestions');
+        Route::post('/rewrite', [AIController::class, 'rewriteContent'])->name('rewrite');
+    });
+
+    // Notification routes
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
+        Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
     });
 });
 

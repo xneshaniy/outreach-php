@@ -55,13 +55,21 @@ class LeadService
                 'city' => $data['city'] ?? null,
                 'state' => $data['state'] ?? null,
                 'timezone' => $data['timezone'] ?? null,
+                'website' => $data['website'] ?? null,
+                'industry' => $data['industry'] ?? null,
                 'source' => $data['source'] ?? 'manual',
                 'status' => $data['status'] ?? 'new',
+                'pipeline_stage' => $data['pipeline_stage'] ?? 'new_lead',
+                'assigned_campaign_id' => $data['assigned_campaign_id'] ?? null,
                 'tags' => $data['tags'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'custom_fields' => $data['custom_fields'] ?? null,
                 'follow_up_at' => $data['follow_up_at'] ?? null,
             ]);
+
+            app(\App\Services\LeadScoreService::class)->calculateScore($lead);
+
+            return $lead;
         });
     }
 
@@ -89,6 +97,8 @@ class LeadService
             $lead->update(array_merge($data, [
                 'normalized_email' => isset($data['email']) ? Str::lower(trim($data['email'])) : $lead->normalized_email,
             ]));
+
+            app(\App\Services\LeadScoreService::class)->calculateScore($lead);
 
             return $lead->fresh();
         });

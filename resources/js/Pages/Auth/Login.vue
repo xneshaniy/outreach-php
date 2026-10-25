@@ -54,6 +54,10 @@ const submit = () => {
                         <p v-if="form.errors.password" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.password }}</p>
                     </div>
 
+                    <div class="text-right">
+                        <Link href="/forgot-password" class="text-sm font-medium text-primary-600 hover:text-primary-500">Forgot password?</Link>
+                    </div>
+
                     <label class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                         <input v-model="form.remember" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                         <span>Remember me</span>

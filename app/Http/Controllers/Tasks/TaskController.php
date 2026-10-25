@@ -73,8 +73,8 @@ class TaskController extends Controller
             $query->whereDate('due_at', today());
         }
 
-        $sortField = $request->get('sort_field', 'due_at');
-        $sortDirection = $request->get('sort_direction', 'asc');
+        $sortField = $request->input('sort_field', 'due_at');
+        $sortDirection = $request->input('sort_direction', 'asc');
         $allowedSorts = ['due_at', 'created_at', 'priority', 'title', 'status'];
         if (in_array($sortField, $allowedSorts)) {
             $query->orderBy($sortField, $sortDirection);
@@ -104,8 +104,8 @@ class TaskController extends Controller
             ->where('is_active', true)
             ->get(['id', 'name', 'email', 'avatar_path']);
 
-        $relatedType = $request->get('related_type');
-        $relatedId = $request->get('related_id');
+        $relatedType = $request->input('related_type');
+        $relatedId = $request->input('related_id');
         $related = null;
 
         if ($relatedType && $relatedId) {

@@ -5,8 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Models\Role;
-use App\Models\Permission;
 use App\Models\Pipeline;
 use App\Models\PipelineStage;
 use App\Models\EmailAccount;
@@ -14,70 +12,18 @@ use App\Models\Lead;
 use App\Models\LeadList;
 use App\Models\Company;
 use Spatie\Permission\Models\Role as SpatieRole;
-use Spatie\Permission\Models\Permission as SpatiePermission;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create permissions
-        $permissions = [
-            'manage workspace',
-            'manage workspace users',
-            'manage pipelines',
-            'create deals',
-            'delete deals',
-            'create campaigns',
-            'manage campaigns',
-            'send campaigns',
-            'manage email accounts',
-            'export leads',
-            'import leads',
-            'delete leads',
-            'delete companies',
-            'delete tasks',
-            'manage tasks',
-        ];
+        // Roles and permissions are kept in their own idempotent seeder so
+        // production can install them without creating demo users or leads.
+        $this->call(RolesAndPermissionsSeeder::class);
 
-        foreach ($permissions as $permission) {
-            SpatiePermission::firstOrCreate(['name' => permission, 'guard_name' => 'web']);
-        }
-
-        // Create roles
-        $adminRole = SpatieRole::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $adminRole->givePermissionTo($permissions);
-
-        $managerRole = SpatieRole::firstOrCreate(['name' => 'Manager', 'guard_name' => 'web']);
-        $managerRole->givePermissionTo([
-            'create deals',
-            'create campaigns',
-            'manage campaigns',
-            'send campaigns',
-            'manage email accounts',
-            'export leads',
-            'import leads',
-            'manage tasks',
-        ]);
-
-        $userRole = SpatieRole::firstOrCreate(['name' => 'User', 'guard_name' => 'web']);
-        $userRole->givePermissionTo([
-            'create deals',
-            'create campaigns',
-            'send campaigns',
-            'export leads',
-            'manage tasks',
-        ]);
-
-        // Create demo user
-        $user = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => bcrypt('password'),
-                'is_active' => true,
-                'is_super_admin' => true,
-            ]
-        );
+        $adminRole = SpatieRole::where('name', 'Admin')
+            ->where('guard_name', 'web')
+            ->firstOrFail();
 
         // Create workspace
         $workspace = Workspace::firstOrCreate(
@@ -91,17 +37,38 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Attach user to workspace as owner
-        $workspace->users()->syncWithoutDetaching([
-            $user->id => [
-                'role_id' => $adminRole->id,
-                'is_owner' => true,
-                'is_active' => true,
-                'joined_at' => now(),
-            ],
-        ]);
+        // Ensure both configured admin email and demo admin exist
+        $primaryEmail = env('MAIL_USERNAME', 'admin@outreach.click');
+        $emailsToSeed = array_unique(array_filter([$primaryEmail, 'admin@outreach.click', 'admin@example.com']));
 
-        $user->setCurrentWorkspace($workspace);
+        $user = null;
+        foreach ($emailsToSeed as $email) {
+            $createdUser = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $email === 'admin@example.com' ? 'Demo Admin' : 'Admin User',
+                    'password' => bcrypt('password'),
+                    'is_active' => true,
+                    'is_super_admin' => true,
+                ]
+            );
+
+            // Attach user to workspace as owner
+            $workspace->users()->syncWithoutDetaching([
+                $createdUser->id => [
+                    'role_id' => $adminRole->id,
+                    'is_owner' => true,
+                    'is_active' => true,
+                    'joined_at' => now(),
+                ],
+            ]);
+
+            $createdUser->setCurrentWorkspace($workspace);
+
+            if ($user === null) {
+                $user = $createdUser;
+            }
+        }
 
         // Create default pipeline
         $pipeline = Pipeline::firstOrCreate(
@@ -132,24 +99,25 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // Create sample email account (placeholder - user needs to configure)
+        // Create default email account using configured environment or Hostinger SMTP
+        $smtpEmail = env('MAIL_FROM_ADDRESS', env('MAIL_USERNAME', 'admin@outreach.click'));
         EmailAccount::firstOrCreate(
-            ['workspace_id' => $workspace->id, 'email' => 'noreply@your-domain.com'],
+            ['workspace_id' => $workspace->id, 'email' => $smtpEmail],
             [
                 'workspace_id' => $workspace->id,
                 'user_id' => $user->id,
-                'name' => 'Default Email',
-                'email' => 'noreply@your-domain.com',
-                'normalized_email' => 'noreply@your-domain.com',
+                'name' => 'Hostinger SMTP',
+                'email' => $smtpEmail,
+                'normalized_email' => strtolower($smtpEmail),
                 'provider' => 'smtp',
-                'host' => 'smtp.your-provider.com',
-                'port' => 587,
-                'encryption' => 'tls',
-                'username' => 'noreply@your-domain.com',
-                'password' => 'your-password',
-                'from_name' => 'Outreach CRM',
-                'daily_send_limit' => 200,
-                'is_active' => false,
+                'host' => env('MAIL_HOST', 'smtp.hostinger.com'),
+                'port' => (int) env('MAIL_PORT', 465),
+                'encryption' => env('MAIL_ENCRYPTION', 'ssl'),
+                'username' => env('MAIL_USERNAME', $smtpEmail),
+                'password' => env('MAIL_PASSWORD', '@Haseeb786@!$'),
+                'from_name' => env('MAIL_FROM_NAME', 'Outreach CRM'),
+                'daily_send_limit' => (int) env('CRM_DAILY_SEND_LIMIT', 200),
+                'is_active' => true,
                 'is_default' => true,
             ]
         );
@@ -280,6 +248,6 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('Database seeded successfully!');
-        $this->command->info('Demo login: admin@example.com / password');
+        $this->command->info('Admin login: admin@outreach.click (or admin@example.com) / password');
     }
 }

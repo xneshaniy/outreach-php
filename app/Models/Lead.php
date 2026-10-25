@@ -20,6 +20,14 @@ class Lead extends Model
         'company_id',
         'owner_id',
         'created_by',
+        'website',
+        'industry',
+        'score',
+        'category',
+        'pipeline_stage',
+        'email_verified',
+        'email_verification_status',
+        'assigned_campaign_id',
         'first_name',
         'last_name',
         'email',
@@ -47,12 +55,19 @@ class Lead extends Model
     ];
 
     protected $casts = [
+        'score' => 'integer',
+        'email_verified' => 'boolean',
         'tags' => 'array',
         'custom_fields' => 'array',
         'follow_up_at' => 'datetime',
         'last_activity_at' => 'datetime',
         'last_contacted_at' => 'datetime',
         'converted_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'full_name',
+        'display_name',
     ];
 
     public static function boot(): void
@@ -134,6 +149,21 @@ class Lead extends Model
         return $this->hasMany(Deal::class);
     }
 
+    public function assignedCampaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class, 'assigned_campaign_id');
+    }
+
+    public function research(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(LeadResearch::class);
+    }
+
+    public function internalNotes(): HasMany
+    {
+        return $this->hasMany(LeadNote::class)->latest();
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
@@ -141,12 +171,12 @@ class Lead extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return $this->full_name ?: $this->email;
+        return $this->full_name ?: ($this->email ?: 'Unnamed Lead');
     }
 
     public function getInitialsAttribute(): string
     {
-        return Str::upper(Str::substr($this->first_name, 0, 1) . Str::substr($this->last_name, 0, 1));
+        return Str::upper(Str::substr($this->first_name ?? '', 0, 1) . Str::substr($this->last_name ?? '', 0, 1)) ?: '?';
     }
 
     public function scopeSearch($query, string $term)

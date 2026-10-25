@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
+import axios from 'axios'
 
 defineProps({
     workspace: Object,
@@ -13,17 +14,23 @@ const mobileMenuOpen = ref(false)
 const notificationsOpen = ref(false)
 const userMenuOpen = ref(false)
 
+const page = usePage()
+const notifications = computed(() => page.props.notifications || [])
+const unreadCount = computed(() => page.props.unreadNotificationsCount || 0)
+
+const markAllRead = async () => {
+    try {
+        await axios.post(route('notifications.read-all'))
+        if (page.props) {
+            page.props.unreadNotificationsCount = 0
+            page.props.notifications = []
+        }
+    } catch (e) {}
+}
+
 const logout = () => {
     router.post(route('logout'))
 }
-
-const notifications = [
-    { id: 1, message: 'New lead added: John Doe', time: '2 min ago', read: false },
-    { id: 2, message: 'Campaign "Q1 Outreach" completed', time: '1 hour ago', read: false },
-    { id: 3, message: 'Task "Follow up with Acme Corp" is due', time: '3 hours ago', read: true },
-]
-
-const unreadCount = computed(() => notifications.filter(n => !n.read).length)
 </script>
 
 <template>
@@ -84,7 +91,13 @@ const unreadCount = computed(() => notifications.filter(n => !n.read).length)
                     <div v-show="notificationsOpen" class="dropdown-menu w-80">
                         <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
-                            <button v-if="unreadCount > 0" class="text-sm text-primary-600 hover:text-primary-700">Mark all read</button>
+                            <button
+                                v-if="unreadCount > 0"
+                                @click="markAllRead"
+                                class="text-xs text-primary-600 hover:text-primary-700 font-semibold"
+                            >
+                                Mark all read
+                            </button>
                         </div>
                         <div class="max-h-96 overflow-y-auto">
                             <div v-for="notification in notifications" :key="notification.id" class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -119,13 +132,13 @@ const unreadCount = computed(() => notifications.filter(n => !n.read).length)
                             <p class="font-medium text-gray-900 dark:text-white">{{ user?.name }}</p>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ user?.email }}</p>
                         </div>
-                        <Link href="javascript:void(0)" class="dropdown-item" @click="$emit('navigate', route('settings.profile'))">
+                        <Link :href="route('settings.profile')" class="dropdown-item" @click="userMenuOpen = false">
                             <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             Profile
                         </Link>
-                        <Link href="javascript:void(0)" class="dropdown-item" @click="$emit('navigate', route('settings.workspace'))">
+                        <Link :href="route('settings.workspace')" class="dropdown-item" @click="userMenuOpen = false">
                             <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

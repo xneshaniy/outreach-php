@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Link, Head } from '@inertiajs/vue3'
+import { Link, Head, router } from '@inertiajs/vue3'
+import { useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Modal from '@/Components/Modal.vue'
@@ -23,12 +24,26 @@ const showCreateModal = ref(false)
 const showImportModal = ref(false)
 const selectedLeads = ref([])
 const selectAll = ref(false)
+const bulkAction = ref('')
+
+const form = useForm({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    job_title: '',
+    company: '',
+    source: '',
+    status: 'new',
+    owner_id: '',
+})
 
 const columns = [
     { key: 'select', label: '', width: '40px', sortable: false },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'company', label: 'Company', sortable: true },
+    { key: 'score', label: 'Score', sortable: true },
     { key: 'status', label: 'Status', sortable: true },
     { key: 'owner', label: 'Owner', sortable: false },
     { key: 'source', label: 'Source', sortable: true },
@@ -80,10 +95,52 @@ const toggleSelect = (id) => {
 }
 
 const handleBulkAction = (action) => {
-    if (selectedLeads.value.length === 0) return
-    
-    // This would call the backend
-    console.log('Bulk action:', action, selectedLeads.value)
+    if (!action || selectedLeads.value.length === 0) return
+    router.post(route('leads.bulk-action'), {
+        action: action,
+        lead_ids: selectedLeads.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedLeads.value = []
+            selectAll.value = false
+            bulkAction.value = ''
+        },
+    })
+}
+
+const updateFilter = (key, value) => {
+    router.get(route('leads.index'), {
+        ...props.filters,
+        [key]: value || undefined,
+    }, {
+        preserveState: true,
+        replace: true,
+    })
+}
+
+const clearFilters = () => {
+    router.get(route('leads.index'))
+}
+
+const createLead = () => {
+    form.post(route('leads.store'), {
+        onSuccess: () => {
+            showCreateModal.value = false
+            form.reset()
+        },
+    })
+}
+
+const removeDuplicates = () => {
+    if (confirm('Scan workspace and remove older duplicate leads sharing identical email addresses?')) {
+        router.post(route('leads.remove-duplicates'), {}, { preserveScroll: true })
+    }
+}
+
+const formatStatus = (status) => {
+    if (!status) return ''
+    return String(status).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
 const getInitials = (name) => {
@@ -110,12 +167,23 @@ const formatDate = (date) => {
                     <p class="text-gray-500 dark:text-gray-400 mt-1">Manage and track your leads</p>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <button @click="showImportModal = true" class="btn-secondary">
+                    <button
+                        type="button"
+                        @click="removeDuplicates"
+                        class="btn-secondary text-sm inline-flex items-center"
+                        title="Scan workspace and remove duplicate leads"
+                    >
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Deduplicate
+                    </button>
+                    <Link :href="route('leads.import.form')" class="btn-secondary">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Import
-                    </button>
+                    </Link>
                     <Link :href="route('leads.create')" class="btn-primary">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -217,8 +285,17 @@ const formatDate = (date) => {
                 </template>
 
                 <template #cell-company="{ row }">
-                    <span v-if="row.company">{{ row.company.name }}</span>
+                    <span v-if="row.company">{{ row.company.name || row.company }}</span>
                     <span v-else class="text-gray-400">—</span>
+                </template>
+
+                <template #cell-score="{ row }">
+                    <div class="flex items-center space-x-1.5">
+                        <span :class="['badge text-xs font-bold', row.score >= 70 ? 'badge-danger' : (row.score >= 50 ? 'badge-warning' : (row.score >= 30 ? 'badge-info' : 'badge-secondary'))]">
+                            {{ row.score || 0 }}
+                        </span>
+                        <span class="text-[10px] text-gray-400 capitalize">{{ row.category || 'cold' }}</span>
+                    </div>
                 </template>
 
                 <template #cell-status="{ row }">

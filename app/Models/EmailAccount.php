@@ -31,6 +31,8 @@ class EmailAccount extends Model
         'signature_text',
         'daily_send_limit',
         'sent_today',
+        'bounced_count',
+        'failed_count',
         'last_sent_date',
         'is_active',
         'is_default',
@@ -45,6 +47,8 @@ class EmailAccount extends Model
         'port' => 'integer',
         'daily_send_limit' => 'integer',
         'sent_today' => 'integer',
+        'bounced_count' => 'integer',
+        'failed_count' => 'integer',
         'last_sent_date' => 'date',
         'is_active' => 'boolean',
         'is_default' => 'boolean',
@@ -68,6 +72,13 @@ class EmailAccount extends Model
     public function campaigns(): HasMany
     {
         return $this->hasMany(Campaign::class);
+    }
+
+    public function assignedCampaigns(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Campaign::class, 'campaign_email_accounts')
+            ->withPivot(['allocation_count', 'sent_count', 'failed_count'])
+            ->withTimestamps();
     }
 
     public function campaignSteps(): HasMany

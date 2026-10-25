@@ -29,7 +29,8 @@ class SendCampaignEmailJob implements ShouldQueue
     public function __construct(
         public CampaignRecipient $recipient,
         public CampaignStep $step,
-        public string $idempotencyKey
+        public string $idempotencyKey,
+        public ?int $emailAccountId = null
     ) {}
 
     public function handle(EmailService $emailService, CampaignService $campaignService): void
@@ -57,12 +58,21 @@ class SendCampaignEmailJob implements ShouldQueue
         }
 
         // Check email account
-        $emailAccount = $step->emailAccount ?? $campaign->emailAccount;
+        $emailAccount = null;
+        if ($this->emailAccountId) {
+            $emailAccount = EmailAccount::find($this->emailAccountId);
+        }
+        if (!$emailAccount) {
+            $emailAccount = $step->emailAccount ?? $campaign->emailAccount;
+        }
         if (!$emailAccount || !$emailAccount->is_active || !$emailAccount->canSendToday()) {
             // Re-queue for later
             $this->release(300);
             return;
         }
+
+        // Attach email_account_id to recipient for tracking
+        $recipient->update(['email_account_id' => $emailAccount->id]);
 
         // Check workspace daily limit
         $workspace = Workspace::find($campaign->workspace_id);
@@ -134,6 +144,16 @@ class SendCampaignEmailJob implements ShouldQueue
                 $message->markSent($result['message_id'] ?? null);
                 $emailAccount->incrementSent();
 
+                // Increment campaign-account pivot sent count
+                \App\Models\CampaignEmailAccount::where('campaign_id', $campaign->id)
+                    ->where('email_account_id', $emailAccount->id)
+                    ->increment('sent_count');
+
+                $recipient->update([
+                    'error_message' => null,
+                    'last_response' => 'Sent successfully (ID: ' . ($result['message_id'] ?? 'OK') . ')',
+                ]);
+
                 // Update campaign recipient
                 $campaignService->processStepCompletion($recipient, true);
             } else {
@@ -146,6 +166,18 @@ class SendCampaignEmailJob implements ShouldQueue
             ]);
 
             $message->markFailed($e->getMessage());
+
+            // Track account failures
+            $emailAccount->increment('failed_count');
+            \App\Models\CampaignEmailAccount::where('campaign_id', $campaign->id)
+                ->where('email_account_id', $emailAccount->id)
+                ->increment('failed_count');
+
+            $recipient->increment('retry_count');
+            $recipient->update([
+                'error_message' => $e->getMessage(),
+                'last_response' => 'SMTP Failed: ' . substr($e->getMessage(), 0, 200),
+            ]);
 
             // Retry logic
             if ($this->attempts() < $this->tries) {

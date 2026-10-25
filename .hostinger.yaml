@@ -52,11 +52,10 @@ cron:
     command: "cd {DEPLOY_PATH} && php artisan schedule:run >> /dev/null 2>&1"
     description: "Laravel Task Scheduler"
   
-  # Queue Worker - processes campaign emails and CSV imports.
-  # Bounded worker restarts every 5 minutes so it cannot run forever on shared hosting.
+  # Queue Drain - processes campaign emails and CSV imports via in-process drain (safe for shared hosting)
   - schedule: "*/5 * * * *"
-    command: "cd {DEPLOY_PATH} && php artisan queue:work --sleep=3 --tries=3 --max-time=280 --stop-when-empty >> /dev/null 2>&1"
-    description: "Laravel Queue Worker"
+    command: "cd {DEPLOY_PATH} && php artisan queue:drain --max=100 >> /dev/null 2>&1"
+    description: "Laravel Queue Drain"
 
 # Environment variables (configured in Hostinger hPanel, not here)
 # This is just documentation of required variables
