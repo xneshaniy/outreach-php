@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Link, Head, usePage, router } from '@inertiajs/vue3'
+import AppLogo from '@/Components/AppLogo.vue'
 
 defineProps({
     title: {
@@ -49,16 +50,10 @@ const logout = () => {
         <!-- Desktop Sidebar -->
         <aside class="hidden lg:flex lg:flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 select-none flex-shrink-0">
             <!-- Brand / Logo -->
-            <div class="h-16 px-6 flex items-center justify-between border-b border-slate-800 bg-slate-950">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30">
-                        O
-                    </div>
-                    <div>
-                        <span class="font-bold text-white tracking-tight">Outreach<span class="text-indigo-400">.click</span></span>
-                        <span class="block text-[10px] uppercase tracking-wider font-semibold text-amber-400">Super Admin</span>
-                    </div>
-                </div>
+            <div class="h-16 px-5 flex items-center justify-between border-b border-slate-800 bg-slate-950">
+                <Link :href="route('admin.dashboard')" class="flex items-center group">
+                    <AppLogo size="sm" :show-text="true" sub-text="Super Admin" theme="dark" variant="white-badge" />
+                </Link>
             </div>
 
             <!-- Navigation Links -->
@@ -178,9 +173,9 @@ const logout = () => {
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-50 lg:hidden flex">
             <div @click="mobileMenuOpen = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
             <div class="relative w-64 bg-slate-900 text-slate-300 flex flex-col h-full z-10">
-                <div class="h-16 px-6 flex items-center justify-between border-b border-slate-800 bg-slate-950">
-                    <span class="font-bold text-white tracking-tight">Outreach<span class="text-indigo-400">.click</span></span>
-                    <button @click="mobileMenuOpen = false" class="text-slate-400 hover:text-white">✕</button>
+                <div class="h-16 px-5 flex items-center justify-between border-b border-slate-800 bg-slate-950">
+                    <AppLogo size="sm" :show-text="true" sub-text="Super Admin" theme="dark" variant="white-badge" />
+                    <button @click="mobileMenuOpen = false" class="text-slate-400 hover:text-white p-1">✕</button>
                 </div>
                 <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                     <Link

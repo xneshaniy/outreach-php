@@ -27,8 +27,8 @@ const submit = () => {
 
         <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-2">
-                <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-bold text-xl mx-auto flex items-center justify-center shadow-lg shadow-indigo-600/30">
-                    O
+                <div class="flex justify-center mb-2">
+                    <AppLogo size="lg" variant="auto" :show-text="false" />
                 </div>
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Welcome to Outreach CRM</h1>
                 <p class="text-xs text-slate-500">

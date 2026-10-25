@@ -1,4 +1,5 @@
 <script setup>
+import AppLogo from '@/Components/AppLogo.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -36,7 +37,10 @@ const submit = () => {
     <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full space-y-8">
             <div class="text-center">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Outreach CRM</h1>
+                <div class="flex justify-center mb-4">
+                    <AppLogo size="auth" variant="auto" :show-text="false" />
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Outreach<span class="text-indigo-600 dark:text-indigo-400">.click</span></h1>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Choose a new password</p>
             </div>
 
