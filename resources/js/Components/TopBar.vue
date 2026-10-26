@@ -86,14 +86,15 @@ onBeforeUnmount(() => {
 
             <button
                 type="button"
-                class="flex h-9 max-w-md flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground shadow-sm hover:bg-accent/50"
+                class="flex h-9 max-w-md flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
                 @click="emit('open-command')"
+                aria-label="Search"
             >
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 shrink-0 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <span class="flex-1 truncate text-left">Search leads, pages, settings...</span>
-                <kbd class="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
+                <span class="flex-1 truncate text-left">Search...</span>
+                <kbd class="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] sm:inline text-muted-foreground">⌘K</kbd>
             </button>
 
             <div class="ml-auto flex items-center gap-1">
@@ -160,20 +161,32 @@ onBeforeUnmount(() => {
                 <div class="relative">
                     <button
                         type="button"
-                        class="flex items-center gap-2 rounded-md p-1.5 hover:bg-accent"
+                        class="flex items-center gap-2 rounded-md p-1.5 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/20"
                         aria-label="User menu"
                         @click="userMenuOpen = !userMenuOpen; notificationsOpen = false"
                     >
-                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary-foreground border border-primary/20">
                             {{ user?.name?.[0] || 'U' }}
                         </div>
-                        <span class="hidden max-w-[10rem] truncate text-sm font-medium lg:block">{{ user?.name }}</span>
+                        <span class="hidden max-w-[10rem] truncate text-sm font-medium lg:block text-foreground">
+                            {{ user?.name }}
+                        </span>
+                        <svg class="h-4 w-4 ml-1 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
                     </button>
 
-                    <div v-show="userMenuOpen" class="dropdown-menu">
+                    <div v-show="userMenuOpen" class="dropdown-menu w-64">
                         <div class="border-b border-border px-4 py-3">
-                            <p class="font-medium">{{ user?.name }}</p>
-                            <p class="text-sm text-muted-foreground">{{ user?.email }}</p>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary-foreground border border-primary/20">
+                                    {{ user?.name?.[0] || 'U' }}
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-medium text-foreground truncate">{{ user?.name }}</p>
+                                    <p class="text-xs text-muted-foreground truncate">{{ user?.email }}</p>
+                                </div>
+                            </div>
                         </div>
                         <Link
                             v-if="workspaces && workspaces.length > 1"
@@ -181,17 +194,32 @@ onBeforeUnmount(() => {
                             class="dropdown-item"
                             @click="userMenuOpen = false"
                         >
+                            <svg class="h-4 w-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
                             Switch workspace
                         </Link>
                         <Link :href="route('settings.profile')" class="dropdown-item" @click="userMenuOpen = false">
+                            <svg class="h-4 w-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
                             Profile
                         </Link>
                         <Link :href="route('settings.workspace')" class="dropdown-item" @click="userMenuOpen = false">
+                            <svg class="h-4 w-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
                             Settings
                         </Link>
                         <hr class="my-1 border-border" />
-                        <form @submit.prevent="logout">
+                        <form @submit.prevent="logout" class="py-2">
                             <button type="submit" class="dropdown-item w-full text-left text-destructive">
+                                <svg class="h-4 w-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
                                 Logout
                             </button>
                         </form>

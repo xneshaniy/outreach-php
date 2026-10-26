@@ -121,16 +121,21 @@ const compact = computed(() => props.collapsed)
 
 <template>
     <nav
-        class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 lg:translate-x-0 shadow-sidebar"
+        class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 lg:translate-x-0 shadow-sidebar rounded-r-xl"
         :class="[
             open ? 'translate-x-0' : '-translate-x-full',
             compact ? 'lg:w-[4.5rem]' : 'lg:w-64',
         ]"
         @keydown.escape="emit('close')"
     >
+        <div class="nav-header p-3 border-b border-sidebar-border">
+            <Link :href="route('dashboard')" class="flex min-w-0 items-center" @click="emit('close')">
+                <AppLogo size="sm" :show-text="!compact" theme="auto" variant="auto" class="text-sidebar-foreground" />
+            </Link>
+        </div>
         <div class="flex h-14 items-center gap-2 border-b border-sidebar-border px-3">
             <Link :href="route('dashboard')" class="flex min-w-0 items-center" @click="emit('close')">
-                <AppLogo size="sm" :show-text="!compact" theme="auto" variant="auto" />
+                <AppLogo size="sm" :show-text="!compact" theme="auto" variant="auto" class="text-sidebar-foreground" />
             </Link>
         </div>
 

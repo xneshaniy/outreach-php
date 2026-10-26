@@ -44,10 +44,10 @@ const logout = () => {
 </script>
 
 <template>
-    <div class="min-h-svh bg-muted">
-        <Head :title="title" />
+    <div class="flex min-h-svh flex-col lg:p-3 transition-[padding] duration-200"
+            :class="sidebarCollapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-[16.5rem]'">
 
-        <aside class="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+        <aside class="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex rounded-r-xl shadow-sidebar">
             <div class="flex h-14 items-center border-b border-sidebar-border px-4">
                 <Link :href="route('admin.dashboard')">
                     <AppLogo size="sm" :show-text="true" sub-text="Admin" theme="auto" variant="auto" />

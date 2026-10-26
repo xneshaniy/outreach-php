@@ -53,9 +53,9 @@ const renderCell = (row, column) => {
 </script>
 
 <template>
-    <div class="card">
-        <div class="overflow-hidden">
-            <table class="table">
+    <div class="card shadow-card">
+        <div class="overflow-hidden rounded-lg">
+            <table class="table w-full">
                 <thead>
                     <tr>
                         <th v-for="column in columns" :key="column.key" :class="column.class" :width="column.width">
@@ -75,10 +75,10 @@ const renderCell = (row, column) => {
                                         class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
                                     >
                                         <span>{{ column.label }}</span>
-                                        <svg v-if="sort.field === column.key" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg v-if="sort.field === column.key" class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="sort.direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" />
                                         </svg>
-                                        <svg v-else class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg v-else class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
                                         </svg>
                                     </button>
