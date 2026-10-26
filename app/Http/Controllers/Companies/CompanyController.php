@@ -81,7 +81,7 @@ class CompanyController extends Controller
             'created_by' => $request->user()->id,
         ]));
 
-        return redirect()->route('companies.show', $company)
+        return redirect()->route('companies.index')
             ->with('success', 'Company created successfully.');
     }
 
@@ -116,7 +116,7 @@ class CompanyController extends Controller
 
         $company->update($request->validated());
 
-        return redirect()->route('companies.show', $company)
+        return redirect()->route('companies.index')
             ->with('success', 'Company updated successfully.');
     }
 

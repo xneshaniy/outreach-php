@@ -89,19 +89,25 @@ class EmailService
 
     private function createTransport(EmailAccount $account): EsmtpTransport
     {
-        $encryption = match ($account->encryption) {
-            'ssl' => 'ssl',
-            'tls' => 'tls',
-            default => null,
-        };
+        $port = (int)$account->port;
+        $tls = ($account->encryption === 'ssl' || $port === 465) ? true : ($account->encryption === 'tls' ? false : null);
 
-        return new EsmtpTransport(
+        $transport = new EsmtpTransport(
             $account->host,
-            $account->port,
-            $encryption,
-            $account->username,
-            $account->getPassword()
+            $port,
+            $tls
         );
+
+        if (!empty($account->username)) {
+            $transport->setUsername($account->username);
+        }
+
+        $password = $account->getPassword();
+        if (!empty($password)) {
+            $transport->setPassword($password);
+        }
+
+        return $transport;
     }
 
     public function testConnection(EmailAccount $account): array
@@ -112,7 +118,7 @@ class EmailService
             $mailer->getTransport()->start();
             $mailer->getTransport()->stop();
             return ['success' => true, 'message' => 'Connection successful'];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -120,25 +126,30 @@ class EmailService
     public function testCredentials(array $config): array
     {
         try {
-            $encryption = match ($config['encryption'] ?? 'tls') {
-                'ssl' => 'ssl',
-                'tls' => 'tls',
-                default => null,
-            };
+            $port = (int)($config['port'] ?? 587);
+            $enc = $config['encryption'] ?? 'tls';
+            $tls = ($enc === 'ssl' || $port === 465) ? true : ($enc === 'tls' ? false : null);
 
             $transport = new EsmtpTransport(
                 $config['host'],
-                (int)($config['port'] ?? 587),
-                $encryption,
-                $config['username'] ?? '',
-                $config['password'] ?? ''
+                $port,
+                $tls
             );
+
+            if (!empty($config['username'])) {
+                $transport->setUsername($config['username']);
+            }
+
+            if (!empty($config['password'])) {
+                $transport->setPassword($config['password']);
+            }
+
             $mailer = new Mailer($transport);
             $mailer->getTransport()->start();
             $mailer->getTransport()->stop();
 
             return ['success' => true, 'message' => 'SMTP connection tested successfully!'];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }

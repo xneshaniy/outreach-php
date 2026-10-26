@@ -86,8 +86,12 @@ class EmailAccountController extends Controller
             'normalized_email' => strtolower(trim($request->email)),
         ]));
 
-        // Test connection immediately on save
-        $testResult = $account->testConnection();
+        // Test connection defensively on save
+        try {
+            $testResult = $account->testConnection();
+        } catch (\Throwable $e) {
+            $testResult = ['success' => false, 'message' => $e->getMessage()];
+        }
 
         if ($workspace->emailAccounts()->count() === 1) {
             $account->update(['is_default' => true]);

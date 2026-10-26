@@ -136,7 +136,7 @@ class TaskController extends Controller
             'created_by' => $request->user()->id,
         ]));
 
-        return redirect()->route('tasks.show', $task)
+        return redirect()->route('tasks.index')
             ->with('success', 'Task created successfully.');
     }
 
@@ -176,7 +176,7 @@ class TaskController extends Controller
 
         $task->update($request->validated());
 
-        return redirect()->route('tasks.show', $task)
+        return redirect()->route('tasks.index')
             ->with('success', 'Task updated successfully.');
     }
 

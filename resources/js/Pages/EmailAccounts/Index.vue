@@ -370,10 +370,12 @@ const submitAccount = () => {
                     <div>
                         <label class="label">Display Name *</label>
                         <input v-model="form.name" type="text" required class="input w-full" placeholder="e.g. Primary Outreach" />
+                        <span v-if="form.errors.name" class="text-xs text-rose-500 mt-1 block">{{ form.errors.name }}</span>
                     </div>
                     <div>
                         <label class="label">Email Address *</label>
                         <input v-model="form.email" type="email" required class="input w-full" placeholder="admin@outreach.click" />
+                        <span v-if="form.errors.email" class="text-xs text-rose-500 mt-1 block">{{ form.errors.email }}</span>
                     </div>
                 </div>
 
@@ -381,10 +383,12 @@ const submitAccount = () => {
                     <div>
                         <label class="label">SMTP Host *</label>
                         <input v-model="form.host" type="text" required class="input w-full" placeholder="smtp.hostinger.com" />
+                        <span v-if="form.errors.host" class="text-xs text-rose-500 mt-1 block">{{ form.errors.host }}</span>
                     </div>
                     <div>
                         <label class="label">Port *</label>
                         <input v-model.number="form.port" type="number" required class="input w-full" placeholder="465" />
+                        <span v-if="form.errors.port" class="text-xs text-rose-500 mt-1 block">{{ form.errors.port }}</span>
                     </div>
                     <div>
                         <label class="label">Encryption *</label>
@@ -393,6 +397,7 @@ const submitAccount = () => {
                             <option value="tls">TLS (587)</option>
                             <option value="none">None (25)</option>
                         </select>
+                        <span v-if="form.errors.encryption" class="text-xs text-rose-500 mt-1 block">{{ form.errors.encryption }}</span>
                     </div>
                 </div>
 
@@ -400,10 +405,12 @@ const submitAccount = () => {
                     <div>
                         <label class="label">SMTP Username *</label>
                         <input v-model="form.username" type="text" required class="input w-full" placeholder="admin@outreach.click" />
+                        <span v-if="form.errors.username" class="text-xs text-rose-500 mt-1 block">{{ form.errors.username }}</span>
                     </div>
                     <div>
                         <label class="label">SMTP Password / App Password {{ form.id ? '(Leave blank to keep)' : '*' }}</label>
                         <input v-model="form.password" type="password" :required="!form.id" class="input w-full" placeholder="••••••••" />
+                        <span v-if="form.errors.password" class="text-xs text-rose-500 mt-1 block">{{ form.errors.password }}</span>
                     </div>
                 </div>
 

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
-            $table->morphs('related'); // lead, company, deal, campaign
+            $table->nullableMorphs('related'); // lead, company, deal, campaign
             $table->string('title');
             $table->text('description')->nullable();
             $table->string('type')->default('task'); // task, call, email, meeting, note, follow_up

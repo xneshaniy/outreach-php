@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { Head, Link, useForm, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Modal from '@/Components/Modal.vue'
@@ -42,7 +42,11 @@ const toggleComplete = (task) => {
 }
 
 const submitCreate = () => {
-    form.post(route('tasks.store'), {
+    form.transform((data) => ({
+        ...data,
+        assigned_to: data.assigned_to ? data.assigned_to : null,
+        due_at: data.due_at ? data.due_at : null,
+    })).post(route('tasks.store'), {
         onSuccess: () => {
             showCreateModal.value = false
             form.reset()
@@ -100,9 +104,9 @@ const priorityColors = {
                     </template>
                     <template #cell-title="{ row }">
                         <div>
-                            <span :class="['font-medium text-sm', row.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white']">
+                            <Link :href="route('tasks.show', row.id)" :class="['font-medium text-sm hover:underline', row.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white']">
                                 {{ row.title }}
-                            </span>
+                            </Link>
                             <p v-if="row.description" class="text-xs text-gray-400 truncate max-w-xs">{{ row.description }}</p>
                         </div>
                     </template>

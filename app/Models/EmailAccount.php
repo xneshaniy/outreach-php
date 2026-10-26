@@ -195,13 +195,22 @@ class EmailAccount extends Model
     public function testConnection(): array
     {
         try {
+            $tls = ($this->encryption === 'ssl' || (int)$this->port === 465) ? true : ($this->encryption === 'tls' ? false : null);
             $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport(
                 $this->host,
-                $this->port,
-                $this->encryption === 'ssl' ? 'ssl' : ($this->encryption === 'tls' ? 'tls' : null),
-                $this->username,
-                $this->password
+                (int)$this->port,
+                $tls
             );
+
+            if (!empty($this->username)) {
+                $transport->setUsername($this->username);
+            }
+
+            $password = $this->getPassword();
+            if (!empty($password)) {
+                $transport->setPassword($password);
+            }
+
             $mailer = new \Symfony\Component\Mailer\Mailer($transport);
             $mailer->getTransport()->start();
             $mailer->getTransport()->stop();
@@ -213,7 +222,7 @@ class EmailAccount extends Model
             ]);
 
             return ['success' => true, 'message' => 'Connection successful'];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->update([
                 'last_tested_at' => now(),
                 'last_test_status' => 'failed',

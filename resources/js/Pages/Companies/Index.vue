@@ -122,9 +122,9 @@ const submitCreate = () => {
                     :pagination="companies"
                 >
                     <template #cell-name="{ row }">
-                        <div class="font-medium text-gray-900 dark:text-white">
+                        <Link :href="route('companies.show', row.id)" class="font-medium text-primary-600 dark:text-primary-400 hover:underline">
                             {{ row.name }}
-                        </div>
+                        </Link>
                     </template>
                     <template #cell-domain="{ row }">
                         <a v-if="row.domain" :href="'https://' + row.domain" target="_blank" class="text-primary-600 hover:underline">

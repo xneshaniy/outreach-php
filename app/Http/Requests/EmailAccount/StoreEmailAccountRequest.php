@@ -9,8 +9,15 @@ class StoreEmailAccountRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentWorkspace !== null
-            && $this->user()->can('manage email accounts');
+        $user = $this->user();
+        if (!$user || !$user->currentWorkspace) {
+            return false;
+        }
+
+        return $user->is_super_admin
+            || $user->isOwnerOf($user->currentWorkspace)
+            || $user->can('manage email accounts')
+            || $user->can('create email accounts');
     }
 
     public function rules(): array
