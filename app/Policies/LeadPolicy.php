@@ -8,6 +8,14 @@ use Illuminate\Auth\Access\Response;
 
 class LeadPolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->is_super_admin) {
+            return true;
+        }
+        return null;
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->currentWorkspace !== null;

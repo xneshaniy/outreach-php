@@ -85,7 +85,21 @@ class AdminUserController extends Controller
             'reason' => 'nullable|string|max:255',
         ]);
 
-        $user->is_active = $request->boolean('is_active');
+        $newStatus = $request->boolean('is_active');
+
+        // Prevent suspending the last active Super Admin
+        if ($user->is_super_admin && !$newStatus) {
+            $otherActiveSuperAdmins = User::where('is_super_admin', true)
+                ->where('is_active', true)
+                ->where('id', '!=', $user->id)
+                ->count();
+
+            if ($otherActiveSuperAdmins === 0) {
+                return back()->withErrors(['error' => 'Operation blocked: You cannot suspend the only active Super Admin account.']);
+            }
+        }
+
+        $user->is_active = $newStatus;
         $user->suspension_reason = $user->is_active ? null : $request->input('reason', 'Suspended by Super Admin');
         $user->save();
 
@@ -110,6 +124,18 @@ class AdminUserController extends Controller
             return back()->withErrors(['error' => 'You cannot revoke your own Super Admin access.']);
         }
 
+        // Prevent demoting the last active Super Admin
+        if ($user->is_super_admin && !$validated['is_super_admin']) {
+            $otherActiveSuperAdmins = User::where('is_super_admin', true)
+                ->where('is_active', true)
+                ->where('id', '!=', $user->id)
+                ->count();
+
+            if ($otherActiveSuperAdmins === 0) {
+                return back()->withErrors(['error' => 'Operation blocked: System requires at least one active Super Admin.']);
+            }
+        }
+
         $user->update($validated);
 
         activity()
@@ -125,6 +151,18 @@ class AdminUserController extends Controller
     {
         if ($user->id === auth()->id()) {
             return back()->withErrors(['error' => 'You cannot delete your own account.']);
+        }
+
+        // Prevent deleting the last active Super Admin
+        if ($user->is_super_admin) {
+            $otherActiveSuperAdmins = User::where('is_super_admin', true)
+                ->where('is_active', true)
+                ->where('id', '!=', $user->id)
+                ->count();
+
+            if ($otherActiveSuperAdmins === 0) {
+                return back()->withErrors(['error' => 'Operation blocked: Cannot delete the only active Super Admin account.']);
+            }
         }
 
         $user->delete();

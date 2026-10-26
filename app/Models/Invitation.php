@@ -15,6 +15,7 @@ class Invitation extends Model
         'workspace_id',
         'email',
         'role',
+        'permissions',
         'token_hash',
         'status',
         'invited_by_id',
@@ -23,6 +24,7 @@ class Invitation extends Model
     ];
 
     protected $casts = [
+        'permissions' => 'array',
         'accepted_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
