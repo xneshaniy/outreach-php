@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import Modal from '@/Components/Modal.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 const props = defineProps({
     workspace: Object,
@@ -32,6 +33,7 @@ const submitInvite = () => {
     <Head title="Team Members" />
 
     <MainLayout title="Team & User Management" description="Manage workspace team members, invite colleagues, and assign roles">
+        <SettingsNav />
         <div class="space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>

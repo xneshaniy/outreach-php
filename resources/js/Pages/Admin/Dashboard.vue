@@ -32,37 +32,22 @@ const budgetPercent = computed(() => {
     <AdminLayout title="Super Admin Dashboard">
         <div class="space-y-6">
             <!-- Header Welcome & Quick Actions -->
-            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-xl font-bold tracking-tight">Super Admin Overview</h2>
-                    <p class="text-xs text-slate-300 mt-1">Live metrics across all users, mailboxes, and outreach campaigns on Hostinger.</p>
+                    <h2 class="text-xl font-semibold tracking-tight">Super Admin Overview</h2>
+                    <p class="text-sm text-muted-foreground mt-1">Users, mailboxes, and campaigns across the platform.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link
-                        :href="route('admin.invitations.index')"
-                        class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition shadow-sm"
-                    >
-                        + Invite User
-                    </Link>
-                    <Link
-                        :href="route('admin.email-accounts.index')"
-                        class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs transition"
-                    >
-                        Audit Accounts
-                    </Link>
-                    <Link
-                        :href="route('admin.costs.index')"
-                        class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs transition"
-                    >
-                        Pricing Rules
-                    </Link>
+                    <Link :href="route('admin.invitations.index')" class="btn-primary btn-sm">Invite user</Link>
+                    <Link :href="route('admin.email-accounts.index')" class="btn-secondary btn-sm">Audit accounts</Link>
+                    <Link :href="route('admin.costs.index')" class="btn-secondary btn-sm">Pricing rules</Link>
                 </div>
             </div>
 
             <!-- Top KPI Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Users -->
-                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div class="card p-5">
                     <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
                         <span>Total Users</span>
                         <span class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">👤</span>
@@ -80,7 +65,7 @@ const budgetPercent = computed(() => {
                 </div>
 
                 <!-- Email Accounts -->
-                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div class="card p-5">
                     <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
                         <span>Email Accounts</span>
                         <span class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-bold">✉️</span>
@@ -98,7 +83,7 @@ const budgetPercent = computed(() => {
                 </div>
 
                 <!-- Campaigns -->
-                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div class="card p-5">
                     <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
                         <span>Total Campaigns</span>
                         <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">🚀</span>
@@ -116,7 +101,7 @@ const budgetPercent = computed(() => {
                 </div>
 
                 <!-- AI Tokens & Budget -->
-                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div class="card p-5">
                     <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
                         <span>Monthly Budget</span>
                         <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">⚡</span>

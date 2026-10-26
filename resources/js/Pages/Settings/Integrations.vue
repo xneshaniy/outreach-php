@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 defineProps({
     workspace: Object,
@@ -12,6 +13,7 @@ defineProps({
     <Head title="Integrations" />
 
     <MainLayout title="Integrations & API" description="Connect third-party services, spreadsheets, and automation tools">
+        <SettingsNav />
         <div class="max-w-5xl space-y-8">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>

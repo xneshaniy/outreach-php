@@ -45,12 +45,12 @@ const handleKeydown = (e) => {
     <Transition name="modal">
         <div v-show="visible" class="modal-content">
             <div :class="['modal-panel w-full', sizes[size] || sizes.md]" @keydown="handleKeydown">
-                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
+                <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <h3 class="text-lg font-semibold tracking-tight text-foreground">{{ title }}</h3>
                     <button
                         v-if="closeable"
                         @click="close"
-                        class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                         aria-label="Close"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ const handleKeydown = (e) => {
                         </svg>
                     </button>
                 </div>
-                <div class="p-4 overflow-y-auto max-h-[70vh]">
+                <div class="px-6 py-5 overflow-y-auto max-h-[70vh]">
                     <slot />
                 </div>
             </div>

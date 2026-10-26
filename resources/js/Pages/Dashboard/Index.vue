@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Link, Head } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import StatCard from '@/Components/StatCard.vue'
+import PageHeader from '@/Components/PageHeader.vue'
 
 const props = defineProps({
     stats: Object,
@@ -75,7 +76,13 @@ const getScoreColor = (category) => {
 
     <MainLayout title="Dashboard" description="Live analytics on prospects, AI personalization, campaigns, and sales pipeline">
         <template #default>
-            <!-- Top AI & Outreach Stat Grid -->
+            <PageHeader title="Dashboard" description="Prospects, campaigns, and pipeline at a glance.">
+                <template #actions>
+                    <Link :href="route('leads.create')" class="btn-secondary">Add lead</Link>
+                    <Link :href="route('campaigns.create')" class="btn-primary">New campaign</Link>
+                </template>
+            </PageHeader>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard
                     title="Total Prospects"
@@ -116,10 +123,10 @@ const getScoreColor = (category) => {
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <!-- Lead Score Distribution Card -->
                 <div class="card p-5 space-y-4">
-                    <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                    <div class="flex items-center justify-between border-b border-border pb-3">
                         <div>
-                            <h3 class="font-bold text-sm text-gray-900 dark:text-white">Lead Score Distribution</h3>
-                            <p class="text-xs text-gray-400">Prospect segmentation based on engagement and fit</p>
+                            <h3 class="section-title">Lead Score Distribution</h3>
+                            <p class="text-xs text-muted-foreground">Prospect segmentation based on engagement and fit</p>
                         </div>
                         <Link :href="route('settings.ai')" class="text-xs text-primary-600 hover:underline">
                             Scoring Rules →
@@ -147,10 +154,10 @@ const getScoreColor = (category) => {
 
                 <!-- Sales Pipeline Stages Funnel Card -->
                 <div class="card p-5 space-y-4">
-                    <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                    <div class="flex items-center justify-between border-b border-border pb-3">
                         <div>
-                            <h3 class="font-bold text-sm text-gray-900 dark:text-white">Sales Pipeline Funnel</h3>
-                            <p class="text-xs text-gray-400">Prospect progression across 9 conversion stages</p>
+                            <h3 class="section-title">Sales Pipeline Funnel</h3>
+                            <p class="text-xs text-muted-foreground">Prospect progression across conversion stages</p>
                         </div>
                         <Link :href="route('pipeline.index')" class="text-xs text-primary-600 hover:underline">
                             Open Kanban →

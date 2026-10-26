@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -83,6 +84,7 @@ const saveScoringRules = () => {
 <template>
     <Head title="AI Provider & Lead Scoring Configuration" />
     <MainLayout title="AI & Scoring Configuration" description="Configure AI providers (OpenAI, Gemini) and customize lead scoring criteria">
+        <SettingsNav />
         <div class="max-w-5xl mx-auto space-y-8">
             <!-- Header -->
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

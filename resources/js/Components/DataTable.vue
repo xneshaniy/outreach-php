@@ -89,7 +89,7 @@ const renderCell = (row, column) => {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in sortedData" :key="row.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr v-for="row in sortedData" :key="row.id">
                         <td v-for="column in columns" :key="column.key" :class="column.class">
                             <slot :name="`cell-${column.key}`" :row="row" :index="sortedData.indexOf(row)">
                                 <span v-if="column.key !== 'select' && column.key !== 'actions'">
@@ -99,7 +99,7 @@ const renderCell = (row, column) => {
                         </td>
                     </tr>
                     <tr v-if="sortedData.length === 0">
-                        <td :colspan="columns.length" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <td :colspan="columns.length" class="px-4 py-12 text-center text-muted-foreground">
                             <slot name="empty">No data available</slot>
                         </td>
                     </tr>
@@ -108,8 +108,8 @@ const renderCell = (row, column) => {
         </div>
 
         <!-- Pagination -->
-        <div v-if="pagination && pagination.last_page > 1" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div class="text-sm text-gray-500 dark:text-gray-400">
+        <div v-if="pagination && pagination.last_page > 1" class="px-4 py-3 border-t border-border flex items-center justify-between">
+            <div class="text-sm text-muted-foreground">
                 Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} results
             </div>
             <div class="flex items-center space-x-2">
@@ -121,7 +121,7 @@ const renderCell = (row, column) => {
                 >
                     Previous
                 </button>
-                <span class="text-sm text-gray-500 dark:text-gray-400 px-2">
+                <span class="text-sm text-muted-foreground px-2">
                     Page {{ pagination.current_page }} of {{ pagination.last_page }}
                 </span>
                 <button
