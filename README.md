@@ -141,13 +141,13 @@ php artisan serve
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete Hostinger shared hosting deployment guide.
 
 **Quick Summary:**
-1. Create database in hPanel: `u311221303_outrach` / `u311221303_admin`
+1. Create database in hPanel: `your_database_name` / `your_database_user`
 2. Upload files to `public_html/`
 3. Set document root to `public_html/public`
 4. Configure `.env` with production values
 5. Run migrations: `php artisan migrate --force`
 6. Build assets: `npm run build`
-7. Set up cron: `* * * * * /usr/bin/php /home/u311221303/public_html/artisan schedule:run`
+7. Set up cron: `* * * * * /usr/bin/php /home/your_username/public_html/artisan schedule:run`
 8. Configure SMTP in `.env`
 
 ## Project Structure
@@ -219,8 +219,8 @@ APP_URL=https://your-domain.com
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=u311221303_outrach
-DB_USERNAME=u311221303_admin
+DB_DATABASE=your_database_name
+DB_USERNAME=your_database_user
 DB_PASSWORD=CHANGE_ME_DB_PASSWORD
 
 QUEUE_CONNECTION=database

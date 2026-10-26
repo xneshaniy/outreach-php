@@ -114,7 +114,7 @@ class DatabaseSeeder extends Seeder
                 'port' => (int) env('MAIL_PORT', 465),
                 'encryption' => env('MAIL_ENCRYPTION', 'ssl'),
                 'username' => env('MAIL_USERNAME', $smtpEmail),
-                'password' => env('MAIL_PASSWORD', '@Haseeb786@!$'),
+                'password' => env('MAIL_PASSWORD', 'your_smtp_password'),
                 'from_name' => env('MAIL_FROM_NAME', 'Outreach CRM'),
                 'daily_send_limit' => (int) env('CRM_DAILY_SEND_LIMIT', 200),
                 'is_active' => true,

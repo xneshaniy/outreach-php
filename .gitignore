@@ -4,6 +4,8 @@
 /storage/*.key
 /vendor
 .env
+.env.*
+!.env.example
 .env.backup
 .env.production
 .env.local
@@ -22,6 +24,8 @@ yarn-error.log
 *.swp
 *.bak
 *.tmp
+*.zip
+*.tar.gz
 .DS_Store
 Thumbs.db
 eclipse/.project
@@ -34,7 +38,10 @@ eclipse/.project
 *.sqlite3
 /database/*.sqlite
 deploy-update.tar.gz
+build_deploy.zip
 /storage/logs/*
+/storage/app/imports/*
+!/storage/app/imports/.gitkeep
 /storage/framework/cache/data/*
 /storage/framework/sessions/*
 /storage/framework/views/*

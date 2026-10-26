@@ -66,8 +66,8 @@ php artisan storage:link
 ### Create Database via hPanel
 1. Log into hPanel
 2. Go to **Databases** → **MySQL Databases**
-3. Create new database: `u311221303_outrach`
-4. Create user: `u311221303_admin` with password: `CHANGE_ME_DB_PASSWORD`
+3. Create new database: `your_database_name`
+4. Create user: `your_database_user` with a secure password
 5. Assign user to database with **All Privileges**
 
 ### Import Schema (if not using migrations)
@@ -96,9 +96,9 @@ LOG_LEVEL=error
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=u311221303_outrach
-DB_USERNAME=u311221303_admin
-DB_PASSWORD=CHANGE_ME_DB_PASSWORD
+DB_DATABASE=your_database_name
+DB_USERNAME=your_database_user
+DB_PASSWORD=your_secure_db_password
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -147,11 +147,11 @@ tar -czf deploy.tar.gz \
     .
 
 # Upload to Hostinger
-scp deploy.tar.gz u311221303@your-server:/home/u311221303/
+scp deploy.tar.gz your_username@your-server:/home/your_username/
 
 # On server, extract
-ssh u311221303@your-server
-cd /home/u311221303
+ssh your_username@your-server
+cd /home/your_username
 tar -xzf deploy.tar.gz -C public_html/
 ```
 
@@ -189,11 +189,11 @@ In hPanel:
 
 ```bash
 # On server via SSH
-cd /home/u311221303/public_html
+cd /home/your_username/public_html
 
 # Storage and cache writable
 chmod -R 775 storage bootstrap/cache
-chown -R u311221303:u311221303 storage bootstrap/cache
+chown -R your_username:your_username storage bootstrap/cache
 
 # Ensure .env is not publicly accessible
 chmod 640 .env
@@ -202,7 +202,7 @@ chmod 640 .env
 ## Step 7: Run Production Commands
 
 ```bash
-cd /home/u311221303/public_html
+cd /home/your_username/public_html
 
 # Generate key if not set
 php artisan key:generate --force
@@ -232,10 +232,10 @@ In hPanel → **Advanced** → **Cron Jobs**:
 
 ```bash
 # Add this command (runs every minute)
-* * * * * /usr/bin/php /home/u311221303/public_html/artisan schedule:run >> /dev/null 2>&1
+* * * * * /usr/bin/php /home/your_username/public_html/artisan schedule:run >> /dev/null 2>&1
 ```
 
-**Note**: Replace `/home/u311221303/public_html` with your actual path.
+**Note**: Replace `/home/your_username/public_html` with your actual path.
 Find your path by running `pwd` in your project directory via SSH.
 
 ### Verify Cron Works
@@ -253,7 +253,7 @@ Since shared hosting doesn't support persistent workers, use cron-based queue pr
 
 ### Add to Crontab (every 5 minutes)
 ```bash
-*/5 * * * * /usr/bin/php /home/u311221303/public_html/artisan queue:work --stop-when-empty --max-time=240 --tries=3 >> /dev/null 2>&1
+*/5 * * * * /usr/bin/php /home/your_username/public_html/artisan queue:work --stop-when-empty --max-time=240 --tries=3 >> /dev/null 2>&1
 ```
 
 Or use the built-in queue processing in the scheduler (already configured in `app/Console/Kernel.php`).
@@ -355,7 +355,7 @@ tail -f storage/logs/laravel.log
 #### Database Connection Failed
 ```bash
 # Verify credentials
-mysql -u u311221303_admin -p -h 127.0.0.1 u311221303_outrach
+mysql -u your_database_user -p -h 127.0.0.1 your_database_name
 
 # Check .env DB_* values match exactly
 ```
@@ -366,7 +366,7 @@ mysql -u u311221303_admin -p -h 127.0.0.1 u311221303_outrach
 grep CRON /var/log/syslog
 
 # Test command manually
-/usr/bin/php /home/u311221303/public_html/artisan schedule:run
+/usr/bin/php /home/your_username/public_html/artisan schedule:run
 ```
 
 #### Queue Not Processing
@@ -386,7 +386,7 @@ php artisan tinker
 ```bash
 # Fix storage permissions
 chmod -R 775 storage bootstrap/cache
-chown -R u311221303:u311221303 storage bootstrap/cache
+chown -R your_username:your_username storage bootstrap/cache
 ```
 
 #### Memory Limit Exceeded
@@ -403,7 +403,7 @@ memory_limit = 512M
 ### Backup Strategy
 ```bash
 # Database backup (add to daily cron)
-mysqldump -u u311221303_admin -p u311221303_outrach > backup_$(date +%F).sql
+mysqldump -u your_database_user -p your_database_name > backup_$(date +%F).sql
 
 # Files backup
 tar -czf files_backup_$(date +%F).tar.gz public_html --exclude='public_html/storage/logs/*'
@@ -475,11 +475,11 @@ php artisan ide-helper:generate
 
 | Path | Description |
 |------|-------------|
-| `/home/u311221303/public_html` | Project root |
-| `/home/u311221303/public_html/public` | Document root |
-| `/home/u311221303/public_html/storage` | Storage (writable) |
-| `/home/u311221303/public_html/bootstrap/cache` | Cache (writable) |
-| `/home/u311221303/public_html/.env` | Environment config |
+| `/home/your_username/public_html` | Project root |
+| `/home/your_username/public_html/public` | Document root |
+| `/home/your_username/public_html/storage` | Storage (writable) |
+| `/home/your_username/public_html/bootstrap/cache` | Cache (writable) |
+| `/home/your_username/public_html/.env` | Environment config |
 
 ## Useful Hostinger-Specific Commands
 
@@ -507,10 +507,10 @@ php -r "echo ini_get('memory_limit');"
 
 ```bash
 # 1. Restore database
-mysql -u u311221303_admin -p u311221303_outrach < backup_2024-01-15.sql
+mysql -u your_database_user -p your_database_name < backup_2024-01-15.sql
 
 # 2. Restore files
-tar -xzf files_backup_2024-01-15.tar.gz -C /home/u311221303/
+tar -xzf files_backup_2024-01-15.tar.gz -C /home/your_username/
 
 # 3. Clear caches
 php artisan optimize:clear

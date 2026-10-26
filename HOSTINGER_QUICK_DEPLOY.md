@@ -5,15 +5,15 @@
 - **Admin Email**: `admin@outreach.click` (or `admin@example.com`)
 - **Default Login Password**: `password` (change after first login)
 - **SMTP**: `smtp.hostinger.com:465` (SSL)
-- **Database**: `u311221303_outrach` / `u311221303_admin` / `@Haseeb786@!$`
+- **Database**: `your_database_name` / `your_database_user` / `your_secure_password`
 
 ---
 
 ## STEP 1: Verify Database in hPanel (One-time check)
 
 1. Login to **hPanel** → **Databases** → **MySQL Databases**
-2. Ensure database exists: `u311221303_outrach`
-3. Ensure user exists: `u311221303_admin` with password: `@Haseeb786@!$`
+2. Ensure database exists: `your_database_name`
+3. Ensure database user is created with a strong password
 4. Ensure the user is assigned to the database with **All Privileges**
 5. Database host is: `127.0.0.1`
 
@@ -21,25 +21,24 @@
 
 ## STEP 2: Upload Files to Server
 
-You can upload using **Hostinger File Manager** or **FTP (FileZilla)**:
+You can upload using **Hostinger File Manager** or **FTP / SSH**:
 
 ### Recommended:
-1. In File Manager, open `public_html/`.
-2. Upload the project files from `c:\Users\Haseeb\Desktop\new  php\`:
-   - Keep the normal folder structure: `app/`, `bootstrap/`, `config/`, `database/`, `public/` (including `public/build/` and `public/.htaccess`), `resources/`, `routes/`, `storage/`, `vendor/`, `artisan`, `composer.json`, `composer.lock`, `.htaccess`, `.env`.
-   - **Do NOT upload**: `.git/`, `node_modules/`, `tests/`.
-   - Notice: `public/build/` (prebuilt CSS/JS assets) is already compiled and must be uploaded so no npm/Node is needed on the server!
-   - Root `.htaccess` is already configured to automatically route requests to `public/` and protect sensitive files.
+1. In File Manager or SSH, navigate to domain root.
+2. Upload the application source files:
+   - Keep the normal folder structure: `app/`, `bootstrap/`, `config/`, `database/`, `public/`, `resources/`, `routes/`, `storage/`, `vendor/`, `artisan`, `composer.json`, `composer.lock`, `.htaccess`, `.env`.
+   - **Do NOT upload**: `.git/`, `node_modules/`, cache directories.
+   - Root `.htaccess` is configured to route web traffic to `public/` and protect sensitive files.
 
 ---
 
 ## STEP 3: Ensure .env is Configured
 
-The `.env` file is already pre-configured with:
-- Production `APP_KEY=base64:HtXXuptppub3AIvqbhQZp25IVGM2T+QQHiNKQ2tFGB0=`
+Create `.env` based on `.env.example`:
+- `APP_KEY` generated via `php artisan key:generate`
 - `APP_ENV=production` & `APP_DEBUG=false`
 - `APP_URL=https://outreach.click`
-- Database credentials (`u311221303_outrach` / `@Haseeb786@!$`)
+- Database credentials configured from hPanel MySQL section
 - Hostinger SSL SMTP credentials (`smtp.hostinger.com:465`)
 
 If `.env` was not copied, copy `.env.production` to `.env` in `public_html/`.
@@ -52,7 +51,7 @@ If `.env` was not copied, copy `.env.production` to `.env` in `public_html/`.
 2. Run these commands:
 
 ```bash
-cd /home/u311221303/public_html
+cd /home/your_username/public_html
 
 # 1. Run database migrations
 php artisan migrate --force
@@ -80,7 +79,7 @@ php artisan view:cache
 In **hPanel** → **Advanced** → **Cron Jobs** → Add New Cron Job:
 
 ```
-Command: /usr/bin/php /home/u311221303/public_html/artisan schedule:run >> /dev/null 2>&1
+Command: /usr/bin/php /home/your_username/public_html/artisan schedule:run >> /dev/null 2>&1
 Interval: * * * * * (Once per minute)
 ```
 

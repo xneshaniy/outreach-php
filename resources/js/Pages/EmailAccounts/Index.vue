@@ -369,7 +369,7 @@ const submitAccount = () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="label">Display Name *</label>
-                        <input v-model="form.name" type="text" required class="input w-full" placeholder="e.g. Haseeb Sales" />
+                        <input v-model="form.name" type="text" required class="input w-full" placeholder="e.g. Primary Outreach" />
                     </div>
                     <div>
                         <label class="label">Email Address *</label>
