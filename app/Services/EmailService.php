@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CampaignRecipient;
 use App\Models\EmailAccount;
 use App\Models\Message;
 use App\Models\Workspace;

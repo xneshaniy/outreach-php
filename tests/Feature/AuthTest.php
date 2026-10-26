@@ -11,8 +11,15 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register()
+    /**
+     * Registration is invitation-only — public registration must be blocked.
+     */
+    public function test_public_registration_is_blocked()
     {
+        // GET /register must redirect to /login (registration page is disabled)
+        $this->get('/register')->assertRedirect('/login');
+
+        // POST /register must be blocked (403 or redirect — not a new user)
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -20,9 +27,10 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('/dashboard');
-        $this->assertAuthenticated();
-        $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+        // Must not create a user
+        $this->assertDatabaseMissing('users', ['email' => 'test@example.com']);
+        // Must not be authenticated
+        $this->assertGuest();
     }
 
     public function test_user_can_login()

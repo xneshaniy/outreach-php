@@ -19,14 +19,9 @@ class StoreEndpointSmokeTest extends TestCase
 
     public function test_store_endpoints_return_validation_errors_not_server_errors(): void
     {
-        $this->post('/register', [
-            'name' => 'Smoke User',
-            'email' => 'stores@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
+        $this->createTestUser();
 
-        $workspace = Workspace::where('slug', 'smoke-user')->first() ?? Workspace::first();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
         $this->assertNotNull($workspace);
 
         $pipeline = Pipeline::factory()->create(['workspace_id' => $workspace->id]);
@@ -64,14 +59,9 @@ class StoreEndpointSmokeTest extends TestCase
 
     public function test_lead_import_can_only_be_viewed_by_its_own_workspace(): void
     {
-        $this->post('/register', [
-            'name' => 'Import Owner',
-            'email' => 'imports@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
+        $this->createTestUser();
 
-        $workspace = Workspace::where('slug', 'import-owner')->first() ?? Workspace::first();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
         $otherWorkspace = Workspace::factory()->create();
 
         $ownImport = LeadImport::create([

@@ -156,7 +156,7 @@ class SettingsController extends Controller
                     'status' => 'connected',
                     'badge' => 'Active',
                     'action_label' => 'Import Leads',
-                    'action_url' => route('leads.import'),
+                    'action_url' => route('leads.import.form'),
                 ],
                 [
                     'id' => 'csv',
@@ -165,7 +165,7 @@ class SettingsController extends Controller
                     'status' => 'connected',
                     'badge' => 'Active',
                     'action_label' => 'Upload CSV',
-                    'action_url' => route('leads.import'),
+                    'action_url' => route('leads.import.form'),
                 ],
                 [
                     'id' => 'webhook',

@@ -16,14 +16,7 @@ class AuthenticatedPagesTest extends TestCase
 
     public function test_all_authenticated_pages_render_without_server_errors(): void
     {
-        $response = $this->post('/register', [
-            'name' => 'Smoke User',
-            'email' => 'smoke@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ]);
-
-        $response->assertRedirect('/dashboard');
+        $this->createTestUser();
         $this->assertAuthenticated();
 
         $pages = [

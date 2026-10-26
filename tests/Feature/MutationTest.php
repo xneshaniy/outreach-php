@@ -26,14 +26,8 @@ class MutationTest extends TestCase
 
     public function test_common_mutations_succeed(): void
     {
-        $this->post('/register', [
-            'name' => 'Mutation User',
-            'email' => 'mutations@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
-
-        $workspace = Workspace::where('slug', 'mutation-user')->first() ?? Workspace::first();
+        $this->createTestUser();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
         $user = auth()->user();
 
         $company = Company::factory()->create(['workspace_id' => $workspace->id, 'created_by' => $user->id]);

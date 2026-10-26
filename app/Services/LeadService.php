@@ -35,7 +35,7 @@ class LeadService
                 $companyId = $company?->id;
             }
 
-            return Lead::create([
+            $lead = Lead::create([
                 'workspace_id' => $workspace->id,
                 'company_id' => $companyId,
                 'owner_id' => $data['owner_id'] ?? null,

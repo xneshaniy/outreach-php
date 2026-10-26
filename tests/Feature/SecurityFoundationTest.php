@@ -15,6 +15,7 @@ use Tests\TestCase;
 
 class SecurityFoundationTest extends TestCase
 {
+    use RefreshDatabase;
     /**
      * 1. Public registration must be disabled.
      */
@@ -107,7 +108,8 @@ class SecurityFoundationTest extends TestCase
         ]);
 
         $res1 = $this->get("/invite/{$expiredPair['raw']}");
-        $this->assertEquals(410, $res1->getStatusCode());
+        $res1->assertOk();
+        $res1->assertSee('expired or been revoked');
 
         // Revoked invitation
         $revokedPair = Invitation::createTokenPair();
@@ -121,7 +123,8 @@ class SecurityFoundationTest extends TestCase
         ]);
 
         $res2 = $this->get("/invite/{$revokedPair['raw']}");
-        $this->assertEquals(410, $res2->getStatusCode());
+        $res2->assertOk();
+        $res2->assertSee('expired or been revoked');
     }
 
     /**

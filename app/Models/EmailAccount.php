@@ -141,6 +141,11 @@ class EmailAccount extends Model
         }
     }
 
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
     public function setPasswordAttribute(string $value): void
     {
         $this->attributes['password_encrypted'] = Crypt::encryptString($value);

@@ -13,14 +13,8 @@ class SettingsManagementTest extends TestCase
 
     public function test_workspace_owner_can_update_workspace_and_manage_members(): void
     {
-        $this->post('/register', [
-            'name' => 'Settings Owner',
-            'email' => 'settings@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
-
-        $workspace = Workspace::where('slug', 'settings-owner')->first() ?? Workspace::first();
+        $this->createTestUser();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
 
         $this->put('/settings/workspace', [
             'name' => 'Renamed Workspace',

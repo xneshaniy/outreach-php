@@ -13,14 +13,9 @@ class LeadExportTest extends TestCase
 
     public function test_workspace_leads_can_be_exported_as_a_csv_download(): void
     {
-        $this->post('/register', [
-            'name' => 'Export User',
-            'email' => 'export@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
+        $this->createTestUser();
 
-        $workspace = Workspace::where('slug', 'export-user')->first() ?? Workspace::first();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
         $this->assertNotNull($workspace);
 
         Lead::factory()->create(['workspace_id' => $workspace->id]);

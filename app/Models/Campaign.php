@@ -51,6 +51,7 @@ class Campaign extends Model
     public const STATUS_PAUSED = 'paused';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_FAILED = 'failed';
 
     public const STATUSES = [
         self::STATUS_DRAFT,
@@ -59,6 +60,7 @@ class Campaign extends Model
         self::STATUS_PAUSED,
         self::STATUS_COMPLETED,
         self::STATUS_CANCELLED,
+        self::STATUS_FAILED,
     ];
 
     public function workspace(): BelongsTo

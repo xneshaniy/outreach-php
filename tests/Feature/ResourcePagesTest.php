@@ -27,14 +27,8 @@ class ResourcePagesTest extends TestCase
 
     public function test_resource_show_and_edit_pages_render(): void
     {
-        $this->post('/register', [
-            'name' => 'Resource User',
-            'email' => 'resources@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ])->assertRedirect('/dashboard');
-
-        $workspace = Workspace::where('slug', 'resource-user')->first() ?? Workspace::first();
+        $this->createTestUser();
+        $workspace = Workspace::where('slug', 'test-user-workspace')->first() ?? Workspace::first();
         $user = auth()->user();
 
         $company = Company::factory()->create(['workspace_id' => $workspace->id, 'created_by' => $user->id]);
@@ -82,7 +76,7 @@ class ResourcePagesTest extends TestCase
             "/leads/{$lead->id}/edit",
             "/companies/{$company->id}",
             "/companies/{$company->id}/edit",
-            "/campaigns/{$campaign->id}",
+            "/campaigns/{$campaign->id}/report",
             "/campaigns/{$campaign->id}/edit",
             "/email-accounts/{$account->id}",
             "/email-accounts/{$account->id}/edit",
