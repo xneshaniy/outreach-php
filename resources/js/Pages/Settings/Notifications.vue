@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 const props = defineProps({
     preferences: Object,
@@ -21,6 +22,7 @@ const save = () => {
     <Head title="Notification Preferences" />
 
     <MainLayout title="Notification Preferences" description="Configure in-app alerts and email updates">
+        <SettingsNav />
         <div class="max-w-3xl space-y-8">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Notification Preferences</h1>

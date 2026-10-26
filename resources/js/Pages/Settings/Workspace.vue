@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 const props = defineProps({
     workspace: Object,
@@ -26,6 +27,7 @@ const updateWorkspace = () => {
     <Head title="Workspace Settings" />
 
     <MainLayout title="Workspace Settings" description="Configure organization branding, default sending throttles, and preferences">
+        <SettingsNav />
         <div class="max-w-3xl space-y-8">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Workspace Settings</h1>

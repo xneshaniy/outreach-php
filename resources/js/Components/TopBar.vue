@@ -1,22 +1,25 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
+import { applyTheme } from '@/theme'
 
 defineProps({
     workspace: Object,
     user: Object,
+    workspaces: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['menu-click'])
+const emit = defineEmits(['menu-click', 'open-command'])
 
-const mobileMenuOpen = ref(false)
 const notificationsOpen = ref(false)
 const userMenuOpen = ref(false)
+const root = ref(null)
 
 const page = usePage()
 const notifications = computed(() => page.props.notifications || [])
 const unreadCount = computed(() => page.props.unreadNotificationsCount || 0)
+const isDark = ref(false)
 
 const markAllRead = async () => {
     try {
@@ -31,126 +34,164 @@ const markAllRead = async () => {
 const logout = () => {
     router.post(route('logout'))
 }
+
+const toggleTheme = () => {
+    const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark'
+    applyTheme(next)
+    isDark.value = next === 'dark'
+}
+
+const onDocumentClick = (event) => {
+    if (root.value && !root.value.contains(event.target)) {
+        notificationsOpen.value = false
+        userMenuOpen.value = false
+    }
+}
+
+onMounted(() => {
+    isDark.value = document.documentElement.classList.contains('dark')
+    document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
-    <header class="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div class="flex items-center justify-between h-16 px-4 lg:px-6">
-            <!-- Mobile Menu Button -->
+    <header ref="root" class="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
+        <div class="flex h-14 items-center gap-3 px-3 sm:px-4">
             <button
-                @click="emit('menu-click')"
-                class="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                type="button"
+                class="rounded-md p-2 text-muted-foreground hover:bg-accent lg:hidden"
                 aria-label="Toggle menu"
+                @click="emit('menu-click')"
             >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
 
-            <!-- Workspace Info -->
-            <div class="hidden lg:flex items-center space-x-4">
-                <div v-if="workspace" class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-medium" :style="{ backgroundColor: workspace.primary_color || '#1e3a5f' }">
-                        {{ workspace.name?.[0] || 'W' }}
-                    </div>
-                    <span class="font-medium text-gray-900 dark:text-white truncate max-w-xs">{{ workspace.name }}</span>
+            <div v-if="workspace" class="hidden min-w-0 items-center gap-2 md:flex">
+                <div
+                    class="flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold text-white"
+                    :style="{ backgroundColor: workspace.primary_color || '#2563eb' }"
+                >
+                    {{ workspace.name?.[0] || 'W' }}
+                </div>
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-medium">{{ workspace.name }}</p>
                 </div>
             </div>
 
-            <!-- Search -->
-            <div class="flex-1 max-w-md mx-4 lg:mx-8">
-                <div class="relative">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <button
+                type="button"
+                class="flex h-9 max-w-md flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground shadow-sm hover:bg-accent/50"
+                @click="emit('open-command')"
+            >
+                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span class="flex-1 truncate text-left">Search leads, pages, settings...</span>
+                <kbd class="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
+            </button>
+
+            <div class="ml-auto flex items-center gap-1">
+                <button
+                    type="button"
+                    class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    :title="isDark ? 'Light mode' : 'Dark mode'"
+                    @click="toggleTheme"
+                >
+                    <svg v-if="isDark" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    <input
-                        type="text"
-                        placeholder="Search leads, companies, campaigns..."
-                        class="input pl-10 py-2"
-                    />
-                </div>
-            </div>
+                    <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
 
-            <!-- Right Side Actions -->
-            <div class="flex items-center space-x-2">
-                <!-- Notifications -->
                 <div class="relative">
                     <button
-                        @click="notificationsOpen = !notificationsOpen"
-                        class="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                        type="button"
+                        class="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                         aria-label="Notifications"
+                        @click="notificationsOpen = !notificationsOpen; userMenuOpen = false"
                     >
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
-                        <span v-if="unreadCount > 0" class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                        <span
+                            v-if="unreadCount > 0"
+                            class="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground"
+                        >
                             {{ unreadCount > 9 ? '9+' : unreadCount }}
                         </span>
                     </button>
 
                     <div v-show="notificationsOpen" class="dropdown-menu w-80">
-                        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                            <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                        <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                            <h3 class="text-sm font-semibold">Notifications</h3>
                             <button
                                 v-if="unreadCount > 0"
+                                type="button"
+                                class="text-xs font-medium text-primary hover:underline"
                                 @click="markAllRead"
-                                class="text-xs text-primary-600 hover:text-primary-700 font-semibold"
                             >
                                 Mark all read
                             </button>
                         </div>
                         <div class="max-h-96 overflow-y-auto">
-                            <div v-for="notification in notifications" :key="notification.id" class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <p class="text-sm text-gray-900 dark:text-white">{{ notification.message }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notification.time }}</p>
+                            <div
+                                v-for="notification in notifications"
+                                :key="notification.id"
+                                class="border-b border-border px-4 py-3 hover:bg-accent/50"
+                            >
+                                <p class="text-sm">{{ notification.message }}</p>
+                                <p class="mt-1 text-xs text-muted-foreground">{{ notification.time }}</p>
                             </div>
-                            <div class="px-4 py-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <div class="px-4 py-3 text-center text-sm text-muted-foreground">
                                 Notifications are also sent by email.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- User Menu -->
                 <div class="relative">
                     <button
-                        @click="userMenuOpen = !userMenuOpen"
-                        class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                        type="button"
+                        class="flex items-center gap-2 rounded-md p-1.5 hover:bg-accent"
                         aria-label="User menu"
+                        @click="userMenuOpen = !userMenuOpen; notificationsOpen = false"
                     >
-                        <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
                             {{ user?.name?.[0] || 'U' }}
                         </div>
-                        <span class="hidden lg:block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user?.name }}</span>
-                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <span class="hidden max-w-[10rem] truncate text-sm font-medium lg:block">{{ user?.name }}</span>
                     </button>
 
                     <div v-show="userMenuOpen" class="dropdown-menu">
-                        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                            <p class="font-medium text-gray-900 dark:text-white">{{ user?.name }}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ user?.email }}</p>
+                        <div class="border-b border-border px-4 py-3">
+                            <p class="font-medium">{{ user?.name }}</p>
+                            <p class="text-sm text-muted-foreground">{{ user?.email }}</p>
                         </div>
+                        <Link
+                            v-if="workspaces && workspaces.length > 1"
+                            :href="route('settings.workspace.switch')"
+                            class="dropdown-item"
+                            @click="userMenuOpen = false"
+                        >
+                            Switch workspace
+                        </Link>
                         <Link :href="route('settings.profile')" class="dropdown-item" @click="userMenuOpen = false">
-                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
                             Profile
                         </Link>
                         <Link :href="route('settings.workspace')" class="dropdown-item" @click="userMenuOpen = false">
-                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
                             Settings
                         </Link>
-                        <hr class="my-1 border-gray-100 dark:border-gray-700" />
+                        <hr class="my-1 border-border" />
                         <form @submit.prevent="logout">
-                            <button type="submit" class="dropdown-item text-red-600 dark:text-red-400 w-full text-left">
-                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
+                            <button type="submit" class="dropdown-item w-full text-left text-destructive">
                                 Logout
                             </button>
                         </form>

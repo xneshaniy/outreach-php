@@ -1,10 +1,12 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePage, Head } from '@inertiajs/vue3'
 import Navigation from '@/Components/Navigation.vue'
 import TopBar from '@/Components/TopBar.vue'
 import Toast from '@/Components/Toast.vue'
 import ConfirmDialog from '@/Components/ConfirmDialog.vue'
+import CommandPalette from '@/Components/CommandPalette.vue'
+import { applyTheme } from '@/theme'
 
 const props = defineProps({
     title: String,
@@ -13,7 +15,10 @@ const props = defineProps({
 
 const page = usePage()
 const sidebarOpen = ref(false)
-const mobileMenuOpen = ref(false)
+const sidebarCollapsed = ref(false)
+const commandOpen = ref(false)
+const toast = ref(null)
+const confirmDialog = ref(null)
 
 const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value
@@ -23,14 +28,13 @@ const closeSidebar = () => {
     sidebarOpen.value = false
 }
 
-onMounted(() => {
-    // Handle mobile sidebar
-    if (window.innerWidth < 1024) {
-        sidebarOpen.value = false
-    }
-})
+const toggleCollapsed = () => {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+    try {
+        localStorage.setItem('sidebar_collapsed', sidebarCollapsed.value ? '1' : '0')
+    } catch (e) {}
+}
 
-// Listen for toast events
 const showToast = (event) => {
     toast.value = event.detail
     setTimeout(() => {
@@ -38,7 +42,23 @@ const showToast = (event) => {
     }, 5000)
 }
 
-const toast = ref(null)
+const showConfirm = (event) => {
+    confirmDialog.value = event.detail
+}
+
+const handleConfirm = (confirmed) => {
+    if (confirmDialog.value?.callback) {
+        confirmDialog.value.callback(confirmed)
+    }
+    confirmDialog.value = null
+}
+
+const onGlobalKey = (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        commandOpen.value = !commandOpen.value
+    }
+}
 
 watch(
     () => page.props.flash,
@@ -51,39 +71,34 @@ watch(
             toast.value = { message: flash.error, type: 'error' }
             setTimeout(() => { toast.value = null }, 6000)
         }
+        if (flash?.warning) {
+            toast.value = { message: flash.warning, type: 'warning' }
+            setTimeout(() => { toast.value = null }, 6000)
+        }
     },
     { immediate: true, deep: true }
 )
 
+watch(
+    () => page.props.theme,
+    (theme) => applyTheme(theme || 'light'),
+    { immediate: true }
+)
+
 onMounted(() => {
+    try {
+        sidebarCollapsed.value = localStorage.getItem('sidebar_collapsed') === '1'
+    } catch (e) {}
     window.addEventListener('toast', showToast)
+    window.addEventListener('confirm', showConfirm)
+    window.addEventListener('keydown', onGlobalKey)
 })
 
 onBeforeUnmount(() => {
     window.removeEventListener('toast', showToast)
-})
-
-// Listen for confirm events
-const confirmDialog = ref(null)
-
-const showConfirm = (event) => {
-    confirmDialog.value = event.detail
-}
-
-onMounted(() => {
-    window.addEventListener('confirm', showConfirm)
-})
-
-onBeforeUnmount(() => {
     window.removeEventListener('confirm', showConfirm)
+    window.removeEventListener('keydown', onGlobalKey)
 })
-
-const handleConfirm = (confirmed) => {
-    if (confirmDialog.value?.callback) {
-        confirmDialog.value.callback(confirmed)
-    }
-    confirmDialog.value = null
-}
 </script>
 
 <template>
@@ -92,42 +107,45 @@ const handleConfirm = (confirmed) => {
         <meta :content="description || page.props.appDescription" name="description" />
     </Head>
 
-    <div class="min-h-screen">
-        <!-- Sidebar -->
-        <Navigation 
-            :open="sidebarOpen" 
-            @close="closeSidebar"
+    <div class="min-h-svh bg-muted">
+        <Navigation
+            :open="sidebarOpen"
+            :collapsed="sidebarCollapsed"
             :workspaces="page.props.navWorkspaces"
             :current-workspace="page.props.currentWorkspace"
+            @close="closeSidebar"
+            @toggle-collapsed="toggleCollapsed"
         />
 
-        <!-- Mobile sidebar overlay -->
-        <div 
-            v-show="sidebarOpen" 
+        <div
+            v-show="sidebarOpen"
+            class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
             @click="closeSidebar"
-            class="fixed inset-0 z-40 bg-gray-900/50 lg:hidden transition-opacity"
-            :class="{ 'opacity-100': sidebarOpen, 'opacity-0': !sidebarOpen }"
         ></div>
 
-        <!-- Main Content -->
-        <div class="lg:pl-64 min-h-screen">
-            <!-- Top Bar -->
-            <TopBar 
-                @menu-click="toggleSidebar"
-                :workspace="page.props.currentWorkspace"
-                :user="page.props.auth.user"
-            />
+        <div
+            class="flex min-h-svh flex-col transition-[padding] duration-200 lg:p-3"
+            :class="sidebarCollapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-[16.5rem]'"
+        >
+            <div class="flex min-h-svh flex-1 flex-col overflow-hidden bg-background lg:min-h-[calc(100svh-1rem)] lg:rounded-xl lg:border lg:border-border lg:shadow-soft">
+                <TopBar
+                    :workspace="page.props.currentWorkspace"
+                    :user="page.props.auth.user"
+                    :workspaces="page.props.navWorkspaces"
+                    @menu-click="toggleSidebar"
+                    @open-command="commandOpen = true"
+                />
 
-            <!-- Page Content -->
-            <main class="p-4 lg:p-6" :class="{ 'pt-16 lg:pt-6': mobileMenuOpen }">
-                <slot />
-            </main>
+                <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+                    <div class="mx-auto w-full max-w-7xl">
+                        <slot />
+                    </div>
+                </main>
+            </div>
         </div>
 
-        <!-- Toast Notifications -->
         <Toast v-model="toast" />
-
-        <!-- Confirm Dialog -->
         <ConfirmDialog v-model="confirmDialog" @confirm="handleConfirm" />
+        <CommandPalette :open="commandOpen" @close="commandOpen = false" />
     </div>
 </template>

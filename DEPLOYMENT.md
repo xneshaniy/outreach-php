@@ -1,533 +1,165 @@
 # Outreach CRM - Hostinger Shared Hosting Deployment Guide
 
+## Architecture
+
+The application is deployed with a split directory layout on Hostinger:
+
+```
+/home/u311221303/domains/outreach.click/
+├── crm/                    # Laravel application (NOT publicly accessible)
+│   ├── app/
+│   ├── bootstrap/
+│   ├── config/
+│   ├── database/
+│   ├── public/             # (redundant copy, not served)
+│   ├── resources/
+│   ├── routes/
+│   ├── storage/            # writable (logs, cache, sessions, views)
+│   ├── tests/
+│   ├── vendor/             # installed via composer on server
+│   ├── queue-drain.php     # CLI queue drain script
+│   └── .env                # production environment (NOT in Git)
+├── public_html/            # Web root (publicly accessible)
+│   ├── index.php           # Front controller (bootstraps ../crm)
+│   ├── .htaccess           # Security headers
+│   ├── .user.ini           # PHP settings
+│   ├── build/              # Vite compiled assets
+│   ├── css/
+│   └── js/
+```
+
 ## Prerequisites
 
-Before deploying, ensure you have:
-- Hostinger shared hosting account with SSH access enabled
-- Domain name pointed to Hostinger nameservers
-- PHP 8.2+ available on your hosting plan
-- MySQL/MariaDB database created
-- Composer available (or ability to upload vendor folder)
+- Hostinger Business shared hosting (PHP 8.3)
+- MySQL database `u311221303_outrach`
+- Cron job access (for scheduler + queue drain)
+- SSH access (recommended for composer install)
 
-## Server Requirements
+## Step 1: Upload Files
 
-### PHP Extensions Required
-- BCMath
-- Ctype
-- Fileinfo
-- JSON
-- Mbstring
-- OpenSSL
-- PDO
-- PDO MySQL
-- Tokenizer
-- XML
-- ZIP
-- GD or Imagick (for image processing)
-- Intl (recommended)
-
-### Hostinger Plan Verification
-Check your hosting plan supports:
-- ✅ PHP 8.2+
-- ✅ MySQL/MariaDB
-- ✅ Cron Jobs (for scheduler)
-- ✅ SSH Access
-- ✅ Composer (or ability to run `composer install` locally)
-- ✅ 512MB+ memory limit
-- ✅ 30+ second max execution time
-
-## Step 1: Local Development Setup
+### Option A: SSH + SCP (Recommended)
 
 ```bash
-# Clone or navigate to project
-cd outreach-crm
+# Extract the deployment archive locally
+unzip outreach-click.zip
 
-# Install dependencies
-composer install --optimize-autoloader --no-dev
+# This creates: crm/ and public_html/ directories
 
-# Generate application key
-php artisan key:generate
+# Upload crm/ to the home directory
+scp -r crm/ u311221303@145.79.31.10:/home/u311221303/domains/outreach.click/
 
-# Run migrations
-php artisan migrate --force
+# Upload public_html/ contents to the web root
+scp -r public_html/* u311221303@145.79.31.10:/home/u311221303/domains/outreach.click/public_html/
 
-# Seed database (optional)
-php artisan db:seed --force
-
-# Build frontend assets
-npm install && npm run build
-
-# Create storage link
-php artisan storage:link
+# On the server, install PHP dependencies
+ssh u311221303@145.79.31.10
+cd /home/u311221303/domains/outreach.click/crm
+/opt/alt/php83/usr/bin/php /usr/bin/composer install --optimize-autoloader --no-dev
 ```
 
-## Step 2: Database Setup on Hostinger
+### Option B: Hostinger File Manager
 
-### Create Database via hPanel
-1. Log into hPanel
-2. Go to **Databases** → **MySQL Databases**
-3. Create new database: `your_database_name`
-4. Create user: `your_database_user` with a secure password
-5. Assign user to database with **All Privileges**
+1. Extract `outreach-click.zip` locally
+2. Upload `crm/` contents to `/home/u311221303/domains/outreach.click/crm/`
+3. Upload `public_html/` contents to `/home/u311221303/domains/outreach.click/public_html/`
+4. Ensure `vendor/` exists in `crm/` (run `composer install` via SSH or Hostinger terminal)
 
-### Import Schema (if not using migrations)
-```bash
-# On local machine, export schema
-php artisan schema:dump --prune
+**Never upload `.env` with real credentials.** The production `.env` already exists on the server — preserve it during updates.
 
-# Or use mysqldump
-mysqldump -u local_user -p local_db --no-data > schema.sql
+## Step 2: Verify File Placement
+
+```
+public_html/ should contain: index.php, .htaccess, .user.ini, build/, css/, js/
+crm/ should contain: app/, bootstrap/, config/, database/, routes/, resources/, storage/, queue-drain.php, .env
 ```
 
-## Step 3: Prepare Production Environment
+The `public_html/index.php` bootstraps the app from `../crm/` and sets the public path to `public_html/`.
 
-### Create `.env` file for production
-```env
-APP_NAME="Outreach CRM"
-APP_ENV=production
-APP_KEY=base64:YOUR_GENERATED_KEY
-APP_DEBUG=false
-APP_URL=https://your-domain.com
+## Step 3: Environment Configuration
 
-LOG_CHANNEL=stack
-LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=error
+The production `.env` already exists on the server at `crm/.env`. Do not overwrite it. Verify:
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=your_database_name
-DB_USERNAME=your_database_user
-DB_PASSWORD=your_secure_db_password
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_URL=https://outreach.click`
+- `DB_DATABASE=u311221303_outrach`
+- `QUEUE_CONNECTION=database`
+- `CACHE_STORE=file`
+- `SESSION_DRIVER=file`
 
-BROADCAST_DRIVER=log
-CACHE_DRIVER=file
-FILESYSTEM_DISK=local
-QUEUE_CONNECTION=database
-SESSION_DRIVER=file
-SESSION_LIFETIME=120
-
-MAIL_MAILER=smtp
-MAIL_HOST=your-smtp-host
-MAIL_PORT=587
-MAIL_USERNAME=your-smtp-username
-MAIL_PASSWORD=your-smtp-password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="noreply@your-domain.com"
-MAIL_FROM_NAME="${APP_NAME}"
-
-SANCTUM_STATEFUL_DOMAINS=your-domain.com
-SESSION_DOMAIN=your-domain.com
-SESSION_SECURE_COOKIE=true
-
-CRM_DEFAULT_TIMEZONE=UTC
-CRM_DAILY_SEND_LIMIT=200
-CRM_BATCH_SIZE=50
-CRM_MAX_RETRIES=3
-CRM_RETRY_DELAY=300
-```
-
-## Step 4: Upload Files to Hostinger
-
-### Option A: Using SSH (Recommended)
+## Step 4: Run Production Commands (via SSH)
 
 ```bash
-# Create deployment archive (exclude unnecessary files)
-tar -czf deploy.tar.gz \
-    --exclude='.git' \
-    --exclude='node_modules' \
-    --exclude='tests' \
-    --exclude='.env*' \
-    --exclude='*.log' \
-    --exclude='storage/logs/*' \
-    --exclude='storage/framework/cache/*' \
-    --exclude='storage/framework/sessions/*' \
-    --exclude='storage/framework/views/*' \
-    --exclude='bootstrap/cache/*' \
-    .
+cd /home/u311221303/domains/outreach.click/crm
 
-# Upload to Hostinger
-scp deploy.tar.gz your_username@your-server:/home/your_username/
+# Clear and cache configuration
+/opt/alt/php83/usr/bin/php artisan optimize:clear
+/opt/alt/php83/usr/bin/php artisan config:cache
 
-# On server, extract
-ssh your_username@your-server
-cd /home/your_username
-tar -xzf deploy.tar.gz -C public_html/
+# Verify storage directories are writable
+/opt/alt/php83/usr/bin/php artisan schedule:list
 ```
 
-### Option B: Using FTP/File Manager
-1. Run `composer install --optimize-autoloader --no-dev` locally
-2. Run `npm run build` locally
-3. Upload all files **except**:
-   - `.git/`
-   - `node_modules/`
-   - `tests/`
-   - `.env*`
-   - `storage/logs/*`
-   - `storage/framework/cache/*`
-   - `storage/framework/sessions/*`
-   - `storage/framework/views/*`
-   - `bootstrap/cache/*`
-4. Upload to `public_html/` directory
+**Never run `migrate:fresh`, `db:wipe`, or destructive seeders against production.** Migrations have already been applied to the production database.
 
-## Step 5: Configure Document Root
+## Step 5: Configure Cron Jobs
 
-### Important: Point Document Root to `/public`
+In Hostinger hPanel → **Advanced** → **Cron Jobs**, create ONE cron job:
 
-In hPanel:
-1. Go to **Hosting** → **Manage** → **Website** → **Document Root**
-2. Set document root to: `public_html/public`
-3. Or create `.htaccess` in `public_html/`:
-```apache
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteRule ^(.*)$ public/$1 [L]
-</IfModule>
+```
+* * * * * /opt/alt/php83/usr/bin/php /home/u311221303/domains/outreach.click/crm/artisan schedule:run
 ```
 
-## Step 6: Set File Permissions
+This runs every minute and handles:
+- Campaign processing (ProcessCampaignsJob)
+- Reminder emails (SendReminderEmailsJob)
+- Cleanup (CleanupJob)
+- Database queue drain (QueueDrain::run)
+
+**Do not add a separate `queue:work` cron job** — the host's PHP CLI segfaults during `queue:work` shutdown. The in-process drain via `QueueDrain` handles queue processing safely.
+
+## Step 6: Verify Deployment
 
 ```bash
-# On server via SSH
-cd /home/your_username/public_html
+# Health endpoint
+curl -I https://outreach.click/up          # Should return 200
 
-# Storage and cache writable
-chmod -R 775 storage bootstrap/cache
-chown -R your_username:your_username storage bootstrap/cache
+# Login page
+curl -I https://outreach.click/login        # Should return 200
 
-# Ensure .env is not publicly accessible
-chmod 640 .env
+# Homepage (redirects to dashboard or login)
+curl -I https://outreach.click/             # Should return 302
+
+# Cron output (check via Hostinger hPanel cron output)
 ```
 
-## Step 7: Run Production Commands
-
-```bash
-cd /home/your_username/public_html
-
-# Generate key if not set
-php artisan key:generate --force
-
-# Run migrations
-php artisan migrate --force
-
-# Seed database (optional)
-php artisan db:seed --force
-
-# Optimize for production
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
-
-# Create storage link
-php artisan storage:link
-
-# Clear any cached config
-php artisan optimize:clear
-```
-
-## Step 8: Configure Cron Job for Scheduler
-
-In hPanel → **Advanced** → **Cron Jobs**:
-
-```bash
-# Add this command (runs every minute)
-* * * * * /usr/bin/php /home/your_username/public_html/artisan schedule:run >> /dev/null 2>&1
-```
-
-**Note**: Replace `/home/your_username/public_html` with your actual path.
-Find your path by running `pwd` in your project directory via SSH.
-
-### Verify Cron Works
-```bash
-# Test manually
-php artisan schedule:run
-
-# Check scheduled tasks
-php artisan schedule:list
-```
-
-## Step 9: Configure Queue Worker (Optional but Recommended)
-
-Since shared hosting doesn't support persistent workers, use cron-based queue processing:
-
-### Add to Crontab (every 5 minutes)
-```bash
-*/5 * * * * /usr/bin/php /home/your_username/public_html/artisan queue:work --stop-when-empty --max-time=240 --tries=3 >> /dev/null 2>&1
-```
-
-Or use the built-in queue processing in the scheduler (already configured in `app/Console/Kernel.php`).
-
-## Step 10: Configure Email (SMTP)
-
-Update `.env` with your SMTP credentials:
-```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com        # or your provider
-MAIL_PORT=587
-MAIL_USERNAME=your-email@domain.com
-MAIL_PASSWORD=your-app-password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="noreply@your-domain.com"
-MAIL_FROM_NAME="Outreach CRM"
-```
-
-### Test Email Configuration
-```bash
-php artisan tinker
->>> Mail::raw('Test email', fn($m) => $m->to('test@example.com')->subject('Test'))
-```
-
-## Step 11: SSL/HTTPS Setup
-
-1. In hPanel → **SSL** → **Force HTTPS**
-2. Or add to `.htaccess` in `public_html/public/`:
-```apache
-RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-```
-
-## Step 12: DNS & SPF/DKIM/DMARC Setup
-
-### SPF Record (TXT)
-```
-v=spf1 include:_spf.google.com ~all
-```
-Or for your provider:
-```
-v=spf1 include:your-smtp-provider.com ~all
-```
-
-### DKIM
-Generate DKIM keys and add as TXT record (check your SMTP provider docs)
-
-### DMARC (TXT)
-```
-v=DMARC1; p=quarantine; rua=mailto:dmarc@your-domain.com
-```
-
-## Step 13: Verify Deployment
-
-### Checklist
-- [ ] Application loads at `https://your-domain.com`
-- [ ] Login works with demo credentials
-- [ ] Dashboard displays correctly
-- [ ] Leads/Companies/Campaigns pages work
-- [ ] Email test sends successfully
-- [ ] Cron job runs (check `storage/logs/laravel.log`)
-- [ ] Queue processes (send test campaign)
-- [ ] File uploads work (import CSV)
-- [ ] HTTPS enforced
-- [ ] `.env` not accessible via web
-
-### Test Commands
-```bash
-# Check application
-php artisan about
-
-# Test queue
-php artisan queue:work --once
-
-# Test scheduler
-php artisan schedule:run
-
-# Test email
-php artisan mail:test your-email@domain.com
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 500 Internal Server Error
-```bash
-# Check logs
-tail -f storage/logs/laravel.log
-
-# Common fixes:
-# 1. Check .env exists and has correct permissions
-# 2. Run php artisan config:clear
-# 3. Check PHP version: php -v
-# 4. Verify extensions: php -m
-```
-
-#### Database Connection Failed
-```bash
-# Verify credentials
-mysql -u your_database_user -p -h 127.0.0.1 your_database_name
-
-# Check .env DB_* values match exactly
-```
-
-#### Cron Not Running
-```bash
-# Check cron log
-grep CRON /var/log/syslog
-
-# Test command manually
-/usr/bin/php /home/your_username/public_html/artisan schedule:run
-```
-
-#### Queue Not Processing
-```bash
-# Check failed jobs
-php artisan queue:failed
-
-# Retry failed
-php artisan queue:retry all
-
-# Check jobs table
-php artisan tinker
->>> DB::table('jobs')->count()
-```
-
-#### Permission Denied
-```bash
-# Fix storage permissions
-chmod -R 775 storage bootstrap/cache
-chown -R your_username:your_username storage bootstrap/cache
-```
-
-#### Memory Limit Exceeded
-```bash
-# Check limit
-php -i | grep memory_limit
-
-# Increase in .user.ini or php.ini
-memory_limit = 512M
-```
-
-## Maintenance
-
-### Backup Strategy
-```bash
-# Database backup (add to daily cron)
-mysqldump -u your_database_user -p your_database_name > backup_$(date +%F).sql
-
-# Files backup
-tar -czf files_backup_$(date +%F).tar.gz public_html --exclude='public_html/storage/logs/*'
-```
-
-### Updates
-```bash
-# Pull latest changes
-git pull origin main
-
-# Install dependencies
-composer install --optimize-autoloader --no-dev
-
-# Run migrations
-php artisan migrate --force
-
-# Rebuild assets
-npm run build
-
-# Clear caches
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
-
-### Monitoring
-- Check `storage/logs/laravel.log` regularly
-- Monitor queue: `php artisan queue:monitor`
-- Check disk space: `df -h`
-
-## Security Checklist
-
-- [ ] `.env` not publicly accessible
-- [ ] `APP_DEBUG=false`
-- [ ] `APP_KEY` generated and unique
-- [ ] Strong database password
-- [ ] HTTPS enforced
-- [ ] Secure cookies (`SESSION_SECURE_COOKIE=true`)
-- [ ] CSRF protection enabled
-- [ ] Rate limiting configured
-- [ ] File upload validation
-- [ ] SQL injection prevention (Eloquent ORM)
-- [ ] XSS protection (Blade escaping)
-
-## Support Commands
-
-```bash
-# Clear all caches
-php artisan optimize:clear
-
-# Rebuild caches
-php artisan config:cache && php artisan route:cache && php artisan view:cache
-
-# Check scheduled tasks
-php artisan schedule:list
-
-# Check queue status
-php artisan queue:monitor
-
-# Run specific job
-php artisan queue:work --once
-
-# Generate IDE helpers (dev only)
-php artisan ide-helper:generate
-```
-
-## Path Reference
-
-| Path | Description |
-|------|-------------|
-| `/home/your_username/public_html` | Project root |
-| `/home/your_username/public_html/public` | Document root |
-| `/home/your_username/public_html/storage` | Storage (writable) |
-| `/home/your_username/public_html/bootstrap/cache` | Cache (writable) |
-| `/home/your_username/public_html/.env` | Environment config |
-
-## Useful Hostinger-Specific Commands
-
-```bash
-# Check PHP version
-php -v
-
-# Check PHP extensions
-php -m | grep -E 'pdo|mysql|mbstring|xml|gd|zip|bcmath|intl'
-
-# Check Composer version
-composer --version
-
-# Check Node/npm (for assets)
-node -v && npm -v
-
-# Check disk usage
-du -sh public_html/
-
-# Check memory limit
-php -r "echo ini_get('memory_limit');"
-```
-
-## Rollback Procedure
-
-```bash
-# 1. Restore database
-mysql -u your_database_user -p your_database_name < backup_2024-01-15.sql
-
-# 2. Restore files
-tar -xzf files_backup_2024-01-15.tar.gz -C /home/your_username/
-
-# 3. Clear caches
-php artisan optimize:clear
-
-# 4. Run migrations (if needed)
-php artisan migrate --force
-```
-
----
-
-## Need Help?
-
-If you encounter issues:
-1. Check `storage/logs/laravel.log` for errors
-2. Verify all requirements are met
-3. Ensure cron job is configured correctly
-4. Test SMTP credentials independently
-5. Contact Hostinger support for server-specific issues
-
-**Important**: Never commit `.env` with real credentials to version control!
+## Step 7: Rollback Procedure
+
+1. Restore database from backup (`mysqldump` or hPanel backup)
+2. Restore files from previous deployment archive
+3. Clear caches: `php artisan optimize:clear`
+4. Never run `migrate:fresh` or `db:wipe`
+
+## Security Notes
+
+- `.env` is in `crm/` (above web root) — never publicly accessible
+- `APP_DEBUG=false` in production
+- No public diagnostic or installer scripts
+- All probe scripts (`_deploy*.php`, `install.php`, etc.) have been removed from `public_html/`
+
+## What Requires Manual Action
+
+1. **Database credentials** — The production `.env` already has them; do not overwrite
+2. **SMTP credentials** — Configure in production `.env` for email sending
+3. **Cron job** — Create via Hostinger hPanel (see Step 5)
+4. **Composer install** — Run on server after uploading `crm/`
+
+## Files Changed in This Release
+
+- `app/Models/Campaign.php` — Added `STATUS_FAILED` constant
+- `app/Models/EmailAccount.php` — Added `getPassword()` accessor
+- `app/Services/EmailService.php` — Fixed `getPassword()` → `password` accessor; added `CampaignRecipient` import
+- `app/Services/LeadService.php` — Fixed dead code: lead score now calculated after creation
+- `app/Http/Controllers/Settings/SettingsController.php` — Fixed `route('leads.import')` → `route('leads.import.form')`
+- `tests/TestCase.php` — Added `createTestUser()` helper
+- Multiple test files updated for invitation-only registration

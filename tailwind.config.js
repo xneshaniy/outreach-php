@@ -1,14 +1,49 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
     content: [
-        "./resources/**/*.blade.php",
-        "./resources/**/*.js",
-        "./resources/**/*.vue",
+        './resources/**/*.blade.php',
+        './resources/**/*.js',
+        './resources/**/*.vue',
     ],
     theme: {
         extend: {
             colors: {
+                border: 'hsl(var(--border) / <alpha-value>)',
+                input: 'hsl(var(--input) / <alpha-value>)',
+                ring: 'hsl(var(--ring) / <alpha-value>)',
+                background: 'hsl(var(--background) / <alpha-value>)',
+                foreground: 'hsl(var(--foreground) / <alpha-value>)',
+                muted: {
+                    DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+                    foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+                },
+                accent: {
+                    DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+                    foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+                },
+                card: {
+                    DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+                    foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+                },
+                popover: {
+                    DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+                    foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+                },
+                destructive: {
+                    DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+                    foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
+                },
+                sidebar: {
+                    DEFAULT: 'hsl(var(--sidebar) / <alpha-value>)',
+                    foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
+                    accent: 'hsl(var(--sidebar-accent) / <alpha-value>)',
+                    border: 'hsl(var(--sidebar-border) / <alpha-value>)',
+                    muted: 'hsl(var(--sidebar-muted) / <alpha-value>)',
+                },
                 primary: {
+                    DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+                    foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
                     50: '#eff6ff',
                     100: '#dbeafe',
                     200: '#bfdbfe',
@@ -45,8 +80,30 @@ export default {
                     900: '#134e4a',
                 },
             },
+            borderRadius: {
+                lg: 'var(--radius)',
+                md: 'calc(var(--radius) - 2px)',
+                sm: 'calc(var(--radius) - 4px)',
+            },
             fontFamily: {
                 sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+            boxShadow: {
+                'soft': '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
+                'card': '0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05)',
+                'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+                'elevated': '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
+                'sidebar': '1px 0 0 0 rgb(0 0 0 / 0.05)',
+            },
+            animation: {
+                'fade-in': 'fadeIn 0.2s ease-out',
+                'slide-in': 'slideIn 0.2s ease-out',
+                'scale-in': 'scaleIn 0.15s ease-out',
+            },
+            keyframes: {
+                fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                slideIn: { '0%': { transform: 'translateY(-4px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+                scaleIn: { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
             },
         },
     },

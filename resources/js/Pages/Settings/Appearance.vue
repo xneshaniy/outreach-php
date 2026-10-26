@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 const props = defineProps({
     theme: String,
@@ -21,10 +22,11 @@ const save = () => {
     <Head title="Appearance" />
 
     <MainLayout title="Appearance Settings" description="Customize interface theme and display modes">
+        <SettingsNav />
         <div class="max-w-3xl space-y-8">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Appearance</h1>
-                <p class="text-sm text-gray-500">Select your preferred color theme</p>
+                <h1 class="page-title">Appearance</h1>
+                <p class="page-description">Select your preferred color theme</p>
             </div>
 
             <div class="card p-6">

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { Link, Head, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import PageHeader from '@/Components/PageHeader.vue'
 
 const props = defineProps({
     campaigns: Object,
@@ -82,24 +83,11 @@ const deleteCampaign = (c) => {
 
     <MainLayout title="Campaigns Dashboard" description="Automate multi-step cold email and follow-up sequences across mailboxes">
         <div class="space-y-6">
-            <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Email Campaigns</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Multi-account load balancing & automated outreach engine
-                    </p>
-                </div>
-                <Link
-                    :href="route('campaigns.create')"
-                    class="btn btn-primary inline-flex items-center"
-                >
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Create Campaign
-                </Link>
-            </div>
+            <PageHeader title="Email Campaigns" description="Multi-step sequences across connected mailboxes.">
+                <template #actions>
+                    <Link :href="route('campaigns.create')" class="btn-primary">Create campaign</Link>
+                </template>
+            </PageHeader>
 
             <!-- Global Campaign Stats Grid -->
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SettingsNav from '@/Components/SettingsNav.vue'
 
 const props = defineProps({
     user: Object,
@@ -38,6 +39,7 @@ const updatePassword = () => {
     <Head title="Profile Settings" />
 
     <MainLayout title="Profile Settings" description="Manage your personal details, email address, and security">
+        <SettingsNav />
         <div class="max-w-3xl space-y-8">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>

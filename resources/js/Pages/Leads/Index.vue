@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Modal from '@/Components/Modal.vue'
+import PageHeader from '@/Components/PageHeader.vue'
 
 const props = defineProps({
     leads: Object,
@@ -109,10 +110,35 @@ const handleBulkAction = (action) => {
     })
 }
 
+let searchTimeout = null
+
 const updateFilter = (key, value) => {
+    const apply = () => {
+        router.get(route('leads.index'), {
+            ...props.filters,
+            field: props.sort?.field,
+            direction: props.sort?.direction,
+            [key]: value || undefined,
+        }, {
+            preserveState: true,
+            replace: true,
+        })
+    }
+
+    if (key === 'search') {
+        clearTimeout(searchTimeout)
+        searchTimeout = setTimeout(apply, 300)
+        return
+    }
+
+    apply()
+}
+
+const handleSort = ({ field, direction }) => {
     router.get(route('leads.index'), {
         ...props.filters,
-        [key]: value || undefined,
+        field,
+        direction,
     }, {
         preserveState: true,
         replace: true,
@@ -160,38 +186,20 @@ const formatDate = (date) => {
                 <title>Leads - Outreach CRM</title>
             </Head>
 
-            <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Leads</h1>
-                    <p class="text-gray-500 dark:text-gray-400 mt-1">Manage and track your leads</p>
-                </div>
-                <div class="flex items-center space-x-3">
+            <PageHeader title="Leads" description="Search, filter, and manage prospects in this workspace.">
+                <template #actions>
                     <button
                         type="button"
-                        @click="removeDuplicates"
-                        class="btn-secondary text-sm inline-flex items-center"
+                        class="btn-secondary"
                         title="Scan workspace and remove duplicate leads"
+                        @click="removeDuplicates"
                     >
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
                         Deduplicate
                     </button>
-                    <Link :href="route('leads.import.form')" class="btn-secondary">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Import
-                    </Link>
-                    <Link :href="route('leads.create')" class="btn-primary">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Lead
-                    </Link>
-                </div>
-            </div>
+                    <Link :href="route('leads.import.form')" class="btn-secondary">Import</Link>
+                    <Link :href="route('leads.create')" class="btn-primary">Add lead</Link>
+                </template>
+            </PageHeader>
 
             <!-- Bulk Action Bar -->
             <div v-if="selectedLeads.length > 0" class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -260,7 +268,7 @@ const formatDate = (date) => {
                 :loading="false"
                 :pagination="leads"
                 :sort="sort"
-                @sort="emit('update:sort', $event)"
+                @sort="handleSort"
                 :selection="selectedLeads"
                 @selection-change="toggleSelect"
                 :select-all="selectAll"
