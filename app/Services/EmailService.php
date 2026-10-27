@@ -20,9 +20,27 @@ class EmailService
         $transport = $this->createTransport($account);
         $mailer = new Mailer($transport);
 
+        $fromName = $options['from_name'] ?? $account->from_name ?? $account->name;
+        $fromAddress = !empty($fromName)
+            ? new \Symfony\Component\Mime\Address($account->email, $fromName)
+            : new \Symfony\Component\Mime\Address($account->email);
+
+        $toAddresses = [];
+        foreach ($to as $t) {
+            if (is_string($t)) {
+                $toAddresses[] = new \Symfony\Component\Mime\Address(trim($t));
+            } elseif (is_array($t) && !empty($t['email'])) {
+                $toAddresses[] = !empty($t['name'])
+                    ? new \Symfony\Component\Mime\Address(trim($t['email']), trim($t['name']))
+                    : new \Symfony\Component\Mime\Address(trim($t['email']));
+            } elseif ($t instanceof \Symfony\Component\Mime\Address) {
+                $toAddresses[] = $t;
+            }
+        }
+
         $message = (new Email())
-            ->from($account->email, $options['from_name'] ?? $account->from_name ?? $account->name)
-            ->to(...array_map(fn($t) => [$t['email'], $t['name'] ?? ''], $to))
+            ->from($fromAddress)
+            ->to(...$toAddresses)
             ->subject($subject)
             ->html($html);
 
@@ -31,17 +49,45 @@ class EmailService
         }
 
         if (!empty($options['cc'])) {
-            $message->cc(...array_map(fn($t) => [$t['email'], $t['name'] ?? ''], $options['cc']));
+            $ccAddresses = [];
+            foreach ($options['cc'] as $c) {
+                if (is_string($c)) {
+                    $ccAddresses[] = new \Symfony\Component\Mime\Address(trim($c));
+                } elseif (is_array($c) && !empty($c['email'])) {
+                    $ccAddresses[] = !empty($c['name'])
+                        ? new \Symfony\Component\Mime\Address(trim($c['email']), trim($c['name']))
+                        : new \Symfony\Component\Mime\Address(trim($c['email']));
+                }
+            }
+            if ($ccAddresses) {
+                $message->cc(...$ccAddresses);
+            }
         }
 
         if (!empty($options['bcc'])) {
-            $message->bcc(...array_map(fn($t) => [$t['email'], $t['name'] ?? ''], $options['bcc']));
+            $bccAddresses = [];
+            foreach ($options['bcc'] as $b) {
+                if (is_string($b)) {
+                    $bccAddresses[] = new \Symfony\Component\Mime\Address(trim($b));
+                } elseif (is_array($b) && !empty($b['email'])) {
+                    $bccAddresses[] = !empty($b['name'])
+                        ? new \Symfony\Component\Mime\Address(trim($b['email']), trim($b['name']))
+                        : new \Symfony\Component\Mime\Address(trim($b['email']));
+                }
+            }
+            if ($bccAddresses) {
+                $message->bcc(...$bccAddresses);
+            }
         }
 
         if (!empty($options['reply_to'])) {
-            $message->replyTo($options['reply_to']['email'], $options['reply_to']['name'] ?? '');
+            $replyEmail = is_array($options['reply_to']) ? ($options['reply_to']['email'] ?? '') : $options['reply_to'];
+            $replyName = is_array($options['reply_to']) ? ($options['reply_to']['name'] ?? '') : '';
+            if ($replyEmail) {
+                $message->replyTo(!empty($replyName) ? new \Symfony\Component\Mime\Address($replyEmail, $replyName) : new \Symfony\Component\Mime\Address($replyEmail));
+            }
         } elseif ($account->reply_to) {
-            $message->replyTo($account->reply_to);
+            $message->replyTo(new \Symfony\Component\Mime\Address($account->reply_to));
         }
 
         if (!empty($options['headers'])) {
@@ -60,8 +106,9 @@ class EmailService
 
         try {
             $mailer->send($message);
-            return ['success' => true, 'message_id' => $message->getMessageId()];
-        } catch (\Exception $e) {
+            $account->recordSent();
+            return ['success' => true];
+        } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -114,9 +161,8 @@ class EmailService
     {
         try {
             $transport = $this->createTransport($account);
-            $mailer = new Mailer($transport);
-            $mailer->getTransport()->start();
-            $mailer->getTransport()->stop();
+            $transport->start();
+            $transport->stop();
             return ['success' => true, 'message' => 'Connection successful'];
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
@@ -144,9 +190,8 @@ class EmailService
                 $transport->setPassword($config['password']);
             }
 
-            $mailer = new Mailer($transport);
-            $mailer->getTransport()->start();
-            $mailer->getTransport()->stop();
+            $transport->start();
+            $transport->stop();
 
             return ['success' => true, 'message' => 'SMTP connection tested successfully!'];
         } catch (\Throwable $e) {

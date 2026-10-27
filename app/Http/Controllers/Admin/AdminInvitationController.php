@@ -114,7 +114,23 @@ class AdminInvitationController extends Controller
         // Attempt optional email notification if mailer is configured
         $mailSent = false;
         try {
-            if (config('mail.mailers.smtp.host') || config('mail.default') !== 'log') {
+            // Priority 1: Use active connected EmailAccount (SMTP) from database
+            $senderAccount = \App\Models\EmailAccount::where('is_active', true)
+                ->where('is_default', true)
+                ->first()
+                ?? \App\Models\EmailAccount::where('is_active', true)->first();
+
+            if ($senderAccount) {
+                $emailService = app(\App\Services\EmailService::class);
+                $sendResult = $emailService->send(
+                    $senderAccount,
+                    [['email' => $email, 'name' => '']],
+                    'Invitation to join Outreach CRM',
+                    "<p>Hello,</p><p>You have been invited to join <strong>Outreach CRM</strong> as <strong>" . htmlspecialchars($validated['role']) . "</strong>.</p><p><a href=\"{$inviteUrl}\" style=\"display:inline-block;padding:10px 20px;background:#0265D2;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;\">Accept Invitation & Set Password</a></p><p>Or copy and paste this link into your browser:<br><a href=\"{$inviteUrl}\">{$inviteUrl}</a></p><p>This invitation link will expire in {$validated['expires_in_days']} days.</p><br><p>Best regards,<br>Outreach Team</p>",
+                    "You have been invited to join Outreach CRM as a {$validated['role']}.\n\nClick the link below to set up your password and access your workspace:\n{$inviteUrl}\n\nThis invitation will expire in {$validated['expires_in_days']} days.\n\nOutreach.click Security Team"
+                );
+                $mailSent = !empty($sendResult['success']);
+            } elseif (config('mail.mailers.smtp.host') && config('mail.mailers.smtp.host') !== '127.0.0.1' && !empty(config('mail.mailers.smtp.password'))) {
                 \Illuminate\Support\Facades\Mail::raw(
                     "You have been invited to join Outreach CRM as a {$validated['role']}.\n\nClick the link below to set up your password and access your workspace:\n{$inviteUrl}\n\nThis invitation will expire in {$validated['expires_in_days']} days.\n\nOutreach.click Security Team",
                     function ($msg) use ($email) {
@@ -124,7 +140,7 @@ class AdminInvitationController extends Controller
                 $mailSent = true;
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::info("Invite email could not be delivered directly ({$e->getMessage()}); providing copyable invite link instead.");
+            \Illuminate\Support\Facades\Log::warning("Invite email could not be delivered directly ({$e->getMessage()}); providing copyable invite link instead.");
         }
 
         activity()
@@ -156,13 +172,35 @@ class AdminInvitationController extends Controller
 
         $inviteUrl = url("/invite/{$pair['raw']}");
 
+        $mailSent = false;
+        try {
+            $senderAccount = \App\Models\EmailAccount::where('is_active', true)
+                ->where('is_default', true)
+                ->first()
+                ?? \App\Models\EmailAccount::where('is_active', true)->first();
+
+            if ($senderAccount) {
+                $emailService = app(\App\Services\EmailService::class);
+                $sendResult = $emailService->send(
+                    $senderAccount,
+                    [['email' => $invitation->email, 'name' => '']],
+                    'Invitation to join Outreach CRM (Resent)',
+                    "<p>Hello,</p><p>Your invitation to join <strong>Outreach CRM</strong> has been regenerated.</p><p><a href=\"{$inviteUrl}\" style=\"display:inline-block;padding:10px 20px;background:#0265D2;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;\">Accept Invitation & Set Password</a></p><p>Or copy and paste this link:<br><a href=\"{$inviteUrl}\">{$inviteUrl}</a></p><p>This link expires in 7 days.</p>",
+                    "Your invitation to join Outreach CRM has been regenerated.\n\nClick the link below:\n{$inviteUrl}\n\nThis link expires in 7 days."
+                );
+                $mailSent = !empty($sendResult['success']);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Resend invite email failed: {$e->getMessage()}");
+        }
+
         activity()
             ->causedBy(auth()->user())
             ->performedOn($invitation)
             ->log('Invitation token regenerated and resent');
 
         return back()->with('invitationSuccess', [
-            'message' => 'Invitation regenerated successfully.',
+            'message' => $mailSent ? "Invitation regenerated and emailed to {$invitation->email}." : 'Invitation regenerated successfully.',
             'email' => $invitation->email,
             'inviteUrl' => $inviteUrl,
         ]);

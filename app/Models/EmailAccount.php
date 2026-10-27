@@ -211,9 +211,8 @@ class EmailAccount extends Model
                 $transport->setPassword($password);
             }
 
-            $mailer = new \Symfony\Component\Mailer\Mailer($transport);
-            $mailer->getTransport()->start();
-            $mailer->getTransport()->stop();
+            $transport->start();
+            $transport->stop();
 
             $this->update([
                 'last_tested_at' => now(),
