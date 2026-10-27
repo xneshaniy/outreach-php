@@ -65,7 +65,10 @@ class HandleInertiaRequests extends Middleware
                 ? \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)->whereNull('read_at')->count()
                 : 0,
             'navWorkspaces' => fn () => $user
-                ? $user->activeWorkspaces()->get(['workspaces.id', 'workspaces.name', 'workspaces.slug'])->toArray()
+                ? ($user->is_super_admin
+                    ? \App\Models\Workspace::where('is_active', true)->orderBy('name')->get(['id', 'name', 'slug'])->toArray()
+                    : $user->activeWorkspaces()->get(['workspaces.id', 'workspaces.name', 'workspaces.slug'])->toArray()
+                )
                 : [],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

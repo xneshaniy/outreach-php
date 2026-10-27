@@ -28,6 +28,8 @@ const navItems = [
     { name: 'Alerts', route: 'admin.notifications.index' },
     { name: 'Audit Logs', route: 'admin.logs.index' },
     { name: 'Security', route: 'admin.security.index' },
+    { name: 'Outreach Leads', route: 'admin.leads.index' },
+    { name: 'Workspaces', route: 'admin.workspaces.index' },
 ]
 
 const isActive = (routeName) => {

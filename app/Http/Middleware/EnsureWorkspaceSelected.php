@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Workspace;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,18 @@ class EnsureWorkspaceSelected
     {
         if (Auth::check()) {
             $user = Auth::user();
+
+            // Super admins can access any workspace. If they have no current workspace,
+            // auto-select the first active workspace so CRM pages don't break.
+            if ($user->is_super_admin) {
+                if (!$user->currentWorkspace) {
+                    $workspace = Workspace::where('is_active', true)->orderBy('name')->first();
+                    if ($workspace) {
+                        $user->setCurrentWorkspace($workspace);
+                    }
+                }
+                return $next($request);
+            }
 
             // If user has no current workspace but has workspaces, select the first active one
             if (!$user->currentWorkspace && $user->activeWorkspaces()->exists()) {

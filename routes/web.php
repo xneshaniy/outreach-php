@@ -26,6 +26,8 @@ use App\Http\Controllers\Admin\AdminCostController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AdminLogController;
 use App\Http\Controllers\Admin\AdminSecurityController;
+use App\Http\Controllers\Admin\AdminLeadController;
+use App\Http\Controllers\Admin\AdminWorkspaceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -368,6 +370,16 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->gro
 
     // Logs
     Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
+
+    // Leads (outreach data manager)
+    Route::prefix('leads')->name('leads.')->group(function () {
+        Route::get('/', [AdminLeadController::class, 'index'])->name('index');
+    });
+
+    // Workspaces
+    Route::prefix('workspaces')->name('workspaces.')->group(function () {
+        Route::get('/', [AdminWorkspaceController::class, 'index'])->name('index');
+    });
 
     // Security
     Route::prefix('security')->name('security.')->group(function () {

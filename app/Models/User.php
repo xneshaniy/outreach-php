@@ -94,16 +94,34 @@ class User extends Authenticatable
 
     public function setCurrentWorkspace(Workspace $workspace): void
     {
+        // Super admins may not have a workspace_user pivot row; attach one on first access
+        // so that workspace-scoped queries operate correctly without errors.
+        if ($this->is_super_admin) {
+            $pivot = $this->workspaces()->where('workspace_id', $workspace->id)->first();
+            if (!$pivot) {
+                $this->workspaces()->attach($workspace->id, [
+                    'is_owner'         => false,
+                    'is_active'        => true,
+                    'joined_at'        => now(),
+                    'last_accessed_at' => now(),
+                ]);
+                return;
+            }
+        }
         // Only remember which workspace was selected last. Membership of the
         // other workspaces must stay untouched so the user can switch back.
         $this->workspaces()->updateExistingPivot($workspace->id, [
-            'is_active' => true,
+            'is_active'        => true,
             'last_accessed_at' => now(),
         ]);
     }
 
     public function hasAccessToWorkspace(Workspace $workspace): bool
     {
+        // Super admins can access any workspace without being in workspace_user pivot
+        if ($this->is_super_admin) {
+            return true;
+        }
         return $this->workspaces()->where('workspace_id', $workspace->id)->wherePivot('is_active', true)->exists();
     }
 
