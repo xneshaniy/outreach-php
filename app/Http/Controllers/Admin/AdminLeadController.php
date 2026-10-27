@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Workspace;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,7 +44,7 @@ class AdminLeadController extends Controller
             $query->where('workspace_id', (int) $workspaceId);
         }
 
-        // Search: name, email, phone, job_title
+        // Search: name, email, phone, job_title, company
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -91,6 +93,7 @@ class AdminLeadController extends Controller
             'source'         => $lead->source,
             'country'        => $lead->country,
             'city'           => $lead->city,
+            'notes'          => $lead->notes,
             'email_verified' => $lead->email_verified,
             'created_at'     => $lead->created_at?->toIso8601String(),
             'workspace'      => $lead->workspace ? ['id' => $lead->workspace->id, 'name' => $lead->workspace->name] : null,
@@ -120,5 +123,62 @@ class AdminLeadController extends Controller
                 'total_workspaces'  => $summaryWorkspaces,
             ],
         ]);
+    }
+
+    public function show(Lead $lead): JsonResponse
+    {
+        $lead->load([
+            'workspace:id,name,slug',
+            'company:id,name,website,industry,size,country',
+            'owner:id,name,email',
+            'creator:id,name,email',
+        ]);
+
+        return response()->json([
+            'lead' => [
+                'id' => $lead->id,
+                'first_name' => $lead->first_name,
+                'last_name' => $lead->last_name,
+                'full_name' => $lead->full_name,
+                'email' => $lead->email,
+                'phone' => $lead->phone,
+                'mobile' => $lead->mobile,
+                'job_title' => $lead->job_title,
+                'department' => $lead->department,
+                'seniority' => $lead->seniority,
+                'status' => $lead->status,
+                'category' => $lead->category,
+                'pipeline_stage' => $lead->pipeline_stage,
+                'score' => $lead->score,
+                'source' => $lead->source,
+                'country' => $lead->country,
+                'city' => $lead->city,
+                'state' => $lead->state,
+                'timezone' => $lead->timezone,
+                'website' => $lead->website,
+                'industry' => $lead->industry,
+                'notes' => $lead->notes,
+                'email_verified' => $lead->email_verified,
+                'email_verification_status' => $lead->email_verification_status,
+                'created_at' => $lead->created_at?->toIso8601String(),
+                'workspace' => $lead->workspace ? ['id' => $lead->workspace->id, 'name' => $lead->workspace->name] : null,
+                'company' => $lead->company ? ['id' => $lead->company->id, 'name' => $lead->company->name, 'website' => $lead->company->website] : null,
+                'owner' => $lead->owner ? ['id' => $lead->owner->id, 'name' => $lead->owner->name, 'email' => $lead->owner->email] : null,
+                'creator' => $lead->creator ? ['id' => $lead->creator->id, 'name' => $lead->creator->name] : null,
+            ],
+        ]);
+    }
+
+    public function destroy(Lead $lead): RedirectResponse
+    {
+        $leadName = $lead->full_name ?: $lead->email;
+        $lead->delete();
+
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($lead)
+            ->log("Lead '{$leadName}' deleted by Super Admin");
+
+        return back()->with('success', "Lead '{$leadName}' has been removed.");
     }
 }

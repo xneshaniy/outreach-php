@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\EmailAccount;
 use App\Models\Invitation;
+use App\Models\Lead;
 use App\Models\Message;
 use App\Models\TokenUsageRecord;
 use App\Models\User;
@@ -16,6 +17,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Activitylog\Models\Activity;
 
 class AdminDashboardController extends Controller
 {
@@ -34,7 +36,18 @@ class AdminDashboardController extends Controller
             ->count();
         $acceptedInvites = Invitation::where('status', 'accepted')->count();
 
-        // 3. Email accounts
+        // 3. Workspaces stats
+        $totalWorkspaces = Workspace::count();
+        $activeWorkspaces = Workspace::where('is_active', true)->count();
+        $inactiveWorkspaces = Workspace::where('is_active', false)->count();
+
+        // 4. Leads stats across all workspaces
+        $totalLeads = Lead::count();
+        $hotLeads = Lead::where('category', 'hot')->count();
+        $verifiedLeads = Lead::where('email_verified', true)->count();
+        $newLeadsThisMonth = Lead::where('created_at', '>=', Carbon::now()->startOfMonth())->count();
+
+        // 5. Email accounts
         $totalEmailAccounts = EmailAccount::count();
         $connectedEmailAccounts = EmailAccount::where('is_active', true)->count();
         $pausedEmailAccounts = EmailAccount::where('is_active', false)->count();
@@ -42,7 +55,7 @@ class AdminDashboardController extends Controller
         $emailsSentToday = (int) EmailAccount::sum('sent_today');
         $totalDailyQuota = (int) EmailAccount::where('is_active', true)->sum('daily_send_limit');
 
-        // 4. Campaigns
+        // 6. Campaigns
         $totalCampaigns = Campaign::count();
         $activeCampaigns = Campaign::where('status', 'active')->count();
         $pausedCampaigns = Campaign::where('status', 'paused')->count();
@@ -50,7 +63,7 @@ class AdminDashboardController extends Controller
         $failedCampaigns = Campaign::where('status', 'failed')->count();
         $draftCampaigns = Campaign::where('status', 'draft')->count();
 
-        // 5. Message delivery stats
+        // 7. Message delivery stats
         $totalMessages = Message::count();
         $sentMessages = Message::whereIn('status', ['sent', 'delivered'])->count();
         $failedMessages = Message::where('status', 'failed')->count();
@@ -66,7 +79,7 @@ class AdminDashboardController extends Controller
         $replyRate = $sentMessages > 0 ? round(($repliedMessages / $sentMessages) * 100, 1) : 0;
         $bounceRate = $totalMessages > 0 ? round(($bouncedMessages / $totalMessages) * 100, 1) : 0;
 
-        // 6. Token & AI Cost stats
+        // 8. Token & AI Cost stats
         $totalAiTokens = (int) TokenUsageRecord::sum('total_tokens');
         $totalInputTokens = (int) TokenUsageRecord::sum('input_tokens');
         $totalOutputTokens = (int) TokenUsageRecord::sum('output_tokens');
@@ -77,7 +90,7 @@ class AdminDashboardController extends Controller
         $costThisMonth = (float) TokenUsageRecord::where('created_at', '>=', Carbon::now()->startOfMonth())->sum('estimated_cost');
         $remainingBudget = max(0, round($monthlyBudget - $costThisMonth, 2));
 
-        // 7. Last 14 days email volume trend
+        // 9. Last 14 days email volume trend
         $daysRange = collect(range(13, 0))->map(fn($d) => Carbon::now()->subDays($d)->format('Y-m-d'));
         $dailySentData = DB::table('messages')
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
@@ -92,7 +105,7 @@ class AdminDashboardController extends Controller
             ];
         });
 
-        // 8. Last 14 days token usage trend
+        // 10. Last 14 days token usage trend
         $dailyTokenData = DB::table('token_usage_records')
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(total_tokens) as tokens'), DB::raw('SUM(estimated_cost) as cost'))
             ->where('created_at', '>=', Carbon::now()->subDays(14))
@@ -109,16 +122,38 @@ class AdminDashboardController extends Controller
             ];
         });
 
-        // 9. Recent activities
+        // 11. Recent items across all workspaces
         $recentUsers = User::orderByDesc('created_at')->take(5)->get(['id', 'name', 'email', 'is_active', 'is_super_admin', 'created_at']);
-        $recentCampaigns = Campaign::with(['creator:id,name'])->orderByDesc('created_at')->take(5)->get();
+        
+        $recentLeads = Lead::with(['workspace:id,name', 'company:id,name', 'owner:id,name'])
+            ->orderByDesc('created_at')
+            ->take(5)
+            ->get(['id', 'workspace_id', 'company_id', 'owner_id', 'first_name', 'last_name', 'email', 'score', 'status', 'category', 'created_at']);
 
-        // 10. Queue & System health
+        $recentCampaigns = Campaign::with(['creator:id,name', 'workspace:id,name'])->orderByDesc('created_at')->take(5)->get();
+
+        $recentActivities = Activity::with(['causer:id,name,email'])
+            ->orderByDesc('created_at')
+            ->take(6)
+            ->get();
+
+        // 12. Queue & System health
         $queueBacklog = DB::table('jobs')->count();
         $failedJobsCount = DB::table('failed_jobs')->count();
 
         return Inertia::render('Admin/Dashboard', [
             'metrics' => [
+                'workspaces' => [
+                    'total' => $totalWorkspaces,
+                    'active' => $activeWorkspaces,
+                    'inactive' => $inactiveWorkspaces,
+                ],
+                'leads' => [
+                    'total' => $totalLeads,
+                    'hot' => $hotLeads,
+                    'verified' => $verifiedLeads,
+                    'new_this_month' => $newLeadsThisMonth,
+                ],
                 'users' => [
                     'total' => $totalUsers,
                     'active' => $activeUsers,
@@ -178,7 +213,9 @@ class AdminDashboardController extends Controller
             'dailyEmailsTrend' => $dailyEmailsTrend,
             'dailyTokensTrend' => $dailyTokensTrend,
             'recentUsers' => $recentUsers,
+            'recentLeads' => $recentLeads,
             'recentCampaigns' => $recentCampaigns,
+            'recentActivities' => $recentActivities,
         ]);
     }
 }

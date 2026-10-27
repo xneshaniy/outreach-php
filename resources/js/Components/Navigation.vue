@@ -128,11 +128,6 @@ const compact = computed(() => props.collapsed)
         ]"
         @keydown.escape="emit('close')"
     >
-        <div class="nav-header p-3 border-b border-sidebar-border">
-            <Link :href="route('dashboard')" class="flex min-w-0 items-center" @click="emit('close')">
-                <AppLogo size="sm" :show-text="!compact" theme="auto" variant="auto" class="text-sidebar-foreground" />
-            </Link>
-        </div>
         <div class="flex h-14 items-center gap-2 border-b border-sidebar-border px-3">
             <Link :href="route('dashboard')" class="flex min-w-0 items-center" @click="emit('close')">
                 <AppLogo size="sm" :show-text="!compact" theme="auto" variant="auto" class="text-sidebar-foreground" />

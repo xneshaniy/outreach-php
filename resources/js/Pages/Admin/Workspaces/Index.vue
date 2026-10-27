@@ -21,7 +21,7 @@ const apply = () => {
 </script>
 
 <template>
-    <AdminLayout title="Workspaces Overview">
+    <AdminLayout title="Workspaces Management">
         <div class="space-y-5">
 
             <!-- Summary -->
@@ -31,12 +31,12 @@ const apply = () => {
                     <p class="text-xl font-bold text-slate-900 mt-1">{{ summary.total }}</p>
                 </div>
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[11px] font-semibold text-green-600 uppercase">Active</p>
-                    <p class="text-xl font-bold text-green-700 mt-1">{{ summary.active }}</p>
+                    <p class="text-[11px] font-semibold text-emerald-600 uppercase">Active</p>
+                    <p class="text-xl font-bold text-emerald-700 mt-1">{{ summary.active }}</p>
                 </div>
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[11px] font-semibold text-red-500 uppercase">Inactive</p>
-                    <p class="text-xl font-bold text-red-600 mt-1">{{ summary.inactive }}</p>
+                    <p class="text-[11px] font-semibold text-rose-500 uppercase">Inactive</p>
+                    <p class="text-xl font-bold text-rose-600 mt-1">{{ summary.inactive }}</p>
                 </div>
             </div>
 
@@ -65,8 +65,9 @@ const apply = () => {
 
             <!-- Workspaces Table -->
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-4 py-3 border-b border-slate-100">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                     <p class="text-sm font-semibold text-slate-700">{{ workspaces.total }} workspace{{ workspaces.total !== 1 ? 's' : '' }}</p>
+                    <p class="text-xs text-slate-500">Page {{ workspaces.current_page }} of {{ workspaces.last_page }}</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
@@ -88,10 +89,10 @@ const apply = () => {
                             </tr>
                             <tr v-for="ws in workspaces.data" :key="ws.id" class="hover:bg-slate-50 transition">
                                 <td class="px-4 py-3">
-                                    <div>
-                                        <p class="font-medium text-slate-900">{{ ws.name }}</p>
+                                    <Link :href="route('admin.workspaces.show', ws.id)" class="group block">
+                                        <p class="font-medium text-slate-900 group-hover:text-blue-600">{{ ws.name }}</p>
                                         <p class="text-xs text-slate-400">{{ ws.slug }}</p>
-                                    </div>
+                                    </Link>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div v-if="ws.owner">
@@ -110,7 +111,7 @@ const apply = () => {
                                 <td class="px-4 py-3 text-right text-slate-700 font-medium">{{ ws.campaigns_count }}</td>
                                 <td class="px-4 py-3">
                                     <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold',
-                                        ws.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700']">
+                                        ws.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200']">
                                         {{ ws.is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
@@ -118,10 +119,16 @@ const apply = () => {
                                     {{ ws.created_at ? new Date(ws.created_at).toLocaleDateString() : '—' }}
                                 </td>
                                 <td class="px-4 py-3">
-                                    <Link :href="route('admin.leads.index', { workspace_id: ws.id })"
-                                        class="text-xs text-blue-600 hover:underline font-medium">
-                                        View Leads →
-                                    </Link>
+                                    <div class="flex items-center gap-3">
+                                        <Link :href="route('admin.workspaces.show', ws.id)"
+                                            class="text-xs text-indigo-600 hover:underline font-semibold">
+                                            Details →
+                                        </Link>
+                                        <Link :href="route('admin.leads.index', { workspace_id: ws.id })"
+                                            class="text-xs text-blue-600 hover:underline font-medium">
+                                            Leads
+                                        </Link>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

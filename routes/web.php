@@ -374,11 +374,15 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->gro
     // Leads (outreach data manager)
     Route::prefix('leads')->name('leads.')->group(function () {
         Route::get('/', [AdminLeadController::class, 'index'])->name('index');
+        Route::get('/{lead}', [AdminLeadController::class, 'show'])->name('show');
+        Route::delete('/{lead}', [AdminLeadController::class, 'destroy'])->name('destroy');
     });
 
     // Workspaces
     Route::prefix('workspaces')->name('workspaces.')->group(function () {
         Route::get('/', [AdminWorkspaceController::class, 'index'])->name('index');
+        Route::get('/{workspace}', [AdminWorkspaceController::class, 'show'])->name('show');
+        Route::post('/{workspace}/toggle', [AdminWorkspaceController::class, 'toggleStatus'])->name('toggle');
     });
 
     // Security
