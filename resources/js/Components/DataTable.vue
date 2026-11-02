@@ -8,13 +8,14 @@ const props = defineProps({
     loading: { type: Boolean, default: false },
     pagination: Object,
     sort: Object,
-    selection: Array,
+    selection: { type: Array, default: () => [] },
     selectAll: Boolean,
 })
 
 const emit = defineEmits(['sort', 'selection-change', 'select-all'])
 
 const sortedData = computed(() => {
+    if (!props.data || !Array.isArray(props.data)) return []
     if (!props.sort?.field) return props.data
     return [...props.data].sort((a, b) => {
         const aVal = a[props.sort.field]
@@ -26,17 +27,17 @@ const sortedData = computed(() => {
 })
 
 const handleSort = (key) => {
-    const column = props.columns.find(c => c.key === key)
+    const column = props.columns?.find(c => c.key === key)
     if (!column?.sortable) return
 
     let direction = 'asc'
-    if (props.sort.field === key && props.sort.direction === 'asc') {
+    if (props.sort?.field === key && props.sort?.direction === 'asc') {
         direction = 'desc'
     }
     emit('sort', { field: key, direction })
 }
 
-const isSelected = (id) => props.selection.includes(id)
+const isSelected = (id) => (props.selection || []).includes(id)
 
 const handleRowSelect = (id, checked) => {
     emit('selection-change', id)
@@ -86,7 +87,7 @@ const renderCell = (row, column) => {
                                     v-if="column.key === 'select'"
                                     type="checkbox"
                                     :checked="selectAll"
-                                    :indeterminate="selection.length > 0 && selection.length < data.length"
+                                    :indeterminate="(selection?.length || 0) > 0 && (selection?.length || 0) < (data?.length || 0)"
                                     @change="handleSelectAll"
                                     class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                                 />
@@ -97,8 +98,8 @@ const renderCell = (row, column) => {
                                         class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
                                     >
                                         <span>{{ column.label }}</span>
-                                        <svg v-if="sort.field === column.key" class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="sort.direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" />
+                                        <svg v-if="sort?.field === column.key" class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="sort?.direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" />
                                         </svg>
                                         <svg v-else class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />

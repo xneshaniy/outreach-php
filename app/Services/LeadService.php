@@ -319,10 +319,22 @@ class LeadService
 
         // Sorting
         $sortField = $sort['field'] ?? 'created_at';
-        $sortDirection = $sort['direction'] ?? 'desc';
-        $allowedSorts = ['created_at', 'first_name', 'last_name', 'email', 'status', 'follow_up_at', 'last_activity_at'];
-        if (in_array($sortField, $allowedSorts)) {
+        $sortDirection = strtolower($sort['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        if ($sortField === 'name') {
+            $query->orderBy('first_name', $sortDirection)->orderBy('last_name', $sortDirection);
+        } elseif ($sortField === 'score') {
+            $query->orderBy('score', $sortDirection);
+        } elseif ($sortField === 'source') {
+            $query->orderBy('source', $sortDirection);
+        } elseif ($sortField === 'company') {
+            $query->leftJoin('companies', 'leads.company_id', '=', 'companies.id')
+                ->orderBy('companies.name', $sortDirection)
+                ->select('leads.*');
+        } elseif (in_array($sortField, ['created_at', 'first_name', 'last_name', 'email', 'status', 'follow_up_at', 'last_activity_at'])) {
             $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->orderBy('created_at', 'desc');
         }
 
         return $query->paginate($perPage)->withQueryString();
