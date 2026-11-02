@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Allow: /images/
+Allow: /build/
+
+# Disallow private CRM & authenticated routes
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /leads
+Disallow: /companies
+Disallow: /campaigns
+Disallow: /email-accounts
+Disallow: /deals
+Disallow: /tasks
+Disallow: /settings
+Disallow: /login
+Disallow: /register
+Disallow: /password/
+Disallow: /invitations/
+
+Sitemap: https://outreach.click/sitemap.xml
