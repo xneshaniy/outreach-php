@@ -194,6 +194,10 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/email', [ReportController::class, 'email'])->name('email');
     });
 
+    // Top-level workspace switcher routes
+    Route::get('/workspace/switch', [AuthController::class, 'showWorkspaceSwitcher'])->name('workspace.switch');
+    Route::post('/workspace/switch', [AuthController::class, 'switchWorkspace'])->name('workspace.switch.post');
+
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/profile', [SettingsController::class, 'profile'])->name('profile');

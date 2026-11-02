@@ -4,7 +4,7 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import { applyTheme } from '@/theme'
 
-defineProps({
+const props = defineProps({
     workspace: Object,
     user: Object,
     workspaces: { type: Array, default: () => [] },
@@ -14,6 +14,8 @@ const emit = defineEmits(['menu-click', 'open-command'])
 
 const notificationsOpen = ref(false)
 const userMenuOpen = ref(false)
+const workspaceMenuOpen = ref(false)
+const switchingWorkspaceId = ref(null)
 const root = ref(null)
 
 const page = usePage()
@@ -41,10 +43,25 @@ const toggleTheme = () => {
     isDark.value = next === 'dark'
 }
 
+const switchWorkspace = (targetWorkspace) => {
+    if (!targetWorkspace || (props.workspace && props.workspace.id === targetWorkspace.id)) {
+        workspaceMenuOpen.value = false
+        return
+    }
+    switchingWorkspaceId.value = targetWorkspace.id
+    router.post('/settings/workspace/switch', { workspace_id: targetWorkspace.id }, {
+        onFinish: () => {
+            switchingWorkspaceId.value = null
+            workspaceMenuOpen.value = false
+        }
+    })
+}
+
 const onDocumentClick = (event) => {
     if (root.value && !root.value.contains(event.target)) {
         notificationsOpen.value = false
         userMenuOpen.value = false
+        workspaceMenuOpen.value = false
     }
 }
 
@@ -72,15 +89,111 @@ onBeforeUnmount(() => {
                 </svg>
             </button>
 
-            <div v-if="workspace" class="hidden min-w-0 items-center gap-2 md:flex">
-                <div
-                    class="flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold text-white"
-                    :style="{ backgroundColor: workspace.primary_color || '#2563eb' }"
+            <!-- Interactive Workspace Selector Dropdown -->
+            <div v-if="workspace" class="relative hidden md:block">
+                <button
+                    type="button"
+                    class="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5 text-left transition hover:bg-accent hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    :title="`Current workspace: ${workspace.name}. Click to switch.`"
+                    @click="workspaceMenuOpen = !workspaceMenuOpen; userMenuOpen = false; notificationsOpen = false"
                 >
-                    {{ workspace.name?.[0] || 'W' }}
-                </div>
-                <div class="min-w-0">
-                    <p class="truncate text-sm font-medium">{{ workspace.name }}</p>
+                    <div
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white shadow-xs"
+                        :style="{ backgroundColor: workspace.primary_color || '#2563eb' }"
+                    >
+                        {{ workspace.name?.[0] || 'W' }}
+                    </div>
+                    <div class="min-w-0 max-w-[12rem]">
+                        <p class="truncate text-xs font-medium text-foreground">{{ workspace.name }}</p>
+                    </div>
+                    <svg
+                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
+                        :class="{ 'rotate-180': workspaceMenuOpen }"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <!-- Workspace Switcher Menu -->
+                <div
+                    v-show="workspaceMenuOpen"
+                    class="absolute left-0 mt-1.5 w-72 origin-top-left rounded-xl border border-border bg-card p-1 text-card-foreground shadow-lg z-50 focus:outline-none"
+                >
+                    <div class="px-3 py-2 border-b border-border/60">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Workspaces</p>
+                    </div>
+
+                    <div class="max-h-60 overflow-y-auto py-1 space-y-0.5">
+                        <button
+                            v-for="ws in workspaces"
+                            :key="ws.id"
+                            type="button"
+                            class="w-full flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-accent/70 focus:outline-none"
+                            :class="{ 'bg-primary/10 text-primary font-medium': workspace?.id === ws.id }"
+                            :disabled="switchingWorkspaceId !== null"
+                            @click="switchWorkspace(ws)"
+                        >
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white"
+                                    :style="{ backgroundColor: ws.primary_color || '#2563eb' }"
+                                >
+                                    {{ ws.name?.[0] || 'W' }}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="truncate text-xs font-medium text-foreground">{{ ws.name }}</p>
+                                    <p class="truncate text-[10px] text-muted-foreground">{{ ws.slug }}</p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 flex items-center">
+                                <svg
+                                    v-if="switchingWorkspaceId === ws.id"
+                                    class="animate-spin h-3.5 w-3.5 text-primary"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                <svg
+                                    v-else-if="workspace?.id === ws.id"
+                                    class="h-4 w-4 text-primary"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="border-t border-border/60 pt-1 mt-1">
+                        <Link
+                            href="/settings/workspace/switch"
+                            class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition"
+                            @click="workspaceMenuOpen = false"
+                        >
+                            <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span>Browse all workspaces</span>
+                        </Link>
+                        <Link
+                            :href="route('settings.workspace')"
+                            class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition"
+                            @click="workspaceMenuOpen = false"
+                        >
+                            <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>Workspace settings</span>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -117,7 +230,7 @@ onBeforeUnmount(() => {
                         type="button"
                         class="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                         aria-label="Notifications"
-                        @click="notificationsOpen = !notificationsOpen; userMenuOpen = false"
+                        @click="notificationsOpen = !notificationsOpen; userMenuOpen = false; workspaceMenuOpen = false"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -163,7 +276,7 @@ onBeforeUnmount(() => {
                         type="button"
                         class="flex items-center gap-2 rounded-md p-1.5 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/20"
                         aria-label="User menu"
-                        @click="userMenuOpen = !userMenuOpen; notificationsOpen = false"
+                        @click="userMenuOpen = !userMenuOpen; notificationsOpen = false; workspaceMenuOpen = false"
                     >
                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary-foreground border border-primary/20">
                             {{ user?.name?.[0] || 'U' }}
@@ -189,21 +302,18 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <Link
-                            v-if="workspaces && workspaces.length > 1"
                             :href="route('settings.workspace.switch')"
                             class="dropdown-item"
                             @click="userMenuOpen = false"
                         >
                             <svg class="h-4 w-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                             Switch workspace
                         </Link>
                         <Link :href="route('settings.profile')" class="dropdown-item" @click="userMenuOpen = false">
                             <svg class="h-4 w-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             Profile
                         </Link>
