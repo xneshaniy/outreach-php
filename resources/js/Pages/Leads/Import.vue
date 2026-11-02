@@ -94,15 +94,25 @@ const uploadAndPreview = async () => {
             formData.append('google_sheet_url', googleSheetUrl.value.trim())
         }
 
-        // Include CSRF token explicitly for multipart uploads
+        // Dynamically resolve the live CSRF / XSRF token from cookies or DOM
+        const getCookie = (name) => {
+            const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'))
+            return match ? decodeURIComponent(match[2]) : ''
+        }
         const csrfToken = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        const xsrfToken = getCookie('XSRF-TOKEN')
+
+        const customHeaders = {
+            'Content-Type': 'multipart/form-data',
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+        if (csrfToken) customHeaders['X-CSRF-TOKEN'] = csrfToken
+        if (xsrfToken) customHeaders['X-XSRF-TOKEN'] = xsrfToken
 
         const response = await axios.post('/leads/import/preview', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrfToken,
-            },
+            headers: customHeaders,
+            withCredentials: true,
+            withXSRFToken: true,
         })
 
         previewData.value = {

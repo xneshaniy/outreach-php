@@ -8,7 +8,11 @@ import { ZiggyVue } from 'ziggy-js';
 import axios from 'axios';
 import AppLogo from './Components/AppLogo.vue';
 
-// Configure axios with CSRF token for all requests
+// Configure axios with CSRF and credentials for all requests
+axios.defaults.withCredentials = true;
+axios.defaults.withXSRFToken = true;
+axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
+axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
 const csrfMeta = document.head.querySelector('meta[name="csrf-token"]');
 if (csrfMeta) {
     axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfMeta.getAttribute('content');

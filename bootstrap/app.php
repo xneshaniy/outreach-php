@@ -38,6 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
 
+        $middleware->validateCsrfTokens(except: [
+            'leads/import*',
+            'leads/import/preview',
+        ]);
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

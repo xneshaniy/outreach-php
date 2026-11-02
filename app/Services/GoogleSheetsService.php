@@ -71,7 +71,7 @@ class GoogleSheetsService
 
         return [
             'stored_path' => $filename,
-            'full_path' => storage_path('app/' . $filename),
+            'full_path' => Storage::disk('local')->path($filename),
             'document_id' => $parsed['document_id'],
             'gid' => $parsed['gid'],
             'original_filename' => 'Google_Sheet_' . substr($parsed['document_id'], 0, 8) . '.csv',

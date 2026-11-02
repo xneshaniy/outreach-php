@@ -256,7 +256,7 @@ class LeadController extends Controller
             $originalFilename = $request->file("file")->getClientOriginalName();
         }
 
-        $fullPath = storage_path("app/" . $path);
+        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
         $columns = $this->importService->detectColumns($fullPath);
         $preview = $this->importService->previewImport($fullPath);
         $suggestedMapping = $this->importService->suggestMapping($columns);
