@@ -69,6 +69,9 @@ class LeadService
 
             app(\App\Services\LeadScoreService::class)->calculateScore($lead);
 
+            // Auto-fill missing details via AI if any key detail is missing
+            $lead = $this->autoFillMissingLeadDetails($lead, $workspace);
+
             return $lead;
         });
     }
@@ -99,6 +102,9 @@ class LeadService
             ]));
 
             app(\App\Services\LeadScoreService::class)->calculateScore($lead);
+
+            // Auto-fill missing details via AI if needed
+            $lead = $this->autoFillMissingLeadDetails($lead->fresh(), $lead->workspace);
 
             return $lead->fresh();
         });
@@ -325,5 +331,78 @@ class LeadService
     public function export(Workspace $workspace, array $filters = []): \Illuminate\Support\Collection
     {
         return $this->search($workspace, $filters, [], 10000)->getCollection();
+    }
+
+    /**
+     * Automatically fill missing lead details (company name, country, job title) using AI.
+     */
+    public function autoFillMissingLeadDetails(Lead $lead, Workspace $workspace): Lead
+    {
+        // Check if any key details are missing
+        $needsCompany = empty($lead->company);
+        $needsCountry = empty($lead->country);
+        $needsJobTitle = empty($lead->job_title);
+
+        if (!$needsCompany && !$needsCountry && !$needsJobTitle) {
+            return $lead;
+        }
+
+        try {
+            $aiService = app(AIService::class);
+            $leadData = [
+                'first_name' => $lead->first_name ?? '',
+                'last_name' => $lead->last_name ?? '',
+                'company' => $lead->company ?? '',
+                'website' => $lead->website ?? '',
+                'job_title' => $lead->job_title ?? '',
+                'industry' => $lead->industry ?? '',
+                'linkedin_url' => $lead->linkedin_url ?? '',
+            ];
+
+            $result = $aiService->researchLead($workspace, $leadData);
+
+            if ($result['success'] && !empty($result['data'])) {
+                $data = $result['data'];
+                $updates = [];
+
+                if ($needsCompany && !empty($data['company_name'])) {
+                    $companyName = $data['company_name'];
+                    $updates['company'] = $companyName;
+                    $company = $this->findOrCreateCompany($workspace, auth()->user() ?? $lead->creator, array_merge($leadData, ['company' => $companyName]));
+                    if ($company) {
+                        $updates['company_id'] = $company->id;
+                    }
+                } elseif ($needsCompany && !empty($data['company_overview'])) {
+                    // Extract a clean company name or use the overview snippet
+                    $companyName = $leadData['company'] ?: (parse_url($lead->website ?? '', PHP_URL_HOST) ?? '');
+                    if (empty($companyName) && !empty($data['industry'])) {
+                        $companyName = 'Company in ' . $data['industry'];
+                    }
+                    if (!empty($companyName)) {
+                        $updates['company'] = $companyName;
+                        $company = $this->findOrCreateCompany($workspace, auth()->user() ?? $lead->creator, array_merge($leadData, ['company' => $companyName]));
+                        if ($company) {
+                            $updates['company_id'] = $company->id;
+                        }
+                    }
+                }
+
+                if ($needsCountry && !empty($data['country'])) {
+                    $updates['country'] = $data['country'];
+                }
+
+                if ($needsJobTitle && !empty($data['job_title'])) {
+                    $updates['job_title'] = $data['job_title'];
+                }
+
+                if (!empty($updates)) {
+                    $lead->update($updates);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto-fill lead details via AI failed: ' . $e->getMessage());
+        }
+
+        return $lead->fresh();
     }
 }

@@ -74,9 +74,18 @@ class User extends Authenticatable
 
     public function currentWorkspace(): ?Workspace
     {
-        // A user can be a member of several workspaces. The most recently
-        // selected one is the current workspace; membership itself is tracked
-        // by workspace_user.is_active.
+        // 1. Session-first: set immediately after switchWorkspace() so the
+        //    very next request reflects the switch without waiting for DB ordering.
+        if (!app()->runningInConsole() && session()->has('current_workspace_id')) {
+            $sessionId = (int) session('current_workspace_id');
+            $ws = Workspace::where('id', $sessionId)->where('is_active', true)->first();
+            if ($ws && $this->hasAccessToWorkspace($ws)) {
+                return $ws;
+            }
+            session()->forget('current_workspace_id');
+        }
+
+        // 2. Fall back to the most-recently-accessed active workspace.
         return $this->activeWorkspaces()
             ->where('workspaces.is_active', true)
             ->orderByDesc('workspace_user.last_accessed_at')

@@ -24,6 +24,7 @@ class EmailAccount extends Model
         'port',
         'encryption',
         'username',
+        'password',
         'password_encrypted',
         'from_name',
         'reply_to',

@@ -1,0 +1,1 @@
+- [AI and Google Sheets Integration Issues](ai_google_sheets_issues.md) — Reference for troubleshooting AI service and Google Sheets import issues.

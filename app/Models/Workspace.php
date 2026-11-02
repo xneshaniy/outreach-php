@@ -43,6 +43,23 @@ class Workspace extends Model
         return $this->users()->wherePivot('is_owner', true);
     }
 
+    public function owner(): BelongsToMany
+    {
+        return $this->owners();
+    }
+
+    public function getOwnerAttribute(): ?User
+    {
+        if ($this->relationLoaded('owners')) {
+            return $this->owners->first();
+        }
+        if ($this->relationLoaded('owner')) {
+            $ownerRel = $this->getRelation('owner');
+            return $ownerRel instanceof \Illuminate\Database\Eloquent\Collection ? $ownerRel->first() : $ownerRel;
+        }
+        return $this->owners()->first();
+    }
+
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class);

@@ -249,7 +249,7 @@ IMPORTANT:
             return [
                 'success' => true,
                 'data' => [
-                    'company_overview' => "{$company} operates in the {$leadData['industry'] ?? 'technology / business'} space" . ($website ? " ({$website})" : "") . ".",
+                    'company_overview' => $company . ' operates in the ' . ($leadData['industry'] ?? 'technology / business') . ' space' . ($website ? " ({$website})" : '') . '.',
                     'industry' => $leadData['industry'] ?? 'Business Services',
                     'potential_needs' => "Optimizing outreach efficiency, scaling customer acquisition, and automating follow-up workflows for {$jobTitle} roles.",
                     'relevant_services' => "Cold email outreach automation, mailbox rotation, deliverability monitoring, and CRM pipeline tracking.",
@@ -265,6 +265,9 @@ IMPORTANT:
 Analyze the provided company and prospect info.
 CRITICAL: Do NOT invent false facts or fake news. If details are uncertain, provide general industry insights clearly marked as prospective.
 Return ONLY a valid JSON object with the following exact keys:
+'company_name' (string),
+'country' (string),
+'job_title' (string),
 'company_overview' (string),
 'industry' (string),
 'potential_needs' (string),
@@ -431,7 +434,7 @@ Return ONLY a valid JSON object with:
                     ]
                 ];
 
-                $response = Http::timeout(30)->post($url, $body);
+                $response = $this->aiHttp()->timeout(30)->post($url, $body);
 
                 if ($response->successful()) {
                     $data = $response->json();
@@ -454,7 +457,7 @@ Return ONLY a valid JSON object with:
                 'temperature' => 0.5,
             ];
 
-            $response = Http::withToken($apiKey)->timeout(30)->post($url, $body);
+            $response = $this->aiHttp()->withToken($apiKey)->timeout(30)->post($url, $body);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -495,5 +498,19 @@ Return ONLY a valid JSON object with:
         }
 
         return null;
+    }
+
+    /**
+     * Build an HTTP client pre-configured for AI provider calls.
+     *
+     * Applies a short per-request timeout and a limited number of retries for
+     * transient failures (5xx, 429, connection errors) so temporary outages do
+     * not immediately surface as errors to the user.
+     */
+    protected function aiHttp()
+    {
+        return Http::retry(3, 100)
+            ->timeout(30)
+            ->throw(false);
     }
 }

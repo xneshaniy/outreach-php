@@ -89,11 +89,22 @@ class AuthController extends Controller
     public function showWorkspaceSwitcher(): Response
     {
         $user = auth()->user();
-        $workspaces = $user->activeWorkspaces()->with('owner')->get();
+
+        // Super admin sees every active workspace; regular users see their own.
+        if ($user->is_super_admin) {
+            $workspaces = Workspace::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug', 'primary_color']);
+        } else {
+            $workspaces = $user->activeWorkspaces()
+                ->where('workspaces.is_active', true)
+                ->orderBy('workspaces.name')
+                ->get(['workspaces.id', 'workspaces.name', 'workspaces.slug', 'workspaces.primary_color']);
+        }
 
         return Inertia::render('Auth/WorkspaceSwitcher', [
             'workspaces' => $workspaces,
-            'current' => $user->currentWorkspace,
+            'current'    => $user->currentWorkspace ? $user->currentWorkspace->only(['id', 'name', 'slug']) : null,
         ]);
     }
 
@@ -104,14 +115,18 @@ class AuthController extends Controller
         ]);
 
         $workspace = Workspace::findOrFail($request->workspace_id);
-        $user = $request->user();
+        $user      = $request->user();
 
         if (!$user->hasAccessToWorkspace($workspace)) {
-            abort(403);
+            abort(403, 'You do not have access to this workspace.');
         }
 
         $user->setCurrentWorkspace($workspace);
 
-        return redirect()->route('dashboard');
+        // Store in session so currentWorkspace() picks it up immediately on
+        // the very next request (before last_accessed_at ordering catches up).
+        session(['current_workspace_id' => $workspace->id]);
+
+        return redirect()->route('dashboard')->with('success', 'Switched to ' . $workspace->name);
     }
 }

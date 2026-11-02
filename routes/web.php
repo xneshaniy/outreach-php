@@ -35,7 +35,12 @@ use App\Http\Controllers\Admin\AdminWorkspaceController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', fn() => redirect()->route('dashboard'))->name('home');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+    return \Inertia\Inertia::render('Home');
+})->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
