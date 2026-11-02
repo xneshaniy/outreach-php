@@ -53,17 +53,20 @@ class CompanyController extends Controller
             ->whereNotNull('industry')
             ->distinct()
             ->pluck('industry')
-            ->sort();
+            ->sort()
+            ->values();
 
         $countries = Company::where('workspace_id', $workspace->id)
             ->whereNotNull('country')
             ->distinct()
             ->pluck('country')
-            ->sort();
+            ->sort()
+            ->values();
 
         return Inertia::render('Companies/Index', [
             'companies' => $companies,
             'filters' => $request->only(['search', 'industry', 'country']),
+            'sort' => ['field' => $sortField, 'direction' => $sortDirection],
             'industries' => $industries,
             'countries' => $countries,
         ]);
