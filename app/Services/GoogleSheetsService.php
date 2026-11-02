@@ -16,13 +16,13 @@ class GoogleSheetsService
     {
         // Format: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/...
         $docId = null;
-        if (preg_match('#/spreadsheets/d/([a-zA-Z0-9-_]+)#', $url, $matches)) {
+        if (preg_match('~/spreadsheets/d/([a-zA-Z0-9_-]+)~', $url, $matches)) {
             $docId = $matches[1];
         }
 
-        // Format: ...gid=12345
+        // Format: ...gid=12345 (can be in query string ?gid=... or fragment #gid=...)
         $gid = '0';
-        if (preg_match('#[?&#]gid=([0-9]+)#', $url, $matches)) {
+        if (preg_match('~[?&#]gid=([0-9]+)~', $url, $matches)) {
             $gid = $matches[1];
         }
 
