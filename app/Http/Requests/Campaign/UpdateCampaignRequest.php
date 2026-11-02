@@ -38,6 +38,15 @@ class UpdateCampaignRequest extends FormRequest
             'sending_window.days.*' => ['integer', 'between:0,6'],
             'daily_send_limit' => ['sometimes', 'integer', 'min:1', 'max:10000'],
             'delay_between_emails' => ['sometimes', 'integer', 'min:0', 'max:86400'],
+            'steps' => ['nullable', 'array'],
+            'steps.*.id' => ['nullable', 'integer'],
+            'steps.*.name' => ['nullable', 'string', 'max:255'],
+            'steps.*.subject' => ['nullable', 'string', 'max:255'],
+            'steps.*.body_html' => ['nullable', 'string'],
+            'steps.*.delay_days' => ['nullable', 'integer', 'min:0'],
+            'steps.*.delay_hours' => ['nullable', 'integer', 'min:0', 'max:23'],
+            'steps.*.delay_minutes' => ['nullable', 'integer', 'min:0', 'max:59'],
+            'steps.*.is_active' => ['nullable', 'boolean'],
         ];
     }
 }

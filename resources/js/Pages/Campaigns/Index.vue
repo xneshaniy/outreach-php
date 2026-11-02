@@ -57,6 +57,11 @@ const stopCampaign = (c) => {
         router.post(route('campaigns.cancel', c.id), {}, { preserveScroll: true })
     }
 }
+const completeCampaign = (c) => {
+    if (confirm(`Mark campaign "${c.name}" as completed?`)) {
+        router.post(route('campaigns.complete', c.id), {}, { preserveScroll: true })
+    }
+}
 
 const duplicateCampaign = (c) => {
     router.post(route('campaigns.duplicate', c.id), {}, { preserveScroll: true })
@@ -156,7 +161,13 @@ const deleteCampaign = (c) => {
                         <!-- Campaign Title & Badges -->
                         <div class="space-y-1.5 flex-1 min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
-                                <Link :href="route('campaigns.report', c.id)" class="text-lg font-bold text-gray-900 dark:text-white hover:text-primary-600">
+                                <Link
+                                :href="route('campaigns.edit', c.id)"
+                                class="text-primary-600 font-semibold hover:underline inline-flex items-center"
+                            >
+                                Edit
+                            </Link>
+                            <Link :href="route('campaigns.report', c.id)" class="text-lg font-bold text-gray-900 dark:text-white hover:text-primary-600">
                                     {{ c.name }}
                                 </Link>
                                 <span :class="['badge capitalize', getStatusBadge(c.status)]">
@@ -262,6 +273,16 @@ const deleteCampaign = (c) => {
                                 class="btn btn-secondary text-xs py-1 px-3 text-rose-600 hover:text-rose-700"
                             >
                                 ⏹ Stop
+                            </button>
+                            <!-- Complete -->
+                            <button
+                                v-if="c.status === 'active' || c.status === 'paused'"
+                                type="button"
+                                @click="completeCampaign(c)"
+                                class="btn btn-secondary text-xs py-1 px-3 text-emerald-600 hover:text-emerald-700"
+                                title="Mark campaign as completed"
+                            >
+                                ✓ Complete
                             </button>
 
                             <!-- Send Next Batch Now -->

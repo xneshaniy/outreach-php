@@ -132,7 +132,15 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{campaign}/pause', [CampaignController::class, 'pause'])->name('pause');
         Route::post('/{campaign}/resume', [CampaignController::class, 'resume'])->name('resume');
         Route::post('/{campaign}/cancel', [CampaignController::class, 'cancel'])->name('cancel');
+        Route::post('/{campaign}/complete', [CampaignController::class, 'complete'])->name('complete');
         Route::post('/{campaign}/test', [CampaignController::class, 'testSend'])->name('test');
+    });
+
+    // Inbox & Emails
+    Route::prefix('inbox')->name('inbox.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Inbox\InboxController::class, 'index'])->name('index');
+        Route::get('/{message}', [\App\Http\Controllers\Inbox\InboxController::class, 'show'])->name('show');
+        Route::post('/{message}/reply', [\App\Http\Controllers\Inbox\InboxController::class, 'reply'])->name('reply');
     });
 
     // Email Accounts

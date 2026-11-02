@@ -401,6 +401,15 @@ class CampaignController extends Controller
         return back()->with('success', 'Campaign stopped.');
     }
 
+    public function complete(Request $request, Campaign $campaign): RedirectResponse
+    {
+        $this->authorize('update', $campaign);
+
+        $campaign->complete();
+
+        return back()->with('success', 'Campaign marked as completed.');
+    }
+
     public function testSend(Request $request, Campaign $campaign): \Illuminate\Http\JsonResponse
     {
         $this->authorize('update', $campaign);

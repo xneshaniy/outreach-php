@@ -93,6 +93,38 @@ class CampaignService
                 }
             }
 
+            if (isset($data['steps']) && is_array($data['steps'])) {
+                $keptStepIds = [];
+                foreach ($data['steps'] as $index => $stepData) {
+                    $order = $index + 1;
+                    if (!empty($stepData['id'])) {
+                        $step = CampaignStep::where('campaign_id', $campaign->id)->find($stepData['id']);
+                        if ($step) {
+                            $step->update([
+                                'step_order' => $order,
+                                'name' => $stepData['name'] ?? "Step {$order}",
+                                'subject' => $stepData['subject'] ?? $step->subject,
+                                'body_html' => $stepData['body_html'] ?? $step->body_html,
+                                'delay_days' => $stepData['delay_days'] ?? 0,
+                                'delay_hours' => $stepData['delay_hours'] ?? 0,
+                                'delay_minutes' => $stepData['delay_minutes'] ?? 0,
+                                'is_active' => $stepData['is_active'] ?? true,
+                            ]);
+                            $keptStepIds[] = $step->id;
+                            continue;
+                        }
+                    }
+                    $newStep = $this->createStep($campaign, $order, $stepData);
+                    $keptStepIds[] = $newStep->id;
+                }
+
+                if (!empty($keptStepIds)) {
+                    CampaignStep::where('campaign_id', $campaign->id)
+                        ->whereNotIn('id', $keptStepIds)
+                        ->delete();
+                }
+            }
+
             return $campaign->load(['steps', 'emailAccounts']);
         });
     }

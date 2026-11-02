@@ -2,19 +2,24 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps({
-    open: Boolean,
+    modelValue: { type: Boolean, default: undefined },
+    open: { type: Boolean, default: undefined },
     title: String,
     size: { type: String, default: 'md' },
     closeable: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['close', 'update:open'])
+const emit = defineEmits(['close', 'update:modelValue', 'update:open'])
 
 const visible = ref(false)
 
-watch(() => props.open, (newVal) => {
-    visible.value = newVal
-})
+watch(
+    () => (props.modelValue !== undefined ? props.modelValue : props.open),
+    (newVal) => {
+        visible.value = !!newVal
+    },
+    { immediate: true }
+)
 
 const sizes = {
     sm: 'max-w-md',
@@ -27,6 +32,7 @@ const sizes = {
 const close = () => {
     visible.value = false
     emit('close')
+    emit('update:modelValue', false)
     emit('update:open', false)
 }
 
@@ -39,7 +45,7 @@ const handleKeydown = (e) => {
 
 <template>
     <Transition name="modal">
-        <div v-show="visible" class="modal-overlay" @click="props.closeable && close"></div>
+        <div v-show="visible" class="modal-overlay" @click="closeable && close()"></div>
     </Transition>
 
     <Transition name="modal">
@@ -49,6 +55,7 @@ const handleKeydown = (e) => {
                     <h3 class="text-lg font-semibold tracking-tight text-foreground">{{ title }}</h3>
                     <button
                         v-if="closeable"
+                        type="button"
                         @click="close"
                         class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                         aria-label="Close"
