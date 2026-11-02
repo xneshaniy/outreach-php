@@ -87,33 +87,30 @@ const uploadAndPreview = async () => {
     errorMessage.value = ''
 
     try {
-        const formData = new FormData()
+        let response
         if (importSource.value === 'csv') {
+            const formData = new FormData()
             formData.append('file', file.value)
+            response = await axios.post('/leads/import/preview', formData, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                withCredentials: true,
+                withXSRFToken: true,
+            })
         } else {
-            formData.append('google_sheet_url', googleSheetUrl.value.trim())
+            response = await axios.post('/leads/import/preview', {
+                google_sheet_url: googleSheetUrl.value.trim(),
+            }, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                withCredentials: true,
+                withXSRFToken: true,
+            })
         }
-
-        // Dynamically resolve the live CSRF / XSRF token from cookies or DOM
-        const getCookie = (name) => {
-            const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'))
-            return match ? decodeURIComponent(match[2]) : ''
-        }
-        const csrfToken = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        const xsrfToken = getCookie('XSRF-TOKEN')
-
-        const customHeaders = {
-            'Content-Type': 'multipart/form-data',
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-        if (csrfToken) customHeaders['X-CSRF-TOKEN'] = csrfToken
-        if (xsrfToken) customHeaders['X-XSRF-TOKEN'] = xsrfToken
-
-        const response = await axios.post('/leads/import/preview', formData, {
-            headers: customHeaders,
-            withCredentials: true,
-            withXSRFToken: true,
-        })
 
         previewData.value = {
             columns: response.data.columns || [],

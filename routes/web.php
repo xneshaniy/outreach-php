@@ -66,6 +66,12 @@ Route::middleware('guest')->group(function () {
 */
 
 Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(function () {
+    // Legacy route-name URL aliases (e.g. /leads.index?page=2 -> /leads?page=2)
+    Route::get('/leads.index', fn(\Illuminate\Http\Request $request) => redirect()->route('leads.index', $request->query()));
+    Route::get('/companies.index', fn(\Illuminate\Http\Request $request) => redirect()->route('companies.index', $request->query()));
+    Route::get('/campaigns.index', fn(\Illuminate\Http\Request $request) => redirect()->route('campaigns.index', $request->query()));
+    Route::get('/deals.index', fn(\Illuminate\Http\Request $request) => redirect()->route('deals.index', $request->query()));
+    Route::get('/tasks.index', fn(\Illuminate\Http\Request $request) => redirect()->route('tasks.index', $request->query()));
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

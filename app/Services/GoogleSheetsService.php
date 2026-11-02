@@ -14,16 +14,31 @@ class GoogleSheetsService
      */
     public function parseSheetUrl(string $url): array
     {
-        // Format: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/...
+        $url = trim($url);
+
+        // 1. Published to the web format: /spreadsheets/d/e/{PUB_ID}/...
+        if (preg_match('~/spreadsheets/d/e/([a-zA-Z0-9_-]+)~', $url, $matches)) {
+            $pubId = $matches[1];
+            $gid = '0';
+            if (preg_match('~[?&#]gid=([0-9]+)~', $url, $gidMatches)) {
+                $gid = $gidMatches[1];
+            }
+            return [
+                'document_id' => $pubId,
+                'gid' => $gid,
+                'export_url' => "https://docs.google.com/spreadsheets/d/e/{$pubId}/pub?output=csv&gid={$gid}",
+            ];
+        }
+
+        // 2. Standard format: /spreadsheets/d/{SPREADSHEET_ID}/...
         $docId = null;
         if (preg_match('~/spreadsheets/d/([a-zA-Z0-9_-]+)~', $url, $matches)) {
             $docId = $matches[1];
         }
 
-        // Format: ...gid=12345 (can be in query string ?gid=... or fragment #gid=...)
         $gid = '0';
-        if (preg_match('~[?&#]gid=([0-9]+)~', $url, $matches)) {
-            $gid = $matches[1];
+        if (preg_match('~[?&#]gid=([0-9]+)~', $url, $gidMatches)) {
+            $gid = $gidMatches[1];
         }
 
         if (! $docId) {
@@ -45,11 +60,11 @@ class GoogleSheetsService
         $parsed = $this->parseSheetUrl($url);
         $exportUrl = $parsed['export_url'];
 
-        // Download CSV with timeout and redirect following
+        // Download CSV with modern user-agent, redirect following, and ssl resilience
         $response = Http::withHeaders([
-            'User-Agent' => 'OutreachCRM-GoogleSheets/1.0',
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept' => 'text/csv,text/plain,*/*',
-        ])->timeout(20)->get($exportUrl);
+        ])->timeout(25)->withoutVerifying()->get($exportUrl);
 
         if ($response->failed() || empty(trim($response->body()))) {
             throw new RuntimeException(
@@ -65,6 +80,10 @@ class GoogleSheetsService
                 'The Google Sheet returned an HTML login page instead of CSV. Please make sure the sheet is shared as "Anyone with the link can view".'
             );
         }
+
+        // Strip UTF-8 BOM if present so first column header matches cleanly
+        $bom = pack('H*', 'EFBBBF');
+        $csvContent = preg_replace("/^$bom/", '', $csvContent);
 
         $filename = 'imports/gsheet_' . Str::random(16) . '.csv';
         Storage::disk('local')->put($filename, $csvContent);

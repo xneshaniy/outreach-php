@@ -46,6 +46,28 @@ const handleSelectAll = (checked) => {
     emit('select-all', checked)
 }
 
+const goToPage = (pageNumber) => {
+    try {
+        const currentRouteName = typeof route === 'function' && route().current ? route().current() : null
+        if (currentRouteName) {
+            router.get(route(currentRouteName, { ...route().params, page: pageNumber }), {}, {
+                preserveScroll: true,
+                preserveState: true,
+            })
+            return
+        }
+    } catch (e) {
+        // Fallback to URL manipulation below
+    }
+
+    const url = new URL(window.location.href)
+    url.searchParams.set('page', pageNumber)
+    router.get(url.pathname + url.search, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    })
+}
+
 const renderCell = (row, column) => {
     const slot = column.slot || `cell-${column.key}`
     return slot
@@ -115,7 +137,7 @@ const renderCell = (row, column) => {
             <div class="flex items-center space-x-2">
                 <button
                     v-if="pagination.current_page > 1"
-                    @click="router.get(route().current(), { ...route().params, page: pagination.current_page - 1 }, { preserveScroll: true, preserveState: true })"
+                    @click="goToPage(pagination.current_page - 1)"
                     class="btn-secondary text-sm"
                     :disabled="loading"
                 >
@@ -126,7 +148,7 @@ const renderCell = (row, column) => {
                 </span>
                 <button
                     v-if="pagination.current_page < pagination.last_page"
-                    @click="router.get(route().current(), { ...route().params, page: pagination.current_page + 1 }, { preserveScroll: true, preserveState: true })"
+                    @click="goToPage(pagination.current_page + 1)"
                     class="btn-secondary text-sm"
                     :disabled="loading"
                 >

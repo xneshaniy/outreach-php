@@ -13,6 +13,7 @@ use Tests\TestCase;
 class GoogleSheetsImportTest extends TestCase
 {
     use RefreshDatabase;
+
     public function test_parses_google_sheets_url_with_hash_gid(): void
     {
         $service = new GoogleSheetsService();
@@ -32,6 +33,17 @@ class GoogleSheetsImportTest extends TestCase
 
         $this->assertSame('2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', $result['document_id']);
         $this->assertSame('987654', $result['gid']);
+    }
+
+    public function test_parses_published_to_web_google_sheets_url(): void
+    {
+        $service = new GoogleSheetsService();
+        $url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8_abc123XYZ/pubhtml?gid=123';
+        $result = $service->parseSheetUrl($url);
+
+        $this->assertSame('2PACX-1vR8_abc123XYZ', $result['document_id']);
+        $this->assertSame('123', $result['gid']);
+        $this->assertSame('https://docs.google.com/spreadsheets/d/e/2PACX-1vR8_abc123XYZ/pub?output=csv&gid=123', $result['export_url']);
     }
 
     public function test_parses_google_sheets_url_with_dashes_and_underscores(): void
@@ -79,5 +91,16 @@ class GoogleSheetsImportTest extends TestCase
             'original_filename',
         ]);
         $this->assertContains('email', $response->json('columns'));
+    }
+
+    public function test_legacy_leads_index_url_redirects_to_canonical_leads_route(): void
+    {
+        $user = User::factory()->create();
+        $workspace = Workspace::factory()->create();
+        $workspace->users()->attach($user->id, ['is_owner' => true, 'is_active' => true]);
+        $user->setCurrentWorkspace($workspace);
+
+        $response = $this->actingAs($user)->get('/leads.index?page=2');
+        $response->assertRedirect('/leads?page=2');
     }
 }
