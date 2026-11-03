@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -476,7 +476,7 @@ Return ONLY a valid JSON object with:
 
         try {
             if ($provider === 'gemini') {
-                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+                $targetModel = in_array($model, ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]) ? "gemini-3.5-flash-lite" : ($model ?: "gemini-3.5-flash-lite");`r`n                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
                 $body = [
                     'contents' => [
                         [

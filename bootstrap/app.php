@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -39,9 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->validateCsrfTokens(except: [
-            'leads/import*',
-            'leads/import/preview',
-            'csrf-cookie',
+            'leads/import/preview', // multipart upload preview
+            'csrf-cookie',          // token refresh endpoint
         ]);
 
         $middleware->web(append: [

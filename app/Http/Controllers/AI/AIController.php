@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\AI;
 
@@ -57,12 +57,12 @@ class AIController extends Controller
             'rules' => $rules,
             'providers' => [
                 ['id' => 'openai', 'name' => 'OpenAI (GPT-4o / GPT-4o-mini)', 'default_model' => 'gpt-4o-mini'],
-                ['id' => 'gemini', 'name' => 'Google Gemini (Gemini 1.5 Flash / Pro)', 'default_model' => 'gemini-1.5-flash'],
+                ['id' => 'gemini', 'name' => 'Google Gemini (Gemini 3.5 Flash Lite / Pro)', 'default_model' => 'gemini-3.5-flash-lite'],
                 ['id' => 'custom', 'name' => 'OpenAI-Compatible Custom Endpoint', 'default_model' => 'gpt-4o-mini'],
             ],
             'models' => [
                 'openai' => ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-                'gemini' => ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'],
+                'gemini' => ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-2.5-pro'],
                 'custom' => ['gpt-4o-mini', 'custom-model'],
             ],
         ]);
