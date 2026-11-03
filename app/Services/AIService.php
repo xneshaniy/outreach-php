@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Services;
 
@@ -19,9 +19,21 @@ class AIService
             return null;
         }
 
-        return AIConfiguration::where('workspace_id', $workspace->id)
+        $config = AIConfiguration::where('workspace_id', $workspace->id)
             ->where('is_active', true)
             ->first();
+
+        if (!$config && env('GEMINI_API_KEY')) {
+            $config = new AIConfiguration([
+                'workspace_id' => $workspace->id,
+                'provider' => 'gemini',
+                'api_key' => env('GEMINI_API_KEY'),
+                'model' => 'gemini-3.5-flash-lite',
+                'is_active' => true,
+            ]);
+        }
+
+        return $config;
     }
 
     /**
@@ -476,7 +488,8 @@ Return ONLY a valid JSON object with:
 
         try {
             if ($provider === 'gemini') {
-                $targetModel = in_array($model, ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]) ? "gemini-3.5-flash-lite" : ($model ?: "gemini-3.5-flash-lite");`r`n                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
+                $targetModel = in_array($model, ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]) ? "gemini-3.5-flash-lite" : ($model ?: "gemini-3.5-flash-lite");
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
                 $body = [
                     'contents' => [
                         [
