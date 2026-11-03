@@ -30,7 +30,7 @@ class ComprehensiveHealthAuditTest extends TestCase
 
         $this->user = User::factory()->create();
         $this->workspace = Workspace::factory()->create(['owner_id' => $this->user->id]);
-        $this->workspace->users()->attach($this->user->id, ['is_owner' => true, 'is_active' => true, 'role' => 'admin']);
+        $this->workspace->users()->attach($this->user->id, ['is_owner' => true, 'is_active' => true]);
         $this->user->setCurrentWorkspace($this->workspace);
 
         $this->actingAs($this->user);
@@ -103,10 +103,12 @@ class ComprehensiveHealthAuditTest extends TestCase
         $company->refresh();
         $this->assertEquals('Acme Corporation Updated', $company->name);
 
-        // 4. Delete company
+        // 4. Delete company (soft delete, consistent with the rest of the app)
         $delResp = $this->delete(route('companies.destroy', $company->id));
         $delResp->assertRedirect();
-        $this->assertDatabaseMissing('companies', ['id' => $company->id]);
+        $company->refresh();
+        $this->assertNotNull($company->deleted_at, 'Company should be soft-deleted');
+        $this->assertNull(Company::withoutTrashed()->find($company->id), 'Company should not appear in normal queries after deletion');
     }
 
     public function test_tasks_crud_lifecycle(): void

@@ -23,6 +23,7 @@ class Workspace extends Model
         'settings',
         'is_active',
         'trial_ends_at',
+        'owner_id',
     ];
 
     protected $casts = [
@@ -30,6 +31,11 @@ class Workspace extends Model
         'is_active' => 'boolean',
         'trial_ends_at' => 'datetime',
     ];
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
 
     public function users(): BelongsToMany
     {
@@ -43,21 +49,16 @@ class Workspace extends Model
         return $this->users()->wherePivot('is_owner', true);
     }
 
-    public function owner(): BelongsToMany
-    {
-        return $this->owners();
-    }
-
     public function getOwnerAttribute(): ?User
     {
-        if ($this->relationLoaded('owners')) {
-            return $this->owners->first();
-        }
         if ($this->relationLoaded('owner')) {
             $ownerRel = $this->getRelation('owner');
             return $ownerRel instanceof \Illuminate\Database\Eloquent\Collection ? $ownerRel->first() : $ownerRel;
         }
-        return $this->owners()->first();
+        if ($this->relationLoaded('owners')) {
+            return $this->owners->first();
+        }
+        return $this->owner()->first() ?? $this->owners()->first();
     }
 
     public function leads(): HasMany

@@ -59,7 +59,7 @@ class AuthController extends Controller
         $workspace = Workspace::create([
             'name' => $user->name . '\'s Workspace',
             'slug' => Str::slug($user->name . '-workspace') . '-' . Str::random(6),
-            'created_by' => $user->id,
+            'owner_id' => $user->id,
         ]);
 
         $workspace->users()->attach($user->id, [

@@ -95,6 +95,13 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/export', [LeadController::class, 'export'])->name('export');
         Route::post('/bulk-action', [LeadController::class, 'bulkAction'])->name('bulk-action');
         Route::post('/remove-duplicates', [LeadController::class, 'removeDuplicates'])->name('remove-duplicates');
+        // Scraper routes MUST be before /{lead} wildcard
+        Route::get('/scraper', [LeadScraperController::class, 'index'])->name('scraper.index');
+        Route::post('/scraper/preview', [LeadScraperController::class, 'preview'])->name('scraper.preview');
+        Route::post('/scraper/store', [LeadScraperController::class, 'store'])->name('scraper.store');
+        Route::get('/google-maps-scraper', [GoogleMapsScraperController::class, 'index'])->name('maps-scraper.index');
+        Route::post('/google-maps-scraper/search', [GoogleMapsScraperController::class, 'search'])->name('maps-scraper.search');
+        Route::post('/google-maps-scraper/import', [GoogleMapsScraperController::class, 'import'])->name('maps-scraper.import');
         Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
         Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
         Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
@@ -107,12 +114,6 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{lead}/research', [AIController::class, 'researchLead'])->name('research');
         Route::post('/{lead}/personalize', [AIController::class, 'personalizeLead'])->name('personalize');
         Route::post('/{lead}/enrich-company', [AIController::class, 'enrichCompanyFromDomain'])->name('enrich-company');
-        Route::get('/scraper', [LeadScraperController::class, 'index'])->name('scraper.index');
-        Route::post('/scraper/preview', [LeadScraperController::class, 'preview'])->name('scraper.preview');
-        Route::post('/scraper/store', [LeadScraperController::class, 'store'])->name('scraper.store');
-        Route::get('/google-maps-scraper', [GoogleMapsScraperController::class, 'index'])->name('maps-scraper.index');
-        Route::post('/google-maps-scraper/search', [GoogleMapsScraperController::class, 'search'])->name('maps-scraper.search');
-        Route::post('/google-maps-scraper/import', [GoogleMapsScraperController::class, 'import'])->name('maps-scraper.import');
     });
 
     // Companies
