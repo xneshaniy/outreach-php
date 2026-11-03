@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Leads;
 
@@ -235,8 +235,8 @@ class LeadController extends Controller
     public function importPreview(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            "file" => "nullable|file|mimes:csv,txt|max:10240",
-            "google_sheet_url" => "nullable|url|max:500",
+            "file" => "nullable|file|mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel,application/octet-stream|max:10240",
+            "google_sheet_url" => ["nullable", "string", "max:500", "regex:/https:\/\/docs\.google\.com\/spreadsheets\//"],
         ]);
 
         if (! $request->hasFile("file") && ! $request->filled("google_sheet_url")) {

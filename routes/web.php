@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -6,6 +6,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Leads\LeadController;
+use App\Http\Controllers\Leads\LeadScraperController;
+use App\Http\Controllers\Leads\GoogleMapsScraperController;
 use App\Http\Controllers\Companies\CompanyController;
 use App\Http\Controllers\Campaigns\CampaignController;
 use App\Http\Controllers\EmailAccounts\EmailAccountController;
@@ -41,6 +43,11 @@ Route::get('/', function () {
     }
     return \Inertia\Inertia::render('Home');
 })->name('home');
+
+// CSRF cookie refresh endpoint (used by axios 419-retry interceptor)
+Route::get('/csrf-cookie', function () {
+    return response()->json(['token' => csrf_token()]);
+})->middleware('web')->name('csrf.cookie');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -99,6 +106,13 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{lead}/pipeline-stage', [LeadController::class, 'updatePipelineStage'])->name('pipeline-stage');
         Route::post('/{lead}/research', [AIController::class, 'researchLead'])->name('research');
         Route::post('/{lead}/personalize', [AIController::class, 'personalizeLead'])->name('personalize');
+        Route::post('/{lead}/enrich-company', [AIController::class, 'enrichCompanyFromDomain'])->name('enrich-company');
+        Route::get('/scraper', [LeadScraperController::class, 'index'])->name('scraper.index');
+        Route::post('/scraper/preview', [LeadScraperController::class, 'preview'])->name('scraper.preview');
+        Route::post('/scraper/store', [LeadScraperController::class, 'store'])->name('scraper.store');
+        Route::get('/google-maps-scraper', [GoogleMapsScraperController::class, 'index'])->name('maps-scraper.index');
+        Route::post('/google-maps-scraper/search', [GoogleMapsScraperController::class, 'search'])->name('maps-scraper.search');
+        Route::post('/google-maps-scraper/import', [GoogleMapsScraperController::class, 'import'])->name('maps-scraper.import');
     });
 
     // Companies

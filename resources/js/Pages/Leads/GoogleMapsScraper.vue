@@ -1,0 +1,345 @@
+<script setup>
+import { ref, computed } from 'vue'
+import { Head, Link } from '@inertiajs/vue3'
+import MainLayout from '@/Layouts/MainLayout.vue'
+import axios from 'axios'
+
+const props = defineProps({
+    campaigns: {
+        type: Array,
+        default: () => [],
+    },
+    leadLists: {
+        type: Array,
+        default: () => [],
+    },
+})
+
+// Search State
+const query = ref('')
+const location = ref('')
+const limit = ref(10)
+const enrichWebsites = ref(true)
+
+const isSearching = ref(false)
+const isImporting = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const results = ref([])
+const selectedIndices = ref([])
+
+const selectedCampaignId = ref(props.campaigns.length > 0 ? props.campaigns[0].id : '')
+const selectedLeadListId = ref('')
+
+const isAllSelected = computed(() => {
+    return results.value.length > 0 && selectedIndices.value.length === results.value.length
+})
+
+const toggleSelectAll = () => {
+    if (isAllSelected.value) {
+        selectedIndices.value = []
+    } else {
+        selectedIndices.value = results.value.map((_, i) => i)
+    }
+}
+
+const toggleSelect = (index) => {
+    const pos = selectedIndices.value.indexOf(index)
+    if (pos > -1) {
+        selectedIndices.value.splice(pos, 1)
+    } else {
+        selectedIndices.value.push(index)
+    }
+}
+
+const searchMaps = async () => {
+    if (!query.value.trim()) {
+        errorMessage.value = 'Please provide a search niche or business type (e.g. Dentists, Real Estate, Plumbers).'
+        return
+    }
+
+    isSearching.value = true
+    errorMessage.value = ''
+    successMessage.value = ''
+    results.value = []
+    selectedIndices.value = []
+
+    try {
+        const response = await axios.post('/leads/google-maps-scraper/search', {
+            query: query.value.trim(),
+            location: location.value.trim(),
+            limit: limit.value,
+            enrich_websites: enrichWebsites.value,
+        })
+
+        if (response.data.success && response.data.data) {
+            results.value = response.data.data
+            // Select all by default for easy import
+            selectedIndices.value = results.value.map((_, i) => i)
+            if (results.value.length === 0) {
+                errorMessage.value = 'No businesses found for this search. Try broadening your location or query.'
+            }
+        } else {
+            errorMessage.value = response.data.message || 'Search failed.'
+        }
+    } catch (err) {
+        errorMessage.value = err.response?.data?.message || err.message || 'Google Maps search failed.'
+    } finally {
+        isSearching.value = false
+    }
+}
+
+const importSelected = async () => {
+    if (selectedIndices.value.length === 0) {
+        errorMessage.value = 'Please select at least one business to import.'
+        return
+    }
+
+    isImporting.value = true
+    errorMessage.value = ''
+    successMessage.value = ''
+
+    const leadsToImport = selectedIndices.value.map(idx => results.value[idx])
+
+    try {
+        const response = await axios.post('/leads/google-maps-scraper/import', {
+            leads: leadsToImport,
+            campaign_id: selectedCampaignId.value || null,
+            lead_list_id: selectedLeadListId.value || null,
+        })
+
+        if (response.data.success) {
+            successMessage.value = response.data.message
+            // Remove imported leads from list or keep state clean
+            results.value = []
+            selectedIndices.value = []
+        } else {
+            errorMessage.value = response.data.message || 'Import failed.'
+        }
+    } catch (err) {
+        errorMessage.value = err.response?.data?.message || err.message || 'Failed to import leads.'
+    } finally {
+        isImporting.value = false
+    }
+}
+</script>
+
+<template>
+    <MainLayout title="Google Maps Lead Scraper">
+        <Head title="Google Maps Lead Scraper - Outreach CRM" />
+
+        <div class="max-w-6xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        <Link :href="route('leads.index')" class="hover:text-primary-600">Leads</Link>
+                        <span>/</span>
+                        <span class="text-gray-900 dark:text-white font-medium">Google Maps Scraper</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>Google Maps Lead Scraper</span>
+                        <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                            Maps + Web Enrichment
+                        </span>
+                    </h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Extract B2B local business leads from Google Maps (name, phone number, website, rating, public email, address) and enroll them directly into an outreach campaign.
+                    </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <Link :href="route('leads.index')" class="btn-secondary text-sm">
+                        ← Back to All Leads
+                    </Link>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            <div v-if="errorMessage" class="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 flex items-start space-x-3">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1 font-medium text-sm">{{ errorMessage }}</div>
+            </div>
+
+            <div v-if="successMessage" class="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-start space-x-3">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <div class="flex-1 font-medium text-sm">{{ successMessage }}</div>
+            </div>
+
+            <!-- Search Panel -->
+            <div class="card p-6 space-y-4">
+                <h2 class="text-base font-bold text-gray-900 dark:text-white">Search Google Maps by Category & City</h2>
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-5">
+                        <label class="label text-xs">Niche / Business Type *</label>
+                        <input
+                            v-model="query"
+                            @keyup.enter="searchMaps"
+                            type="text"
+                            placeholder="e.g. Dentists, Real Estate, Gyms, Plumbers"
+                            class="input w-full text-xs"
+                            :disabled="isSearching"
+                        />
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="label text-xs">Target City / Region</label>
+                        <input
+                            v-model="location"
+                            @keyup.enter="searchMaps"
+                            type="text"
+                            placeholder="e.g. Austin TX, London UK, Dubai"
+                            class="input w-full text-xs"
+                            :disabled="isSearching"
+                        />
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="label text-xs">Max Results</label>
+                        <select v-model="limit" class="input w-full text-xs" :disabled="isSearching">
+                            <option :value="5">5 listings</option>
+                            <option :value="10">10 listings</option>
+                            <option :value="20">20 listings</option>
+                            <option :value="30">30 listings</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+                    <label class="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                        <input type="checkbox" v-model="enrichWebsites" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                        <span><strong>Deep Email Enrichment:</strong> Visit company websites to extract public contact emails & social links</span>
+                    </label>
+
+                    <button
+                        @click="searchMaps"
+                        :disabled="isSearching || !query.trim()"
+                        type="button"
+                        class="btn-primary text-xs px-6 flex items-center justify-center shrink-0"
+                    >
+                        <svg v-if="isSearching" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>{{ isSearching ? 'Scraping Google Maps...' : 'Scrape Google Maps' }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results & Batch Import Panel -->
+            <div v-if="results.length > 0" class="card space-y-4">
+                <div class="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-900 dark:text-white">
+                            Scraped Google Maps Listings ({{ results.length }} Found)
+                        </h2>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Select the businesses you want to import into your CRM and assign to an email outreach campaign.
+                        </p>
+                    </div>
+
+                    <!-- Target Campaign & List Pickers -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select v-model="selectedCampaignId" class="input text-xs py-1.5 max-w-xs">
+                            <option value="">-- No Campaign (CRM only) --</option>
+                            <option v-for="c in campaigns" :key="c.id" :value="c.id">
+                                Enroll: {{ c.name }} ({{ c.status }})
+                            </option>
+                        </select>
+
+                        <select v-model="selectedLeadListId" class="input text-xs py-1.5 max-w-xs">
+                            <option value="">-- No Lead List --</option>
+                            <option v-for="l in leadLists" :key="l.id" :value="l.id">
+                                List: {{ l.name }}
+                            </option>
+                        </select>
+
+                        <button
+                            @click="importSelected"
+                            :disabled="isImporting || selectedIndices.length === 0"
+                            type="button"
+                            class="btn-primary text-xs py-1.5 px-4"
+                        >
+                            <svg v-if="isImporting" class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Import Selected ({{ selectedIndices.length }})</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="overflow-x-auto">
+                    <table class="table w-full text-xs">
+                        <thead>
+                            <tr>
+                                <th class="w-10 text-center">
+                                    <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                                </th>
+                                <th>Business Name</th>
+                                <th>Contact Email</th>
+                                <th>Phone Number</th>
+                                <th>Website</th>
+                                <th>City / Location</th>
+                                <th>Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(item, idx) in results"
+                                :key="idx"
+                                :class="selectedIndices.includes(idx) ? 'bg-primary-50/30 dark:bg-primary-950/20' : ''"
+                            >
+                                <td class="text-center">
+                                    <input
+                                        type="checkbox"
+                                        :checked="selectedIndices.includes(idx)"
+                                        @change="toggleSelect(idx)"
+                                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    />
+                                </td>
+                                <td class="font-bold text-gray-900 dark:text-white">
+                                    {{ item.company_name }}
+                                </td>
+                                <td>
+                                    <input
+                                        v-model="item.email"
+                                        type="email"
+                                        placeholder="Add email"
+                                        class="input text-xs py-1 px-2 font-mono w-44"
+                                    />
+                                </td>
+                                <td class="font-mono text-gray-600 dark:text-gray-300">
+                                    {{ item.phone || '-' }}
+                                </td>
+                                <td>
+                                    <a
+                                        v-if="item.website"
+                                        :href="item.website"
+                                        target="_blank"
+                                        class="text-primary-600 hover:underline max-w-[180px] truncate block font-mono"
+                                    >
+                                        {{ item.website.replace(/^https?:\/\//, '') }}
+                                    </a>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                                <td class="text-gray-600 dark:text-gray-300">
+                                    {{ item.city || item.address || '-' }}
+                                </td>
+                                <td>
+                                    <span v-if="item.rating" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                                        ★ {{ item.rating }}
+                                    </span>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </MainLayout>
+</template>

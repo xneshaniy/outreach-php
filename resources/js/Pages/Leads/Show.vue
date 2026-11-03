@@ -22,6 +22,10 @@ const isRecalculatingScore = ref(false)
 const isValidatingEmail = ref(false)
 const emailValidationResult = ref(null)
 
+const isEnrichingCompany = ref(false)
+const enrichCompanyResult = ref(null)
+const enrichCompanyError = ref('')
+
 // Internal Note Form
 const noteForm = useForm({
     content: '',
@@ -121,6 +125,31 @@ const validateEmail = async () => {
         alert('Validation check failed')
     } finally {
         isValidatingEmail.value = false
+    }
+}
+
+// 4. AI Company Enrichment from Domain
+const enrichCompany = async () => {
+    isEnrichingCompany.value = true
+    enrichCompanyResult.value = null
+    enrichCompanyError.value = ''
+    try {
+        const res = await axios.post(route('leads.enrich-company', props.lead.id))
+        if (res.data.success && res.data.data) {
+            enrichCompanyResult.value = res.data.data
+            // Reactively update the lead so the UI reflects new data
+            props.lead.company_id = res.data.data.company_id
+            props.lead.company = res.data.data.company_name
+            if (res.data.data.country) {
+                props.lead.country = res.data.data.country
+            }
+        } else {
+            enrichCompanyError.value = res.data.error || 'Company enrichment failed'
+        }
+    } catch (err) {
+        enrichCompanyError.value = err.response?.data?.error || err.response?.data?.message || err.message || 'AI enrichment request failed'
+    } finally {
+        isEnrichingCompany.value = false
     }
 }
 
@@ -494,16 +523,40 @@ const deleteLead = () => {
                     <div class="card">
                         <div class="card-header flex items-center justify-between">
                             <h3 class="font-bold text-xs uppercase tracking-wider text-gray-500">Contact Details</h3>
-                            <button
-                                type="button"
-                                @click="validateEmail"
-                                :disabled="isValidatingEmail"
-                                class="text-[11px] text-primary-600 hover:underline"
-                            >
-                                {{ isValidatingEmail ? 'Checking...' : '✓ Validate Email' }}
-                            </button>
+                            <div class="flex items-center space-x-3">
+                                <button
+                                    v-if="lead.website || lead.email"
+                                    type="button"
+                                    @click="enrichCompany"
+                                    :disabled="isEnrichingCompany"
+                                    class="btn-secondary text-[11px] py-1 px-2.5 inline-flex items-center space-x-1"
+                                    title="Use AI to look up company info from domain and link it to this lead"
+                                >
+                                    <svg v-if="isEnrichingCompany" class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                    <span>{{ isEnrichingCompany ? 'Enriching...' : '✦ AI Enrich Company' }}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="validateEmail"
+                                    :disabled="isValidatingEmail"
+                                    class="text-[11px] text-primary-600 hover:underline"
+                                >
+                                    {{ isValidatingEmail ? 'Checking...' : '✓ Validate Email' }}
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body space-y-3 text-xs">
+                            <!-- AI Enrich Company result / error -->
+                            <div v-if="enrichCompanyError" class="p-2.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 text-[11px]">
+                                {{ enrichCompanyError }}
+                            </div>
+                            <div v-if="enrichCompanyResult" class="p-2.5 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
+                                <p class="font-semibold">✓ Company linked: {{ enrichCompanyResult.company_name }}</p>
+                                <p v-if="enrichCompanyResult.country">🌍 {{ enrichCompanyResult.country }}<span v-if="enrichCompanyResult.industry"> · {{ enrichCompanyResult.industry }}</span></p>
+                            </div>
                             <div>
                                 <span class="text-gray-400 block text-[10px] uppercase font-bold">Email Address</span>
                                 <div class="flex items-center space-x-1.5 mt-0.5">

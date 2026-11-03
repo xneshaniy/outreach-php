@@ -232,6 +232,64 @@ IMPORTANT:
     }
 
     /**
+     * Enrich a company record from its domain using AI.
+     * Returns company_name, country, industry, description, website.
+     */
+    public function enrichCompanyFromDomain(Workspace $workspace, string $domain): array
+    {
+        $config = $this->getConfig($workspace);
+
+        if (!$config || empty($config->api_key)) {
+            // Graceful fallback — use the domain itself as the company name
+            return [
+                'success' => true,
+                'data' => [
+                    'company_name' => ucfirst(explode('.', $domain)[0]),
+                    'country'      => '',
+                    'industry'     => '',
+                    'description'  => '',
+                    'website'      => 'https://' . $domain,
+                ],
+            ];
+        }
+
+        $systemPrompt = "You are a business intelligence analyst.
+Given a company domain, return factual information about that company.
+CRITICAL: Do NOT fabricate details. If you are uncertain, leave the field as an empty string.
+Return ONLY a valid JSON object with these exact keys:
+'company_name' (string),
+'country' (string, full country name),
+'industry' (string),
+'description' (string, one sentence),
+'website' (string, full URL with https://).";
+
+        $userPrompt = "Company domain: {$domain}\n\nProvide the company name, country, industry, a short description, and website URL.";
+
+        $response = $this->callModel($config, $systemPrompt, $userPrompt, 400);
+
+        if (!$response['success']) {
+            return $response;
+        }
+
+        $parsed = $this->parseJson($response['content']);
+        if ($parsed) {
+            return ['success' => true, 'data' => $parsed];
+        }
+
+        // Fallback if parse fails
+        return [
+            'success' => true,
+            'data' => [
+                'company_name' => ucfirst(explode('.', $domain)[0]),
+                'country'      => '',
+                'industry'     => '',
+                'description'  => '',
+                'website'      => 'https://' . $domain,
+            ],
+        ];
+    }
+
+    /**
      * Conduct AI-assisted lead research based on company & name.
      */
     public function researchLead(Workspace $workspace, array $leadData): array

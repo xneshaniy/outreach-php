@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
@@ -94,6 +94,7 @@ const uploadAndPreview = async () => {
             response = await axios.post('/leads/import/preview', formData, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
                 },
                 withCredentials: true,
                 withXSRFToken: true,
@@ -139,6 +140,8 @@ const uploadAndPreview = async () => {
             errorMessage.value = err.response.data.errors.file[0]
         } else if (err.response?.data?.errors?.google_sheet_url) {
             errorMessage.value = err.response.data.errors.google_sheet_url[0]
+        } else if (err.response?.status) {
+            errorMessage.value = 'Failed to process your request (HTTP ' + err.response.status + '). Please try again.'
         } else {
             errorMessage.value = 'Failed to fetch and parse spreadsheet data. Please verify the file or Google Sheets URL.'
         }

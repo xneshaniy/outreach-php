@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AI;
 
 use App\Http\Controllers\Controller;
 use App\Models\AIConfiguration;
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\LeadResearch;
 use App\Models\LeadScoringRule;
@@ -263,5 +264,94 @@ class AIController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    /**
+     * Enrich a lead's company from its domain using AI.
+     * Finds or creates a Company record, links it to the lead,
+     * and optionally fills the lead's country field.
+     */
+    public function enrichCompanyFromDomain(Request $request, Lead $lead): JsonResponse
+    {
+        $this->authorize('update', $lead);
+
+        $workspace = $request->user()->currentWorkspace;
+
+        // Determine the domain: prefer lead website, fall back to email domain
+        $domain = '';
+        if (!empty($lead->website)) {
+            $host = parse_url($lead->website, PHP_URL_HOST) ?: $lead->website;
+            $domain = preg_replace('/^www\./i', '', $host);
+        } elseif (!empty($lead->email) && str_contains($lead->email, '@')) {
+            $domain = substr(strrchr($lead->email, '@'), 1);
+        }
+
+        $domain = strtolower(trim($domain));
+
+        if (empty($domain)) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'No website or email domain found on this lead.',
+            ], 422);
+        }
+
+        // Ask AI to enrich
+        $result = $this->aiService->enrichCompanyFromDomain($workspace, $domain);
+
+        if (!$result['success']) {
+            return response()->json($result, 500);
+        }
+
+        $data = $result['data'];
+
+        // Find or create the Company record for this workspace + domain
+        $company = Company::firstOrNew([
+            'workspace_id' => $workspace->id,
+            'domain'       => $domain,
+        ]);
+
+        // Only fill empty fields — never overwrite existing data
+        if (empty($company->name) && !empty($data['company_name'])) {
+            $company->name = $data['company_name'];
+        }
+        if (empty($company->country) && !empty($data['country'])) {
+            $company->country = $data['country'];
+        }
+        if (empty($company->industry) && !empty($data['industry'])) {
+            $company->industry = $data['industry'];
+        }
+        if (empty($company->description) && !empty($data['description'])) {
+            $company->description = $data['description'];
+        }
+        if (empty($company->website) && !empty($data['website'])) {
+            $company->website = $data['website'];
+        }
+
+        // Set created_by only on new records
+        if (!$company->exists) {
+            $company->created_by = $request->user()->id;
+        }
+
+        $company->save();
+
+        // Link the lead to this company and optionally set country
+        $leadUpdates = ['company_id' => $company->id];
+        if (empty($lead->country) && !empty($data['country'])) {
+            $leadUpdates['country'] = $data['country'];
+        }
+        $lead->update($leadUpdates);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'company_id'   => $company->id,
+                'company_name' => $company->name,
+                'country'      => $company->country,
+                'industry'     => $company->industry,
+                'description'  => $company->description,
+                'website'      => $company->website,
+                'domain'       => $domain,
+            ],
+        ]);
     }
 }

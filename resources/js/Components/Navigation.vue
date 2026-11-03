@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, h, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import AppLogo from '@/Components/AppLogo.vue'
@@ -72,6 +72,8 @@ const groups = computed(() => [
                 children: [
                     { name: 'All Leads', href: route('leads.index') },
                     { name: 'Add Lead', href: route('leads.create') },
+                    { name: 'AI Web Scraper', href: route('leads.scraper.index') },
+                    { name: 'Google Maps Scraper', href: route('leads.maps-scraper.index') },
                     { name: 'Import', href: route('leads.import.form') },
                     { name: 'Import History', href: route('leads.imports.index') },
                 ],
