@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
