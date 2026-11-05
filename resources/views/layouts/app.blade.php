@@ -4,6 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Google Tag Manager / Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-5KFS55PT"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7VJCN5RRDS"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-7VJCN5RRDS');
+    </script>
+    <!-- End Google Tag Manager -->
+
     <title>{{ config('app.name', 'Outreach CRM') }} @yield('title')</title>
 
     <!-- Fonts -->
@@ -17,6 +30,11 @@
     @stack('head')
 </head>
 <body class="font-sans antialiased bg-background text-foreground">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5KFS55PT"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
     @inertia
     @stack('modals')
 </body>
