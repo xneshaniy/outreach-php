@@ -70,6 +70,15 @@ Schedule::job(new SendReminderEmailsJob)->everyFiveMinutes()->withoutOverlapping
 // Prunes old messages, logs and import files.
 Schedule::job(new CleanupJob)->dailyAt('02:00');
 
+// Scheduled Warm-up Round
+Schedule::command('email:warmup')->everyTwoHours()->withoutOverlapping();
+
+// Hostinger Mailboxes Auto-Sync (Connect newly created mailboxes automatically)
+Schedule::command('hostinger:sync-mailboxes')->hourly()->withoutOverlapping();
+
+// Poll connected mailboxes for prospect replies & send alerts
+Schedule::command('email:sync-replies')->everyFiveMinutes()->withoutOverlapping();
+
 /*
  * Shared hosting has no long-running queue worker. Drain the database queue
  * from the same once-per-minute cron entry that runs the scheduler.

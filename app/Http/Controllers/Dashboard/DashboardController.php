@@ -140,6 +140,29 @@ class DashboardController extends Controller
             ->groupBy('status')
             ->get();
 
+        // Country distribution
+        $leadsByCountry = Lead::where('workspace_id', $workspace->id)
+            ->whereNotNull('country')
+            ->selectRaw('country, count(*) as count')
+            ->groupBy('country')
+            ->orderByDesc('count')
+            ->limit(8)
+            ->get();
+
+        // Recent automated discovery logs
+        $recentDiscovery = \Illuminate\Support\Facades\DB::table('lead_discovery_logs')
+            ->where('workspace_id', $workspace->id)
+            ->latest('created_at')
+            ->limit(5)
+            ->get();
+
+        // Recent Inbound replies
+        $recentReplies = \App\Models\InboundEmailReply::where('workspace_id', $workspace->id)
+            ->with(['lead:id,first_name,last_name,email,company_name'])
+            ->latest('received_at')
+            ->limit(5)
+            ->get();
+
         return Inertia::render('Dashboard/Index', [
             'stats' => $stats,
             'recentLeads' => $recentLeads,
@@ -153,6 +176,9 @@ class DashboardController extends Controller
             'leadCategories' => $leadCategories,
             'pipelineStages' => $pipelineStages,
             'replyBreakdown' => $replyBreakdown,
+            'leadsByCountry' => $leadsByCountry,
+            'recentDiscovery' => $recentDiscovery,
+            'recentReplies' => $recentReplies,
         ]);
     }
 
