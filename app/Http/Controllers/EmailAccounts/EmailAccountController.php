@@ -36,6 +36,10 @@ class EmailAccountController extends Controller
                     'host' => $acc->host,
                     'port' => $acc->port,
                     'encryption' => $acc->encryption,
+                    'imap_host' => $acc->imap_host ?? 'imap.hostinger.com',
+                    'imap_port' => $acc->imap_port ?? 993,
+                    'imap_encryption' => $acc->imap_encryption ?? 'ssl',
+                    'imap_username' => $acc->imap_username ?? $acc->username,
                     'username' => $acc->username,
                     'from_name' => $acc->from_name,
                     'reply_to' => $acc->reply_to,
@@ -46,6 +50,12 @@ class EmailAccountController extends Controller
                     'failed_count' => $acc->failed_count ?? 0,
                     'is_active' => (bool)$acc->is_active,
                     'is_default' => (bool)$acc->is_default,
+                    'warmup_enabled' => (bool)$acc->warmup_enabled,
+                    'warmup_daily_limit' => $acc->warmup_daily_limit ?? 5,
+                    'warmup_max_limit' => $acc->warmup_max_limit ?? 40,
+                    'warmup_sent_today' => $acc->warmup_sent_today ?? 0,
+                    'warmup_status' => $acc->warmup_status ?? 'idle',
+                    'warmup_reputation_score' => $acc->warmup_reputation_score ?? 100,
                     'last_tested_at' => $acc->last_tested_at?->toIso8601String(),
                     'last_test_status' => $acc->last_test_status,
                     'last_test_message' => $acc->last_test_message,
@@ -213,6 +223,19 @@ class EmailAccountController extends Controller
 
         $state = $account->is_active ? 'enabled' : 'disabled';
         return back()->with('success', "Email account {$account->email} has been {$state}.");
+    }
+
+    public function toggleWarmup(Request $request, EmailAccount $account): RedirectResponse
+    {
+        $this->authorize('update', $account);
+
+        $account->update([
+            'warmup_enabled' => !$account->warmup_enabled,
+            'warmup_status'  => !$account->warmup_enabled ? 'warming' : 'paused',
+        ]);
+
+        $state = $account->warmup_enabled ? 'enabled' : 'paused';
+        return back()->with('success', "Warm-up has been {$state} for {$account->email}.");
     }
 
     public function setDefault(Request $request, EmailAccount $account): RedirectResponse

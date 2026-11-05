@@ -53,7 +53,7 @@ class GoogleMapsScraperController extends Controller
         $request->validate([
             'query'           => 'required|string|max:255',
             'location'        => 'nullable|string|max:255',
-            'limit'           => 'nullable|integer|min:1|max:30',
+            'limit'           => 'nullable|integer|min:1|max:500',
             'enrich_websites' => 'nullable|boolean',
         ]);
 

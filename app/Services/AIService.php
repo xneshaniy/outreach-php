@@ -488,7 +488,8 @@ Return ONLY a valid JSON object with:
 
         try {
             if ($provider === 'gemini') {
-                $targetModel = in_array($model, ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]) ? "gemini-3.5-flash-lite" : ($model ?: "gemini-3.5-flash-lite");
+                $validGeminiModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+                $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-2.0-flash';
                 $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
                 $body = [
                     'contents' => [
@@ -581,7 +582,6 @@ Return ONLY a valid JSON object with:
     protected function aiHttp()
     {
         return Http::retry(3, 100)
-            ->timeout(30)
-            ->throw(false);
+            ->timeout(30);
     }
 }

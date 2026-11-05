@@ -129,6 +129,13 @@ const toggleAccount = (account) => {
     })
 }
 
+// Toggle Warm-up
+const toggleWarmup = (account) => {
+    router.post(route('email-accounts.toggle-warmup', account.id), {}, {
+        preserveScroll: true,
+    })
+}
+
 // Delete account
 const deleteAccount = (account) => {
     if (confirm(`Are you sure you want to disconnect ${account.email}?`)) {
@@ -292,6 +299,15 @@ const submitAccount = () => {
                             >
                                 Test Connection
                             </button>
+                            <button
+                                type="button"
+                                @click="toggleWarmup(acc)"
+                                class="text-xs px-2.5 py-1 rounded transition-colors"
+                                :class="acc.warmup_enabled ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'"
+                                :title="acc.warmup_enabled ? 'Warm-up active (' + acc.warmup_sent_today + '/' + acc.warmup_daily_limit + ' today)' : 'Click to start Warm-up'"
+                            >
+                                🔥 Warm-up: {{ acc.warmup_enabled ? 'Active' : 'Off' }}
+                            </button>
                         </div>
                         <div class="flex items-center space-x-2">
                             <button
@@ -425,7 +441,24 @@ const submitAccount = () => {
                     </div>
                 </div>
 
-                <!-- Test Connection Feedback Banner -->
+                <!-- IMAP Settings -->
+                <div class="border-t dark:border-gray-700 pt-3">
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Incoming Server (IMAP)</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="label">IMAP Host</label>
+                            <input type="text" readonly value="imap.hostinger.com" class="input w-full bg-gray-50 dark:bg-gray-800 text-gray-600" />
+                        </div>
+                        <div>
+                            <label class="label">IMAP Port</label>
+                            <input type="number" readonly value="993" class="input w-full bg-gray-50 dark:bg-gray-800 text-gray-600" />
+                        </div>
+                        <div>
+                            <label class="label">Encryption</label>
+                            <input type="text" readonly value="SSL" class="input w-full bg-gray-50 dark:bg-gray-800 text-gray-600" />
+                        </div>
+                    </div>
+                </div>
                 <div v-if="testResult" class="p-3 rounded-lg text-xs" :class="testResult.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
                     <strong>{{ testResult.success ? '✓ Verified:' : '✗ Failed:' }}</strong> {{ testResult.message }}
                 </div>

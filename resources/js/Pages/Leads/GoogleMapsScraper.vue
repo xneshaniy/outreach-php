@@ -203,6 +203,13 @@ const importSelected = async () => {
                             <option :value="10">10 listings</option>
                             <option :value="20">20 listings</option>
                             <option :value="30">30 listings</option>
+                            <option :value="50">50 listings</option>
+                            <option :value="75">75 listings</option>
+                            <option :value="100">100 listings</option>
+                            <option :value="150">150 listings</option>
+                            <option :value="200">200 listings</option>
+                            <option :value="300">300 listings</option>
+                            <option :value="500">500 listings</option>
                         </select>
                     </div>
                 </div>

@@ -170,6 +170,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::delete('/{account}', [EmailAccountController::class, 'destroy'])->name('destroy');
         Route::post('/{account}/test', [EmailAccountController::class, 'test'])->name('test');
         Route::post('/{account}/toggle', [EmailAccountController::class, 'toggle'])->name('toggle');
+        Route::post('/{account}/toggle-warmup', [EmailAccountController::class, 'toggleWarmup'])->name('toggle-warmup');
         Route::post('/{account}/set-default', [EmailAccountController::class, 'setDefault'])->name('set-default');
     });
 
