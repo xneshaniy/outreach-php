@@ -183,12 +183,13 @@ Output pure JSON matching the requested structure.";
         $leadFacts = [
             'first_name' => $lead->first_name ?: 'there',
             'last_name' => $lead->last_name ?: '',
-            'company' => $lead->company ?: ($lead->company?->name ?? 'your company'),
+            'company' => $lead->company_name ?: ($lead->company?->name ?? 'your company'),
             'job_title' => $lead->job_title ?: 'Professional',
-            'industry' => $lead->industry ?: 'your sector',
+            'industry' => $lead->industry ?: ($lead->business_category ?: 'your sector'),
             'website' => $lead->website ?: '',
             'country' => $lead->country ?: '',
             'city' => $lead->city ?: '',
+            'detected_language' => $lead->detected_language ?: 'en',
             'notes' => $lead->notes ?: '',
         ];
 
@@ -217,6 +218,13 @@ IMPORTANT:
 - DO NOT invent company achievements, news, revenue figures, or personal claims that are not in the provided facts.
 - If information is missing, speak naturally without making unsupported claims.
 - Return ONLY a JSON object with: 'subject' (string) and 'body' (HTML string with <p> tags).";
+
+        $detectedLang = strtolower($lead->detected_language ?: 'en');
+        if (in_array($detectedLang, ['fr', 'de', 'es', 'it'])) {
+            $langName = match($detectedLang) { 'fr' => 'French', 'de' => 'German', 'es' => 'Spanish', 'it' => 'Italian', default => 'English' };
+            $countryName = $lead->country ?: $langName;
+            $systemPrompt .= "\n- The recipient is based in {$countryName} and prefers {$langName}. You MUST write both the subject line and email body entirely in professional, courteous {$langName} using culturally appropriate greetings.\n- Always include a discreet and polite opt-out notice at the bottom in {$langName}.";
+        }
 
         $userPrompt = "Lead Information:\n" . json_encode($leadFacts, JSON_PRETTY_PRINT) . "\n\nCampaign Objective: {$objective}\nExisting Template/Guidelines: {$template}\n\nCreate a natural, tailored email for this lead.";
 
