@@ -14,9 +14,9 @@ use League\Csv\Statement;
 
 class LeadService
 {
-    public function createLead(array $data, Workspace $workspace, User $creator): Lead
+    public function createLead(array $data, Workspace $workspace, User $creator, bool $autoEnrich = true): Lead
     {
-        return DB::transaction(function () use ($data, $workspace, $creator) {
+        return DB::transaction(function () use ($data, $workspace, $creator, $autoEnrich) {
             $normalizedEmail = Str::lower(trim($data['email']));
 
             // Check for duplicate
@@ -69,8 +69,10 @@ class LeadService
 
             app(\App\Services\LeadScoreService::class)->calculateScore($lead);
 
-            // Auto-fill missing details via AI if any key detail is missing
-            $lead = $this->autoFillMissingLeadDetails($lead, $workspace);
+            // Auto-fill missing details via AI if any key detail is missing and auto-enrichment is requested
+            if ($autoEnrich) {
+                $lead = $this->autoFillMissingLeadDetails($lead, $workspace);
+            }
 
             return $lead;
         });
@@ -188,7 +190,8 @@ class LeadService
                     continue;
                 }
 
-                $this->createLead($data, $workspace, $creator);
+                $autoEnrich = $options['auto_enrich'] ?? false;
+                $this->createLead($data, $workspace, $creator, $autoEnrich);
                 $results['created']++;
             } catch (\Exception $e) {
                 $results['errors'][] = [

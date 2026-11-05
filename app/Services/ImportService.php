@@ -18,6 +18,7 @@ class ImportService
 {
     public function processImport(LeadImport $import): void
     {
+        @set_time_limit(300);
         $import->markAsProcessing();
 
         try {
