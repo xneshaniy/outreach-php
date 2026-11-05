@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, h, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import AppLogo from '@/Components/AppLogo.vue'
@@ -53,6 +53,7 @@ const InboxIcon = icon('M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2
 const PipelineIcon = icon('M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7')
 const TasksIcon = icon('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4')
 const ReportsIcon = icon('M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')
+const AutomationIcon = icon('M13 10V3L4 14h7v7l9-11h-7z')
 
 const groups = computed(() => [
     {
@@ -72,6 +73,7 @@ const groups = computed(() => [
                 children: [
                     { name: 'All Leads', href: route('leads.index') },
                     { name: 'Add Lead', href: route('leads.create') },
+                    { name: 'Duplicate Merge', href: route('leads.duplicates.index') },
                     { name: 'AI Web Scraper', href: route('leads.scraper.index') },
                     { name: 'Google Maps Scraper', href: route('leads.maps-scraper.index') },
                     { name: 'Import', href: route('leads.import.form') },
@@ -97,6 +99,7 @@ const groups = computed(() => [
                     { name: 'Create Campaign', href: route('campaigns.create') },
                 ],
             },
+            { name: 'Automations', href: route('automations.index'), icon: AutomationIcon, active: route().current('automations.*') },
             { name: 'Email Accounts', href: route('email-accounts.index'), icon: EmailIcon, active: route().current('email-accounts.*') },
         ],
     },
@@ -138,97 +141,52 @@ const compact = computed(() => props.collapsed)
             </Link>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-2 py-3">
-            <template v-for="group in groups" :key="group.label">
-                <p v-if="!compact" class="nav-section-label">{{ group.label }}</p>
-                <div class="space-y-0.5">
-                    <template v-for="item in group.items" :key="item.name">
-                        <div v-if="item.children">
-                            <button
-                                type="button"
-                                class="sidebar-link"
-                                :class="{ 'sidebar-link-active': item.active }"
-                                :title="item.name"
-                                @click="compact ? router.visit(item.children[0].href) : toggleMenu(item.key)"
-                            >
-                                <component :is="item.icon" />
-                                <span v-if="!compact" class="flex-1 truncate text-left">{{ item.name }}</span>
-                                <svg
-                                    v-if="!compact"
-                                    class="h-4 w-4 shrink-0 transition-transform"
-                                    :class="{ 'rotate-90': openMenus[item.key] }"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                            <div v-if="!compact && openMenus[item.key]" class="mb-1 ml-6 space-y-0.5 border-l border-sidebar-border pl-3">
-                                <Link
-                                    v-for="child in item.children"
-                                    :key="child.name"
-                                    :href="child.href"
-                                    class="sidebar-link py-1.5 text-[13px]"
-                                    @click="emit('close')"
-                                >
-                                    {{ child.name }}
-                                </Link>
-                            </div>
-                        </div>
-                        <Link
-                            v-else
-                            :href="item.href"
-                            class="sidebar-link"
-                            :class="{ 'sidebar-link-active': item.active }"
-                            :title="item.name"
-                            @click="emit('close')"
+        <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+            <div v-for="grp in groups" :key="grp.label" class="space-y-1">
+                <p v-if="!compact" class="px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                    {{ grp.label }}
+                </p>
+                <div v-for="item in grp.items" :key="item.name">
+                    <!-- Item with children -->
+                    <div v-if="item.children" class="space-y-1">
+                        <button
+                            type="button"
+                            @click="toggleMenu(item.key)"
+                            class="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold': item.active }"
                         >
-                            <component :is="item.icon" />
-                            <span v-if="!compact" class="truncate">{{ item.name }}</span>
-                        </Link>
-                    </template>
-                </div>
-            </template>
-        </div>
+                            <span class="flex items-center gap-2">
+                                <component :is="item.icon" />
+                                <span v-if="!compact">{{ item.name }}</span>
+                            </span>
+                            <svg v-if="!compact" class="h-3.5 w-3.5 transition-transform" :class="{ 'rotate-180': openMenus[item.key] }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div v-show="openMenus[item.key] && !compact" class="pl-7 space-y-1">
+                            <Link
+                                v-for="sub in item.children"
+                                :key="sub.name"
+                                :href="sub.href"
+                                class="block rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                            >
+                                {{ sub.name }}
+                            </Link>
+                        </div>
+                    </div>
 
-        <div class="border-t border-sidebar-border p-2 space-y-1">
-            <Link
-                v-if="page.props.auth.user?.is_super_admin"
-                :href="route('admin.dashboard')"
-                class="sidebar-link"
-                title="Super Admin"
-                @click="emit('close')"
-            >
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span v-if="!compact">Admin</span>
-            </Link>
-            <Link :href="route('settings.profile')" class="sidebar-link" title="Settings" @click="emit('close')">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span v-if="!compact">Settings</span>
-            </Link>
-            <button
-                type="button"
-                class="sidebar-link hidden lg:flex"
-                :title="compact ? 'Expand sidebar' : 'Collapse sidebar'"
-                @click="emit('toggle-collapsed')"
-            >
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="compact ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 19l-7-7 7-7m8 14l-7-7 7-7'" />
-                </svg>
-                <span v-if="!compact">Collapse</span>
-            </button>
-            <button type="button" class="sidebar-link text-destructive" title="Logout" @click="logout">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span v-if="!compact">Logout</span>
-            </button>
+                    <!-- Single link -->
+                    <Link
+                        v-else
+                        :href="item.href"
+                        class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold': item.active }"
+                    >
+                        <component :is="item.icon" />
+                        <span v-if="!compact">{{ item.name }}</span>
+                    </Link>
+                </div>
+            </div>
         </div>
     </nav>
 </template>

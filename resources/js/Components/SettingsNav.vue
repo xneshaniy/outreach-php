@@ -10,6 +10,7 @@ const items = [
     { name: 'Appearance', href: 'settings.appearance' },
     { name: 'Integrations', href: 'settings.integrations' },
     { name: 'AI & Scoring', href: 'settings.ai' },
+    { name: 'Compliance & GDPR', href: 'settings.compliance' },
 ]
 
 const isActive = (name) => {

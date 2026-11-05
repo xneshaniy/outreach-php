@@ -27,6 +27,15 @@ const submitEdit = () => {
     })
 }
 
+const isResearching = ref(false)
+const runAiResearch = () => {
+    isResearching.value = true
+    router.post(route('companies.research', props.company.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { isResearching.value = false }
+    })
+}
+
 const deleteCompany = () => {
     if (confirm(`Are you sure you want to delete ${props.company.name}? This will disassociate linked records.`)) {
         router.delete(route('companies.destroy', props.company.id))
@@ -59,6 +68,17 @@ const deleteCompany = () => {
                 </div>
 
                 <div class="flex items-center space-x-2">
+                    <button
+                        type="button"
+                        @click="runAiResearch"
+                        :disabled="isResearching"
+                        class="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+                    >
+                        <svg class="w-3.5 h-3.5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>{{ isResearching ? 'Analyzing...' : 'AI Company Research' }}</span>
+                    </button>
                     <button type="button" @click="showEditModal = true" class="btn btn-secondary text-xs">
                         Edit Company
                     </button>
@@ -95,6 +115,35 @@ const deleteCompany = () => {
                     <div v-if="company.description" class="pt-3 border-t dark:border-gray-700">
                         <span class="text-xs text-gray-400 block uppercase mb-1">Description</span>
                         <p class="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{{ company.description }}</p>
+                    </div>
+
+                    <!-- AI Company Research Insights -->
+                    <div v-if="company.ai_research" class="pt-4 border-t dark:border-gray-700 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 flex items-center gap-1.5">
+                                <span>🧠 AI Market Positioning &amp; Intelligence</span>
+                            </h4>
+                            <span class="text-[10px] text-gray-400">Researched {{ company.last_researched_at ? new Date(company.last_researched_at).toLocaleDateString() : 'recently' }}</span>
+                        </div>
+                        <p v-if="company.ai_research.market_positioning" class="text-xs text-gray-700 dark:text-gray-300 italic bg-primary-50/50 dark:bg-primary-950/20 p-3 rounded-lg border border-primary-200/50">
+                            "{{ company.ai_research.market_positioning }}"
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div v-if="company.ai_research.value_propositions" class="bg-gray-50 dark:bg-gray-800/40 p-3 rounded-lg">
+                                <span class="font-bold text-gray-900 dark:text-white block mb-1">Key Value Propositions:</span>
+                                <ul class="list-disc pl-4 space-y-0.5 text-gray-600 dark:text-gray-400">
+                                    <li v-for="(vp, idx) in company.ai_research.value_propositions" :key="idx">{{ vp }}</li>
+                                </ul>
+                            </div>
+                            <div v-if="company.ai_research.target_personas" class="bg-gray-50 dark:bg-gray-800/40 p-3 rounded-lg">
+                                <span class="font-bold text-gray-900 dark:text-white block mb-1">Target Personas:</span>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    <span v-for="(p, idx) in company.ai_research.target_personas" :key="idx" class="badge badge-info text-[10px]">
+                                        {{ p }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

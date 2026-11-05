@@ -56,6 +56,12 @@ class EmailAccountController extends Controller
                     'warmup_sent_today' => $acc->warmup_sent_today ?? 0,
                     'warmup_status' => $acc->warmup_status ?? 'idle',
                     'warmup_reputation_score' => $acc->warmup_reputation_score ?? 100,
+                    'spf_status' => $acc->spf_status ?? 'unknown',
+                    'dkim_status' => $acc->dkim_status ?? 'unknown',
+                    'dmarc_status' => $acc->dmarc_status ?? 'unknown',
+                    'health_score' => $acc->health_score ?? 100,
+                    'last_health_check_at' => $acc->last_health_check_at?->diffForHumans() ?? 'Not checked',
+                    'limit_increase_requested' => (bool)$acc->limit_increase_requested,
                     'last_tested_at' => $acc->last_tested_at?->toIso8601String(),
                     'last_test_status' => $acc->last_test_status,
                     'last_test_message' => $acc->last_test_message,
@@ -249,5 +255,28 @@ class EmailAccountController extends Controller
         $account->update(['is_default' => true]);
 
         return back()->with('success', 'Default email account updated.');
+    }
+
+    public function checkHealth(Request $request, EmailAccount $account): RedirectResponse
+    {
+        $this->authorize('update', $account);
+
+        $healthService = app(\App\Services\DeliverabilityHealthService::class);
+        $result = $healthService->checkAccountHealth($account);
+
+        if ($result['success'] ?? false) {
+            return back()->with('success', "Deliverability health checked for {$account->email}. Score: {$result['health_score']}% (SPF: {$result['spf_status']}, DMARC: {$result['dmarc_status']}).");
+        }
+
+        return back()->with('error', $result['error'] ?? 'Health check failed.');
+    }
+
+    public function requestLimitIncrease(Request $request, EmailAccount $account): RedirectResponse
+    {
+        $this->authorize('update', $account);
+
+        $account->update(['limit_increase_requested' => true]);
+
+        return back()->with('info', "Sending limit increase requested. A Super Admin must review and approve increases beyond the initial 6 emails/day safety limit.");
     }
 }

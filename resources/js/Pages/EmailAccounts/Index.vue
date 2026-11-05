@@ -162,6 +162,14 @@ const submitAccount = () => {
         })
     }
 }
+
+const checkDeliverability = (acc) => {
+    router.post(route('email-accounts.check-health', acc.id), {}, { preserveScroll: true })
+}
+
+const requestLimit = (acc) => {
+    router.post(route('email-accounts.request-limit-increase', acc.id), {}, { preserveScroll: true })
+}
 </script>
 
 <template>
@@ -251,6 +259,44 @@ const submitAccount = () => {
                                     :class="acc.remaining_today === 0 ? 'bg-rose-500' : 'bg-primary-600'"
                                     :style="{ width: Math.min(100, Math.round((acc.sent_today / (acc.daily_send_limit || 1)) * 100)) + '%' }"
                                 ></div>
+                            </div>
+                            <div v-if="acc.daily_send_limit <= 6" class="flex items-center justify-between pt-1">
+                                <span class="text-[10px] text-gray-400">Initial Safety Limit (5–6 emails/day)</span>
+                                <button
+                                    v-if="!acc.limit_increase_requested"
+                                    type="button"
+                                    @click="requestLimit(acc)"
+                                    class="text-[10px] text-primary-600 hover:underline font-medium"
+                                >
+                                    Request Limit Increase
+                                </button>
+                                <span v-else class="text-[10px] text-amber-600 font-medium">
+                                    Increase Requested (Pending Admin Approval)
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Deliverability Health & DNS Records -->
+                        <div class="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-lg border dark:border-gray-700 space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Deliverability &amp; DNS Health</span>
+                                <span :class="['font-bold', acc.health_score >= 80 ? 'text-emerald-600' : (acc.health_score >= 50 ? 'text-amber-500' : 'text-rose-500')]">
+                                    {{ acc.health_score }}% Score
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                <span class="px-2 py-0.5 rounded font-bold" :class="acc.spf_status === 'valid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40' : 'bg-gray-100 text-gray-600 dark:bg-gray-800'">
+                                    SPF: {{ acc.spf_status }}
+                                </span>
+                                <span class="px-2 py-0.5 rounded font-bold" :class="acc.dkim_status === 'valid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40' : 'bg-gray-100 text-gray-600 dark:bg-gray-800'">
+                                    DKIM: {{ acc.dkim_status }}
+                                </span>
+                                <span class="px-2 py-0.5 rounded font-bold" :class="acc.dmarc_status === 'valid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40' : 'bg-gray-100 text-gray-600 dark:bg-gray-800'">
+                                    DMARC: {{ acc.dmarc_status }}
+                                </span>
+                                <button type="button" @click="checkDeliverability(acc)" class="ml-auto text-primary-600 hover:underline font-medium">
+                                    ⚡ Check DNS
+                                </button>
                             </div>
                         </div>
 

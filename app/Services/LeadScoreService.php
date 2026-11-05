@@ -56,54 +56,75 @@ class LeadScoreService
 
         $rules = $this->getRules($workspace)->where('is_active', true);
         $score = 0;
+        $reasons = [];
 
         foreach ($rules as $rule) {
             $matched = false;
+            $evidence = '';
 
             switch ($rule->criteria_key) {
                 case 'valid_email':
                     $matched = filter_var($lead->email, FILTER_VALIDATE_EMAIL) !== false;
+                    $evidence = $matched ? "Deliverable email address: {$lead->email}" : "No valid email";
                     break;
 
                 case 'website_available':
-                    $matched = !empty($lead->website) || (!empty($lead->company) && is_object($lead->company) && !empty($lead->company->website));
+                    $site = $lead->website ?: ($lead->company?->website ?? null);
+                    $matched = !empty($site);
+                    $evidence = $matched ? "Company website: {$site}" : "No corporate website listed";
                     break;
 
                 case 'relevant_industry':
                     $matched = !empty($lead->industry);
+                    $evidence = $matched ? "Target industry identified: {$lead->industry}" : "No industry specified";
                     break;
 
                 case 'relevant_job_title':
                     if (!empty($lead->job_title)) {
                         $title = strtolower($lead->job_title);
                         $matched = preg_match('/(ceo|cto|cmo|founder|owner|director|head|vp|president|manager|partner|chief|lead)/i', $title) === 1;
+                        $evidence = $matched ? "Decision-maker seniority: {$lead->job_title}" : "Role: {$lead->job_title}";
+                    } else {
+                        $evidence = "Job title missing";
                     }
                     break;
 
                 case 'linkedin_available':
                     $matched = !empty($lead->linkedin_url);
+                    $evidence = $matched ? "Verified LinkedIn profile present" : "No LinkedIn link found";
                     break;
 
                 case 'phone_available':
-                    $matched = !empty($lead->phone) || !empty($lead->mobile);
+                    $phone = $lead->phone ?: $lead->mobile;
+                    $matched = !empty($phone);
+                    $evidence = $matched ? "Direct contact number: {$phone}" : "No direct phone provided";
                     break;
 
                 case 'positive_reply':
                     $matched = $lead->messages()
                         ->whereIn('reply_classification', ['interested', 'positive'])
-                        ->exists();
+                        ->exists() || $lead->reply_status === 'interested';
+                    $evidence = $matched ? "Prospect engaged with positive reply" : "No positive reply recorded yet";
                     break;
 
                 case 'meeting_requested':
                     $matched = $lead->messages()
                         ->where('reply_classification', 'meeting_requested')
                         ->exists() || $lead->pipeline_stage === 'meeting_scheduled';
+                    $evidence = $matched ? "Prospect requested a demonstration or meeting" : "No meeting booked";
                     break;
             }
 
             if ($matched) {
                 $score += $rule->points;
             }
+
+            $reasons[] = [
+                'rule' => $rule->name,
+                'points' => $rule->points,
+                'matched' => $matched,
+                'evidence' => $evidence,
+            ];
         }
 
         // Cap at 100
@@ -127,6 +148,7 @@ class LeadScoreService
 
         $lead->update([
             'score' => $score,
+            'score_reasons' => $reasons,
             'category' => $category,
         ]);
 

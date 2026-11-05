@@ -262,4 +262,69 @@ class ReportController extends Controller
             'totals' => $totals,
         ]);
     }
+
+    public function exportLeads(Request $request)
+    {
+        $workspace = $request->user()->currentWorkspace;
+        $leads = Lead::where('workspace_id', $workspace->id)
+            ->with(['company', 'owner'])
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="leads_report_' . date('Y-m-d') . '.csv"',
+        ];
+
+        return response()->stream(function () use ($leads) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['ID', 'First Name', 'Last Name', 'Email', 'Company', 'Job Title', 'Score', 'Category', 'Pipeline Stage', 'Status', 'Created At']);
+
+            foreach ($leads as $l) {
+                fputcsv($handle, [
+                    $l->id,
+                    $l->first_name,
+                    $l->last_name,
+                    $l->email,
+                    $l->company?->name ?: $l->company_name,
+                    $l->job_title,
+                    $l->score,
+                    $l->category,
+                    $l->pipeline_stage,
+                    $l->status,
+                    $l->created_at?->toDateTimeString(),
+                ]);
+            }
+            fclose($handle);
+        }, 200, $headers);
+    }
+
+    public function exportEmail(Request $request)
+    {
+        $workspace = $request->user()->currentWorkspace;
+        $messages = Message::where('workspace_id', $workspace->id)->with(['emailAccount'])->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="email_analytics_' . date('Y-m-d') . '.csv"',
+        ];
+
+        return response()->stream(function () use ($messages) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['ID', 'Mailbox', 'Subject', 'Status', 'Sent At', 'Opened At', 'Replied At', 'Bounced At']);
+
+            foreach ($messages as $m) {
+                fputcsv($handle, [
+                    $m->id,
+                    $m->emailAccount?->email ?: $m->from_email,
+                    $m->subject,
+                    $m->status,
+                    $m->sent_at?->toDateTimeString(),
+                    $m->opened_at?->toDateTimeString(),
+                    $m->replied_at?->toDateTimeString(),
+                    $m->bounced_at?->toDateTimeString(),
+                ]);
+            }
+            fclose($handle);
+        }, 200, $headers);
+    }
 }

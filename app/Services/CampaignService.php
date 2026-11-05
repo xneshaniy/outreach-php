@@ -519,6 +519,30 @@ class CampaignService
                 'campaign_id' => $recipient->campaign_id,
             ]
         );
+
+        // Safety threshold: Stop campaign if bounce rate exceeds 5% (min 10 recipients sent)
+        $campaign = $recipient->campaign;
+        if ($campaign && $campaign->status === 'active') {
+            $totalSent = CampaignRecipient::where('campaign_id', $campaign->id)
+                ->whereIn('status', ['sent', 'bounced', 'replied'])
+                ->count();
+            $bounced = CampaignRecipient::where('campaign_id', $campaign->id)
+                ->where('status', 'bounced')
+                ->count();
+
+            if ($totalSent >= 10 && ($bounced / $totalSent) >= 0.05) {
+                $campaign->update(['status' => 'paused']);
+                \App\Models\CrmNotification::create([
+                    'workspace_id' => $campaign->workspace_id,
+                    'user_id'      => $campaign->created_by,
+                    'title'        => "Campaign Auto-Paused: High Bounce Rate ({$bounced}/{$totalSent})",
+                    'message'      => "Campaign '{$campaign->name}' exceeded the 5% bounce safety threshold and was automatically paused to preserve mailbox deliverability.",
+                    'type'         => 'deliverability_alert',
+                    'action_url'   => route('campaigns.report', $campaign->id),
+                    'is_read'      => false,
+                ]);
+            }
+        }
     }
 
     public function handleUnsubscribe(CampaignRecipient $recipient): void

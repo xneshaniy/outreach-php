@@ -32,6 +32,9 @@ use App\Http\Controllers\Admin\AdminLeadController;
 use App\Http\Controllers\Admin\AdminWorkspaceController;
 use App\Http\Controllers\Companies\CompanyEnrichmentController;
 use App\Http\Controllers\Integrations\GoogleIntegrationController;
+use App\Http\Controllers\Leads\DuplicateMergeController;
+use App\Http\Controllers\Automations\AutomationController;
+use App\Http\Controllers\Settings\ComplianceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,6 +107,9 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/google-maps-scraper', [GoogleMapsScraperController::class, 'index'])->name('maps-scraper.index');
         Route::post('/google-maps-scraper/search', [GoogleMapsScraperController::class, 'search'])->name('maps-scraper.search');
         Route::post('/google-maps-scraper/import', [GoogleMapsScraperController::class, 'import'])->name('maps-scraper.import');
+        // Duplicate detection & safe merge
+        Route::get('/duplicates', [DuplicateMergeController::class, 'index'])->name('duplicates.index');
+        Route::post('/duplicates/merge', [DuplicateMergeController::class, 'merge'])->name('duplicates.merge');
         Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
         Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
         Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
@@ -133,6 +139,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{company}/enrich', [CompanyEnrichmentController::class, 'enrichOne'])->name('enrich');
         Route::post('/{company}/flag-review', [CompanyEnrichmentController::class, 'flagForReview'])->name('flag-review');
         Route::post('/{company}/mark-verified', [CompanyEnrichmentController::class, 'markVerified'])->name('mark-verified');
+        Route::post('/{company}/research', [CompanyEnrichmentController::class, 'research'])->name('research');
     });
 
     // Campaigns
@@ -180,6 +187,8 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{account}/toggle', [EmailAccountController::class, 'toggle'])->name('toggle');
         Route::post('/{account}/toggle-warmup', [EmailAccountController::class, 'toggleWarmup'])->name('toggle-warmup');
         Route::post('/{account}/set-default', [EmailAccountController::class, 'setDefault'])->name('set-default');
+        Route::post('/{account}/check-health', [EmailAccountController::class, 'checkHealth'])->name('check-health');
+        Route::post('/{account}/request-limit-increase', [EmailAccountController::class, 'requestLimitIncrease'])->name('request-limit-increase');
     });
 
     // Pipeline
@@ -230,6 +239,8 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/deals', [ReportController::class, 'deals'])->name('deals');
         Route::get('/team', [ReportController::class, 'team'])->name('team');
         Route::get('/email', [ReportController::class, 'email'])->name('email');
+        Route::get('/leads/export', [ReportController::class, 'exportLeads'])->name('leads.export');
+        Route::get('/email/export', [ReportController::class, 'exportEmail'])->name('email.export');
     });
 
     // Top-level workspace switcher routes
@@ -256,6 +267,10 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/users/invite', [SettingsController::class, 'inviteUser'])->name('users.invite');
         Route::delete('/users/{user}', [SettingsController::class, 'removeUser'])->name('users.remove');
         Route::put('/users/{user}/role', [SettingsController::class, 'updateUserRole'])->name('users.role.update');
+        Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance');
+        Route::get('/compliance/export/{lead}', [ComplianceController::class, 'exportDossier'])->name('compliance.export');
+        Route::delete('/compliance/erase/{lead}', [ComplianceController::class, 'eraseLead'])->name('compliance.erase');
+        Route::post('/compliance/suppress', [ComplianceController::class, 'addSuppression'])->name('compliance.suppress');
 
         // Workspace switcher
         Route::get('/workspace/switch', [AuthController::class, 'showWorkspaceSwitcher'])->name('workspace.switch');
@@ -272,6 +287,16 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+    });
+
+    // Automations (Workflow Builder & Approvals)
+    Route::prefix('automations')->name('automations.')->group(function () {
+        Route::get('/', [AutomationController::class, 'index'])->name('index');
+        Route::post('/', [AutomationController::class, 'store'])->name('store');
+        Route::post('/{automation}/toggle', [AutomationController::class, 'toggle'])->name('toggle');
+        Route::delete('/{automation}', [AutomationController::class, 'destroy'])->name('destroy');
+        Route::post('/logs/{log}/approve', [AutomationController::class, 'approve'])->name('approve');
+        Route::post('/logs/{log}/reject', [AutomationController::class, 'reject'])->name('reject');
     });
 
     // Google OAuth & Google Sheets integration

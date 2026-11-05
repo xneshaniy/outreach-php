@@ -137,6 +137,52 @@ class CompanyEnrichmentService
     }
 
     /**
+     * Conduct in-depth AI company research based on public web signals.
+     */
+    public function researchCompany(Company $company, Workspace $workspace): array
+    {
+        $url = $company->website ?: ($company->domain ? 'https://' . $company->domain : null);
+        if (!$url) {
+            return ['success' => false, 'error' => 'No website or domain provided for research.'];
+        }
+
+        $scraped = $this->webScraperService->scrapeWebsite($workspace, $url);
+        $content = ($scraped['data']['description'] ?? '') . ' ' . ($scraped['data']['industry'] ?? '');
+
+        $prompt = "Conduct thorough B2B sales research for company '{$company->name}' (Domain: {$company->domain}).
+Context from website: {$content}
+
+Respond strictly in valid JSON format with keys:
+- market_positioning: string (concise 2-sentence summary of value proposition)
+- value_propositions: array of 3 bullet points
+- target_personas: array of 3 target decision-maker titles
+- pain_points: array of 3 operational or sales pain points this company likely experiences";
+
+        $aiResult = $this->aiService->callModel($workspace, "You are a professional B2B company research analyst.", $prompt, 1000);
+
+        if (!$aiResult['success']) {
+            return ['success' => false, 'error' => $aiResult['error'] ?? 'AI Research failed.'];
+        }
+
+        $parsed = $this->aiService->parseJson($aiResult['content'] ?? '');
+        if (!$parsed) {
+            $parsed = [
+                'market_positioning' => $aiResult['content'] ?? 'Market player in ' . ($company->industry ?? 'B2B sector'),
+                'value_propositions' => ['Targeted business solutions', 'Industry expertise'],
+                'target_personas'    => ['CEO', 'Director', 'Managing Partner'],
+                'pain_points'        => ['Customer acquisition scaling', 'Operational efficiency'],
+            ];
+        }
+
+        $company->update([
+            'ai_research'        => $parsed,
+            'last_researched_at' => now(),
+        ]);
+
+        return ['success' => true, 'research' => $parsed];
+    }
+
+    /**
      * Enrich up to $limit unenriched companies for a workspace.
      */
     public function enrichBatch(Workspace $workspace, int $limit = 10): array

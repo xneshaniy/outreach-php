@@ -32,6 +32,8 @@ class Company extends Model
         'linkedin_url',
         'twitter_url',
         'description',
+        'ai_research',
+        'last_researched_at',
         'enrichment_status',
         'enrichment_source',
         'verification_status',
@@ -42,6 +44,8 @@ class Company extends Model
 
     protected $casts = [
         'company_emails' => 'array',
+        'ai_research' => 'array',
+        'last_researched_at' => 'datetime',
         'custom_fields' => 'array',
         'last_contacted_at' => 'datetime',
     ];

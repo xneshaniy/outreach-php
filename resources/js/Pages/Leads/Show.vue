@@ -331,6 +331,43 @@ const deleteLead = () => {
                         >
                             {{ isRecalculatingScore ? 'Scoring...' : '↻ Recalculate Score' }}
                         </button>
+
+                        <a
+                            :href="route('settings.compliance.export', lead.id)"
+                            class="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1 text-gray-600 dark:text-gray-300"
+                            title="Download complete GDPR data dossier (Article 20)"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            GDPR Export
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explainable Score Breakdown Card -->
+            <div v-if="lead.score_reasons && lead.score_reasons.length > 0" class="card p-5 bg-white dark:bg-gray-800 space-y-3">
+                <div class="flex items-center justify-between border-b pb-2 dark:border-gray-700">
+                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <span>🎯 Explainable Scoring Breakdown ({{ lead.score }}/100)</span>
+                    </h3>
+                    <span class="text-xs text-gray-400">Deterministic criteria matched</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <div
+                        v-for="(r, idx) in lead.score_reasons"
+                        :key="idx"
+                        :class="[
+                            'p-2.5 rounded-lg border text-xs flex flex-col justify-between space-y-1',
+                            r.matched ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-gray-50/60 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'
+                        ]"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ r.rule }}</span>
+                            <span :class="['font-mono font-bold text-[11px]', r.matched ? 'text-emerald-600' : 'text-gray-400']">
+                                {{ r.matched ? '+' + r.points : '0' }}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-gray-500">{{ r.evidence }}</p>
                     </div>
                 </div>
             </div>

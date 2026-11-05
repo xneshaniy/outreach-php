@@ -24,6 +24,7 @@ class Lead extends Model
         'website',
         'industry',
         'score',
+        'score_reasons',
         'category',
         'pipeline_stage',
         'email_verified',
@@ -74,6 +75,7 @@ class Lead extends Model
 
     protected $casts = [
         'score' => 'integer',
+        'score_reasons' => 'array',
         'email_verified' => 'boolean',
         'is_verified' => 'boolean',
         'contact_emails' => 'array',

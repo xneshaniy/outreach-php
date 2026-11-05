@@ -74,4 +74,26 @@ class CompanyEnrichmentController extends Controller
 
         return back()->with('success', 'Company marked as verified.');
     }
+
+    /**
+     * Conduct AI research on a company.
+     */
+    public function research(Request $request, Company $company)
+    {
+        $this->authorize('update', $company);
+
+        $workspace = $request->user()->currentWorkspace;
+
+        if ($company->workspace_id !== $workspace->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        $res = $this->enrichmentService->researchCompany($company, $workspace);
+
+        if (!$res['success']) {
+            return back()->with('error', $res['error'] ?? 'AI company research failed.');
+        }
+
+        return back()->with('success', 'AI Company Research completed.');
+    }
 }

@@ -114,10 +114,14 @@ class AdminEmailAccountController extends Controller
             'daily_limit' => 'nullable|integer|min:1|max:10000',
         ]);
 
-        $limit = $validated['daily_send_limit'] ?? $validated['daily_limit'] ?? 200;
-        $account->update(['daily_send_limit' => $limit]);
+        $limit = $validated['daily_send_limit'] ?? $validated['daily_limit'] ?? 6;
+        $account->update([
+            'daily_send_limit' => $limit,
+            'limit_increase_requested' => false,
+            'limit_increase_approved_by' => auth()->id(),
+        ]);
 
-        return back()->with('success', 'Email account limits updated.');
+        return back()->with('success', "Email account sending limit updated to {$limit}/day by Super Admin.");
     }
 
     public function syncHostinger(Request $request, \App\Services\HostingerMailService $service): RedirectResponse

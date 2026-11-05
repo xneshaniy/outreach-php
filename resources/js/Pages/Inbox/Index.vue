@@ -86,9 +86,9 @@ const goToPage = (url) => {
                     <span class="text-[11px] text-blue-500">Dispatched</span>
                 </div>
                 <div class="card p-3.5">
-                    <span class="text-[10px] text-gray-400 uppercase font-semibold">Opened</span>
+                    <span class="text-[10px] text-gray-400 uppercase font-semibold">Recorded Opens</span>
                     <p class="text-xl font-bold text-indigo-600 mt-1">{{ stats?.total_opened || 0 }}</p>
-                    <span class="text-[11px] text-indigo-500">Viewed by lead</span>
+                    <span class="text-[11px] text-indigo-500">Recorded tracking events</span>
                 </div>
                 <div class="card p-3.5">
                     <span class="text-[10px] text-gray-400 uppercase font-semibold">Replies Received</span>
