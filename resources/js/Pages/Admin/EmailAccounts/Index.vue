@@ -75,7 +75,7 @@ const saveLimits = () => {
     <AdminLayout title="Global Email Accounts Monitor">
         <div class="space-y-6">
             <!-- Summary Stats -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 text-center">
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
                     <p class="text-[11px] font-semibold text-slate-500 uppercase">Total Accounts</p>
                     <p class="text-xl font-bold text-slate-900 mt-1">{{ summary.total }}</p>
@@ -91,6 +91,17 @@ const saveLimits = () => {
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
                     <p class="text-[11px] font-semibold text-rose-600 uppercase">Connection Error</p>
                     <p class="text-xl font-bold text-rose-600 mt-1">{{ summary.error }}</p>
+                </div>
+                <div
+                    class="p-3.5 rounded-xl border shadow-sm cursor-pointer transition"
+                    :class="summary.pendingLimitRequests > 0 ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200'"
+                    @click="status = 'limit_requested'; applyFilters()"
+                >
+                    <p class="text-[11px] font-semibold text-amber-700 uppercase">Limit Requests</p>
+                    <p class="text-xl font-bold text-amber-800 mt-1 flex items-center justify-center gap-1">
+                        {{ summary.pendingLimitRequests || 0 }}
+                        <span v-if="summary.pendingLimitRequests > 0" class="text-xs bg-amber-500 text-white rounded-full px-1.5 py-0.2">Review</span>
+                    </p>
                 </div>
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
                     <p class="text-[11px] font-semibold text-indigo-600 uppercase">Sent Today</p>
@@ -156,6 +167,7 @@ const saveLimits = () => {
                         class="text-xs rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
                     >
                         <option value="">All Statuses</option>
+                        <option value="limit_requested">Limit Increase Requested</option>
                         <option value="active">Active Only</option>
                         <option value="paused">Paused Only</option>
                         <option value="error">Error Only</option>
@@ -211,16 +223,21 @@ const saveLimits = () => {
                                     </div>
                                 </td>
                                 <td class="py-3 px-4">
-                                    <span
-                                        class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border uppercase"
-                                        :class="{
-                                            'bg-emerald-50 text-emerald-700 border-emerald-200': acc.status === 'active',
-                                            'bg-amber-50 text-amber-700 border-amber-200': acc.status === 'paused',
-                                            'bg-rose-50 text-rose-700 border-rose-200': acc.status === 'error',
-                                        }"
-                                    >
-                                        {{ acc.status }}
-                                    </span>
+                                    <div class="space-y-1">
+                                        <span
+                                            class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border uppercase"
+                                            :class="{
+                                                'bg-emerald-50 text-emerald-700 border-emerald-200': acc.status === 'active',
+                                                'bg-amber-50 text-amber-700 border-amber-200': acc.status === 'paused',
+                                                'bg-rose-50 text-rose-700 border-rose-200': acc.status === 'error',
+                                            }"
+                                        >
+                                            {{ acc.status }}
+                                        </span>
+                                        <div v-if="acc.limit_increase_requested" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                            Limit Requested
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="py-3 px-4 text-[11px] text-slate-500">
                                     <div v-if="acc.last_tested_at">{{ new Date(acc.last_tested_at).toLocaleTimeString() }}</div>
@@ -246,9 +263,10 @@ const saveLimits = () => {
                                         </button>
                                         <button
                                             @click="openLimitModal(acc)"
-                                            class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition"
+                                            class="px-2 py-1 rounded text-xs font-semibold transition"
+                                            :class="acc.limit_increase_requested ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm ring-2 ring-amber-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'"
                                         >
-                                            Limits
+                                            {{ acc.limit_increase_requested ? 'Approve Limit' : 'Limits' }}
                                         </button>
                                     </div>
                                 </td>
@@ -287,6 +305,9 @@ const saveLimits = () => {
             <div class="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl z-10 space-y-4">
                 <h3 class="text-sm font-bold text-slate-900">Configure Mailbox Quotas</h3>
                 <p class="text-xs text-slate-500">Account: <strong>{{ selectedAccount?.email }}</strong></p>
+                <div v-if="selectedAccount?.limit_increase_requested" class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                    ⚠️ <strong>User Requested Daily Quota Increase:</strong> Super Admin approval is strictly required before increasing daily limits to protect domain reputation.
+                </div>
                 <form @submit.prevent="saveLimits" class="space-y-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Daily Limit (emails/day)</label>

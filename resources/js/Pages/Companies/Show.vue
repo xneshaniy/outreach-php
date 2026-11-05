@@ -41,6 +41,13 @@ const deleteCompany = () => {
         router.delete(route('companies.destroy', props.company.id))
     }
 }
+
+const markVerified = () => {
+    router.put(route('companies.update', props.company.id), {
+        name: props.company.name,
+        enrichment_status: 'verified',
+    }, { preserveScroll: true })
+}
 </script>
 
 <template>
@@ -60,6 +67,19 @@ const deleteCompany = () => {
                         <div class="flex items-center space-x-2">
                             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ company.name }}</h1>
                             <span v-if="company.industry" class="badge badge-info text-xs">{{ company.industry }}</span>
+                            <span
+                                v-if="company.enrichment_status"
+                                class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                                :class="{
+                                    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300': company.enrichment_status === 'verified',
+                                    'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300': company.enrichment_status === 'ai_suggested',
+                                    'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300': company.enrichment_status === 'enriched',
+                                    'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300': company.enrichment_status === 'enriching' || company.enrichment_status === 'pending',
+                                    'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300': company.enrichment_status === 'failed',
+                                }"
+                            >
+                                {{ company.enrichment_status }}
+                            </span>
                         </div>
                         <a v-if="company.domain" :href="'https://' + company.domain" target="_blank" class="text-sm text-primary-600 hover:underline">
                             {{ company.domain }}
@@ -68,6 +88,18 @@ const deleteCompany = () => {
                 </div>
 
                 <div class="flex items-center space-x-2">
+                    <button
+                        v-if="company.enrichment_status !== 'verified'"
+                        type="button"
+                        @click="markVerified"
+                        class="btn btn-secondary text-xs inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 border-emerald-300 hover:bg-emerald-50"
+                        title="Mark verified so AI enrichment will not overwrite this record"
+                    >
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Mark Verified</span>
+                    </button>
                     <button
                         type="button"
                         @click="runAiResearch"

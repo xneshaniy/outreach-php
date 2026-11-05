@@ -29,6 +29,7 @@ class UpdateCompanyRequest extends FormRequest
             'linkedin_url' => ['nullable', 'url', 'max:255'],
             'twitter_url' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
+            'enrichment_status' => ['nullable', 'string', Rule::in(['pending', 'enriching', 'enriched', 'ai_suggested', 'verified', 'failed'])],
             'custom_fields' => ['nullable', 'array'],
         ];
     }

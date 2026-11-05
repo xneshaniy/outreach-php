@@ -69,17 +69,19 @@ class AutomationController extends Controller
         return back()->with('success', 'Automation workflow created successfully.');
     }
 
-    public function toggle(Automation $automation)
+    public function toggle(Request $request, Automation $automation)
     {
-        $this->authorize('update', $automation);
+        $workspace = $request->user()->currentWorkspace;
+        abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->update(['is_active' => !$automation->is_active]);
 
         return back()->with('success', "Automation is now " . ($automation->is_active ? 'Active' : 'Paused') . ".");
     }
 
-    public function destroy(Automation $automation)
+    public function destroy(Request $request, Automation $automation)
     {
-        $this->authorize('delete', $automation);
+        $workspace = $request->user()->currentWorkspace;
+        abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->delete();
 
         return back()->with('success', 'Automation deleted.');

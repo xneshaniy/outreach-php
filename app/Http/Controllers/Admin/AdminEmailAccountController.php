@@ -31,6 +31,8 @@ class AdminEmailAccountController extends Controller
                 $query->where('is_active', false);
             } elseif ($status === 'error') {
                 $query->where('last_test_status', 'failed');
+            } elseif ($status === 'limit_requested') {
+                $query->where('limit_increase_requested', true);
             }
         }
 
@@ -44,6 +46,7 @@ class AdminEmailAccountController extends Controller
                 'active' => EmailAccount::where('is_active', true)->count(),
                 'paused' => EmailAccount::where('is_active', false)->count(),
                 'error' => EmailAccount::where('last_test_status', 'failed')->count(),
+                'pendingLimitRequests' => EmailAccount::where('limit_increase_requested', true)->count(),
                 'sentToday' => (int) EmailAccount::sum('sent_today'),
                 'totalDailyQuota' => (int) EmailAccount::sum('daily_send_limit'),
                 'totalSent' => (int) \App\Models\Message::where('status', '!=', 'failed')->count(),

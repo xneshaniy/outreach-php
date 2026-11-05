@@ -215,13 +215,23 @@ const formatDate = (date) => {
         <div class="space-y-6">
             <PageHeader title="Leads" description="Search, filter, and manage prospects in this workspace.">
                 <template #actions>
+                    <Link
+                        :href="route('leads.duplicates.index')"
+                        class="btn btn-secondary text-xs inline-flex items-center"
+                        title="Review potential duplicate leads side-by-side"
+                    >
+                        <svg class="w-3.5 h-3.5 mr-1 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Duplicate Merge
+                    </Link>
                     <button
                         type="button"
                         class="btn btn-secondary text-xs"
                         title="Scan workspace and remove duplicate leads"
                         @click="removeDuplicates"
                     >
-                        Deduplicate
+                        Quick Clean
                     </button>
                     <a
                         :href="route('leads.export', filters || {})"

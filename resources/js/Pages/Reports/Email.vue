@@ -24,6 +24,16 @@ const changeDays = (d) => {
                     <p class="text-sm text-gray-500">Live delivery metrics and status aggregates</p>
                 </div>
                 <div class="flex items-center space-x-2">
+                    <a
+                        :href="route('reports.email.export')"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 inline-flex items-center"
+                        title="Download Email Logs CSV"
+                    >
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export CSV
+                    </a>
                     <button
                         v-for="d in [7, 14, 30]"
                         :key="d"
