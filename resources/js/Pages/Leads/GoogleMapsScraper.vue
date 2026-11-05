@@ -172,26 +172,29 @@ const importSelected = async () => {
 
             <!-- Search Panel -->
             <div class="card p-6 space-y-4">
-                <h2 class="text-base font-bold text-gray-900 dark:text-white">Search Google Maps by Category & City</h2>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <h2 class="text-base font-bold text-gray-900 dark:text-white">Search Google Maps by Category & City or Paste Map URL</h2>
+                    <span class="text-xs text-primary-600 dark:text-primary-400 font-medium">Supports direct Google Maps URLs & keywords</span>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
                     <div class="md:col-span-5">
-                        <label class="label text-xs">Niche / Business Type *</label>
+                        <label class="label text-xs">Niche / Business Type or Google Maps URL *</label>
                         <input
                             v-model="query"
                             @keyup.enter="searchMaps"
                             type="text"
-                            placeholder="e.g. Dentists, Real Estate, Gyms, Plumbers"
+                            placeholder="e.g. Dentists in Paris, or paste https://www.google.com/maps/..."
                             class="input w-full text-xs"
                             :disabled="isSearching"
                         />
                     </div>
                     <div class="md:col-span-4">
-                        <label class="label text-xs">Target City / Region</label>
+                        <label class="label text-xs">Target City / Region (optional if in URL or query)</label>
                         <input
                             v-model="location"
                             @keyup.enter="searchMaps"
                             type="text"
-                            placeholder="e.g. Austin TX, London UK, Dubai"
+                            placeholder="e.g. Paris, Austin TX, London, Berlin"
                             class="input w-full text-xs"
                             :disabled="isSearching"
                         />

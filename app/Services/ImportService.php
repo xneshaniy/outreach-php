@@ -23,6 +23,7 @@ class ImportService
 
         try {
             $path = Storage::disk('local')->path($import->stored_path);
+            $this->sanitizeCsvFile($path);
             $csv = Reader::createFromPath($path, 'r');
             $csv->setHeaderOffset(0);
 
@@ -138,6 +139,7 @@ class ImportService
 
     public function detectColumns(string $path): array
     {
+        $this->sanitizeCsvFile($path);
         $csv = Reader::createFromPath($path, 'r');
         $csv->setHeaderOffset(0);
         $header = $csv->getHeader();
@@ -147,11 +149,84 @@ class ImportService
 
     public function previewImport(string $path, int $rows = 5): array
     {
+        $this->sanitizeCsvFile($path);
         $csv = Reader::createFromPath($path, 'r');
         $csv->setHeaderOffset(0);
         $records = Statement::create()->offset(0)->limit($rows)->process($csv);
 
         return iterator_to_array($records);
+    }
+
+    /**
+     * Sanitize and deduplicate CSV header row to prevent League\Csv SyntaxError:
+     * "The header record contains duplicate column names."
+     */
+    public function sanitizeCsvFile(string $path): void
+    {
+        if (!file_exists($path) || !is_readable($path)) {
+            return;
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if (empty($lines)) {
+            return;
+        }
+
+        $firstLine = $lines[0];
+        // Strip UTF-8 BOM if present
+        $firstLine = preg_replace('/^\xEF\xBB\xBF/', '', $firstLine);
+
+        // Detect delimiter: comma, semicolon, tab, pipe
+        $delimiters = [',', ';', "\t", '|'];
+        $bestDelimiter = ',';
+        $maxCount = 0;
+        foreach ($delimiters as $delim) {
+            $count = substr_count($firstLine, $delim);
+            if ($count > $maxCount) {
+                $maxCount = $count;
+                $bestDelimiter = $delim;
+            }
+        }
+
+        $headers = str_getcsv($firstLine, $bestDelimiter);
+        if (empty($headers)) {
+            return;
+        }
+
+        $seen = [];
+        $sanitized = [];
+        $changed = false;
+
+        foreach ($headers as $idx => $header) {
+            $clean = trim((string)$header);
+            $clean = trim($clean, "\"' \t\n\r\0\x0B");
+
+            if ($clean === '') {
+                $clean = 'Column_' . ($idx + 1);
+                $changed = true;
+            }
+
+            if (isset($seen[$clean])) {
+                $seen[$clean]++;
+                $clean = $clean . '_' . $seen[$clean];
+                $changed = true;
+            } else {
+                $seen[$clean] = 1;
+            }
+
+            $sanitized[] = $clean;
+        }
+
+        if ($changed || $bestDelimiter !== ',') {
+            $out = fopen('php://memory', 'r+');
+            fputcsv($out, $sanitized);
+            rewind($out);
+            $newFirstLine = rtrim(stream_get_contents($out), "\r\n");
+            fclose($out);
+
+            $lines[0] = $newFirstLine;
+            file_put_contents($path, implode("\n", $lines));
+        }
     }
 
     public function suggestMapping(array $csvColumns): array

@@ -15,17 +15,28 @@ class AIService
      */
     public function getConfig(?Workspace $workspace): ?AIConfiguration
     {
-        if (!$workspace) {
-            return null;
+        if ($workspace) {
+            $config = AIConfiguration::where('workspace_id', $workspace->id)
+                ->where('is_active', true)
+                ->first();
+            if ($config && !empty($config->api_key)) {
+                return $config;
+            }
         }
 
-        $config = AIConfiguration::where('workspace_id', $workspace->id)
-            ->where('is_active', true)
+        // Global fallback to any active workspace configuration
+        $fallback = AIConfiguration::where('is_active', true)
+            ->whereNotNull('api_key')
+            ->where('api_key', '!=', '')
             ->first();
 
-        if (!$config && env('GEMINI_API_KEY')) {
-            $config = new AIConfiguration([
-                'workspace_id' => $workspace->id,
+        if ($fallback) {
+            return $fallback;
+        }
+
+        if (env('GEMINI_API_KEY')) {
+            return new AIConfiguration([
+                'workspace_id' => $workspace?->id ?? 1,
                 'provider' => 'gemini',
                 'api_key' => env('GEMINI_API_KEY'),
                 'model' => 'gemini-3.5-flash-lite',
@@ -33,7 +44,7 @@ class AIService
             ]);
         }
 
-        return $config;
+        return null;
     }
 
     /**

@@ -51,7 +51,7 @@ class GoogleMapsScraperController extends Controller
     public function search(Request $request): JsonResponse
     {
         $request->validate([
-            'query'           => 'required|string|max:255',
+            'query'           => 'required|string|max:1000',
             'location'        => 'nullable|string|max:255',
             'limit'           => 'nullable|integer|min:1|max:500',
             'enrich_websites' => 'nullable|boolean',

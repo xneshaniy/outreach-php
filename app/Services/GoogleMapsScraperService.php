@@ -30,12 +30,23 @@ class GoogleMapsScraperService
         int $limit = 10,
         bool $enrichWebsites = true
     ): array {
+        // 0. Detect and extract query & location if a Google Maps URL is provided
+        if (str_contains($query, 'http://') || str_contains($query, 'https://') || str_contains($query, 'google.com/maps') || str_contains($query, 'maps.app.goo.gl') || str_contains($query, 'goo.gl/maps')) {
+            $parsed = $this->parseMapsUrl($query);
+            if (!empty($parsed['query'])) {
+                $query = $parsed['query'];
+            }
+            if (!empty($parsed['location']) && empty($location)) {
+                $location = $parsed['location'];
+            }
+        }
+
         $searchTerms = trim("{$query} {$location}");
 
         // 1. Fetch raw Google search/maps HTML
         $items = $this->queryGoogleLocal($searchTerms, $limit);
 
-        // 2. If Google local results are sparse, fallback to AI synthesis & query augmentation
+        // 2. If Google local results are sparse or blocked, fallback to AI synthesis
         if (empty($items)) {
             $items = $this->synthesizeLocalBusinessesWithAi($workspace, $query, $location, $limit);
         }
@@ -180,6 +191,52 @@ class GoogleMapsScraperService
     }
 
     /**
+     * Parse Google Maps URL to extract keywords, place name, or target location.
+     */
+    public function parseMapsUrl(string $url): array
+    {
+        // Resolve shortened Google Maps links
+        if (str_contains($url, 'goo.gl') || str_contains($url, 'maps.app.goo.gl')) {
+            try {
+                $response = Http::withoutVerifying()->timeout(5)->get($url);
+                $effective = (string) $response->effectiveUri();
+                if (!empty($effective)) {
+                    $url = $effective;
+                }
+            } catch (\Throwable $e) {
+                // Keep original url
+            }
+        }
+
+        $query = '';
+        $location = '';
+
+        // Pattern 1: /maps/search/Query/@lat,lng
+        if (preg_match('#/maps/search/([^/@?]+)#i', $url, $m)) {
+            $query = urldecode(str_replace('+', ' ', $m[1]));
+        }
+        // Pattern 2: /maps/place/Place+Name/@lat,lng
+        elseif (preg_match('#/maps/place/([^/@?]+)#i', $url, $m)) {
+            $query = urldecode(str_replace('+', ' ', $m[1]));
+        }
+        // Pattern 3: ?q=Query
+        elseif (preg_match('/[?&]q=([^&]+)/i', $url, $m)) {
+            $query = urldecode(str_replace('+', ' ', $m[1]));
+        }
+
+        // If query contains " in " (e.g. "Dentists in Paris"), extract location
+        if (!empty($query) && preg_match('/^(.*?)\s+(?:in|near|at)\s+(.*)$/i', $query, $parts)) {
+            $query = trim($parts[1]);
+            $location = trim($parts[2]);
+        }
+
+        return [
+            'query'    => $query ?: $url,
+            'location' => $location,
+        ];
+    }
+
+    /**
      * If live extraction is blocked or CAPTCHA'd by Google, leverage AI to generate
      * high-accuracy target businesses for the given query and location.
      */
@@ -212,9 +269,10 @@ Return ONLY a valid JSON array of objects with the exact keys:
 - 'notes' (string, short description)
 No markdown wrapping, return pure JSON.";
 
+        $locText = !empty($location) ? $location : 'Extract from query if specified';
         $userPrompt = "Find Google Maps listings for:
-Niche / Business Type: {$query}
-Location / Region: {$location}
+Niche / Business Type or Search Query: {$query}
+Location / Region: {$locText}
 Limit: {$limit}";
 
         try {

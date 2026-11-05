@@ -301,17 +301,24 @@ class LeadController extends Controller
         }
 
         $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
-        $columns = $this->importService->detectColumns($fullPath);
-        $preview = $this->importService->previewImport($fullPath);
-        $suggestedMapping = $this->importService->suggestMapping($columns);
+        try {
+            $columns = $this->importService->detectColumns($fullPath);
+            $preview = $this->importService->previewImport($fullPath);
+            $suggestedMapping = $this->importService->suggestMapping($columns);
 
-        return response()->json([
-            "columns" => $columns,
-            "preview" => $preview,
-            "suggested_mapping" => $suggestedMapping,
-            "stored_path" => $path,
-            "original_filename" => $originalFilename,
-        ]);
+            return response()->json([
+                "columns" => $columns,
+                "preview" => $preview,
+                "suggested_mapping" => $suggestedMapping,
+                "stored_path" => $path,
+                "original_filename" => $originalFilename,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("CSV Import preview failed: " . $e->getMessage());
+            return response()->json([
+                "message" => "Could not process CSV file: " . $e->getMessage(),
+            ], 422);
+        }
     }
     public function importProcess(Request $request): RedirectResponse
     {
