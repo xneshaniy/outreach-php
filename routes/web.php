@@ -35,6 +35,10 @@ use App\Http\Controllers\Integrations\GoogleIntegrationController;
 use App\Http\Controllers\Leads\DuplicateMergeController;
 use App\Http\Controllers\Automations\AutomationController;
 use App\Http\Controllers\Settings\ComplianceController;
+use App\Http\Controllers\Products\ProductController;
+use App\Http\Controllers\Quotes\QuoteController;
+use App\Http\Controllers\Invoices\InvoiceController;
+use App\Http\Controllers\Reports\ClientReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -297,6 +301,42 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::delete('/{automation}', [AutomationController::class, 'destroy'])->name('destroy');
         Route::post('/logs/{log}/approve', [AutomationController::class, 'approve'])->name('approve');
         Route::post('/logs/{log}/reject', [AutomationController::class, 'reject'])->name('reject');
+    });
+
+    // Products & Commerce Catalog
+    Route::prefix('products')->name('products.')->group(function () {
+        Route::get('/', [ProductController::class, 'index'])->name('index');
+        Route::post('/', [ProductController::class, 'store'])->name('store');
+        Route::put('/{product}', [ProductController::class, 'update'])->name('update');
+        Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+        Route::post('/categories', [ProductController::class, 'storeCategory'])->name('categories.store');
+    });
+
+    // Quotes
+    Route::prefix('quotes')->name('quotes.')->group(function () {
+        Route::get('/', [QuoteController::class, 'index'])->name('index');
+        Route::get('/create', [QuoteController::class, 'create'])->name('create');
+        Route::post('/', [QuoteController::class, 'store'])->name('store');
+        Route::get('/{quote}', [QuoteController::class, 'show'])->name('show');
+        Route::post('/{quote}/status', [QuoteController::class, 'updateStatus'])->name('status');
+        Route::post('/{quote}/convert-to-invoice', [QuoteController::class, 'convertToInvoice'])->name('convert-to-invoice');
+    });
+
+    // Invoices
+    Route::prefix('invoices')->name('invoices.')->group(function () {
+        Route::get('/', [InvoiceController::class, 'index'])->name('index');
+        Route::get('/create', [InvoiceController::class, 'create'])->name('create');
+        Route::post('/', [InvoiceController::class, 'store'])->name('store');
+        Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::post('/{invoice}/payment', [InvoiceController::class, 'recordPayment'])->name('payment');
+    });
+
+    // Client ROI & Outreach Reports
+    Route::prefix('reports/client-reports')->name('reports.client-reports.')->group(function () {
+        Route::get('/', [ClientReportController::class, 'index'])->name('index');
+        Route::get('/create', [ClientReportController::class, 'create'])->name('create');
+        Route::post('/', [ClientReportController::class, 'store'])->name('store');
+        Route::get('/{clientReport}', [ClientReportController::class, 'show'])->name('show');
     });
 
     // Google OAuth & Google Sheets integration

@@ -205,13 +205,23 @@ Output pure JSON matching the requested structure.";
         ];
 
         if (!$config || empty($config->api_key)) {
-            // High-quality template-based personalization fallback when no AI API key is set
-            $subject = "Quick question regarding {$leadFacts['company']}";
-            $body = "<p>Hi {$leadFacts['first_name']},</p>
+            // Check if objective is pitching lead generation / appointment setting service
+            if (str_contains(strtolower($objective), 'lead') || str_contains(strtolower($objective), 'agency') || str_contains(strtolower($objective), 'outreach service')) {
+                $subject = "Qualified leads for {$leadFacts['company']} in {$leadFacts['industry']}";
+                $body = "<p>Hi {$leadFacts['first_name']},</p>
+<p>I came across {$leadFacts['company']} and noticed your team is actively serving clients in {$leadFacts['industry']}.</p>
+<p>We build tailored, pre-qualified B2B lead lists and run automated cold outreach campaigns for companies like yours—delivering verified decision-maker emails, phone numbers, and booked appointments directly into your calendar.</p>
+<p>I've already identified 150+ potential decision-maker leads matching {$leadFacts['company']}'s ideal customer profile. Would you be open to seeing 10 sample verified leads for free this week?</p>
+<p>Best regards,<br>{{from_name}}</p>";
+            } else {
+                // High-quality template-based personalization fallback when no AI API key is set
+                $subject = "Quick question regarding {$leadFacts['company']}";
+                $body = "<p>Hi {$leadFacts['first_name']},</p>
 <p>I noticed your role as {$leadFacts['job_title']} at {$leadFacts['company']} and wanted to reach out directly.</p>
 <p>We work with leaders in {$leadFacts['industry']} to help streamline operations and drive measurable results.</p>
 <p>Would you have 10 minutes sometime this week for a brief conversation?</p>
 <p>Best regards,<br>{{from_name}}</p>";
+            }
 
             return [
                 'success' => true,
