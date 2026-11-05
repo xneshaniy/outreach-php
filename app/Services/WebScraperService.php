@@ -61,6 +61,8 @@ class WebScraperService
         $phones = $this->extractPhones($combinedHtml);
         $linkedinUrl = $this->extractSocialLink($combinedHtml, 'linkedin.com');
         $twitterUrl = $this->extractSocialLink($combinedHtml, 'twitter.com', 'x.com');
+        $facebookUrl = $this->extractSocialLink($combinedHtml, 'facebook.com', 'fb.me');
+        $instagramUrl = $this->extractSocialLink($combinedHtml, 'instagram.com');
         $title = $this->extractPageTitle($homeHtml);
         $metaDesc = $this->extractMetaDescription($homeHtml);
 
@@ -114,6 +116,8 @@ class WebScraperService
                 'description'    => $summary,
                 'linkedin_url'   => $linkedinUrl,
                 'twitter_url'    => $twitterUrl,
+                'facebook_url'   => $facebookUrl,
+                'instagram_url'  => $instagramUrl,
             ],
         ];
     }

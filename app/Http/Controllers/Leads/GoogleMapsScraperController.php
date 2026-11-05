@@ -53,14 +53,16 @@ class GoogleMapsScraperController extends Controller
         $request->validate([
             'query'           => 'required|string|max:1000',
             'location'        => 'nullable|string|max:255',
-            'limit'           => 'nullable|integer|min:1|max:500',
+            'limit'           => 'nullable|integer|min:1|max:1000',
+            'rating'          => 'nullable|string|max:50',
             'enrich_websites' => 'nullable|boolean',
         ]);
 
         $workspace = $request->user()->currentWorkspace;
         $query = $request->input('query');
         $location = $request->input('location', '');
-        $limit = (int) $request->input('limit', 10);
+        $limit = (int) $request->input('limit', 20);
+        $rating = $request->input('rating', 'all');
         $enrich = (bool) $request->input('enrich_websites', true);
 
         $result = $this->mapsScraperService->scrapeGoogleMaps(
@@ -68,7 +70,8 @@ class GoogleMapsScraperController extends Controller
             $query,
             $location,
             $limit,
-            $enrich
+            $enrich,
+            $rating
         );
 
         return response()->json($result);
@@ -122,14 +125,35 @@ class GoogleMapsScraperController extends Controller
                 $domain = preg_replace('/^www\./i', '', $domain);
             }
 
-            // Fallback email if totally empty: contact@domain
+            // Fallback email if totally empty: synthesize a valid unique contact placeholder so lead is never dropped
             if (empty($email)) {
                 if (!empty($domain)) {
                     $email = 'contact@' . $domain;
                 } else {
-                    continue; // Cannot store a lead without email in this CRM schema
+                    $slug = \Illuminate\Support\Str::slug($companyName ?: 'maps-lead-' . time() . '-' . rand(100, 999));
+                    $email = $slug . '@lead.outreach.click';
                 }
             }
+
+            // Build detailed social & profile notes
+            $socialNotes = [];
+            if (!empty($item['facebook_url'])) {
+                $socialNotes[] = "Facebook: " . $item['facebook_url'];
+            }
+            if (!empty($item['instagram_url'])) {
+                $socialNotes[] = "Instagram: " . $item['instagram_url'];
+            }
+            if (!empty($item['linkedin_url'])) {
+                $socialNotes[] = "LinkedIn: " . $item['linkedin_url'];
+            }
+            if (!empty($item['twitter_url'])) {
+                $socialNotes[] = "X/Twitter: " . $item['twitter_url'];
+            }
+            if (!empty($item['rating'])) {
+                $socialNotes[] = "Rating: " . $item['rating'] . "★ (" . ($item['reviews'] ?? '0') . " reviews)";
+            }
+
+            $combinedNotes = trim(($item['notes'] ?? '') . "\n" . implode("\n", $socialNotes));
 
             // 1. Find or create company
             $companyId = null;
@@ -155,7 +179,8 @@ class GoogleMapsScraperController extends Controller
                         'city'         => $item['city'] ?? '',
                         'address'      => $item['address'] ?? '',
                         'phone'        => $item['phone'] ?? '',
-                        'description'  => $item['notes'] ?? 'Imported from Google Maps Scraper',
+                        'linkedin_url' => $item['linkedin_url'] ?? '',
+                        'description'  => $combinedNotes ?: 'Imported from Google Maps Scraper',
                     ]);
                 }
                 $companyId = $company?->id;
@@ -177,7 +202,8 @@ class GoogleMapsScraperController extends Controller
                 'city'                 => $item['city'] ?? '',
                 'company_id'           => $companyId,
                 'source'               => 'google_maps',
-                'notes'                => $item['notes'] ?? '',
+                'linkedin_url'         => $item['linkedin_url'] ?? '',
+                'notes'                => $combinedNotes,
                 'assigned_campaign_id' => $campaign?->id,
             ];
 
