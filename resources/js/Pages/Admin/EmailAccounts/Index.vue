@@ -102,6 +102,26 @@ const saveLimits = () => {
                 </div>
             </div>
 
+            <!-- Extended Mailbox Health Monitoring Stats -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-emerald-700 uppercase">Total Delivered</p>
+                    <p class="text-lg font-bold text-slate-900 mt-0.5">{{ summary.totalDelivered || 0 }}</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-amber-700 uppercase">Total Bounces</p>
+                    <p class="text-lg font-bold text-amber-700 mt-0.5">{{ summary.totalBounced || 0 }}</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-rose-700 uppercase">Failed Attempts</p>
+                    <p class="text-lg font-bold text-rose-700 mt-0.5">{{ summary.totalFailed || 0 }}</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-violet-700 uppercase">Prospect Replies</p>
+                    <p class="text-lg font-bold text-violet-700 mt-0.5">{{ summary.totalReplies || 0 }}</p>
+                </div>
+            </div>
+
             <!-- Filter Bar -->
             <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div class="w-full sm:w-80">

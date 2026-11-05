@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, watch } from 'vue'
 import { Link, Head, router, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
@@ -16,6 +16,7 @@ const props = defineProps({
     sources: Array,
     allTags: Array,
     statuses: Array,
+    pipelineStages: Array,
 })
 
 const showCreateModal = ref(false)
@@ -43,6 +44,7 @@ const columns = [
     { key: 'email', label: 'Email', sortable: true },
     { key: 'company', label: 'Company', sortable: true },
     { key: 'score', label: 'Score', sortable: true },
+    { key: 'pipeline_stage', label: 'Pipeline Stage', sortable: true },
     { key: 'status', label: 'Status', sortable: true },
     { key: 'owner', label: 'Owner', sortable: false },
     { key: 'source', label: 'Source', sortable: true },
@@ -58,6 +60,20 @@ const statusColors = {
     unqualified: 'badge-secondary',
     converted: 'badge-success',
     archived: 'badge-danger',
+}
+
+const stageColors = {
+    new_lead: 'bg-slate-100 text-slate-700',
+    qualified: 'bg-blue-100 text-blue-700',
+    email_ready: 'bg-cyan-100 text-cyan-700',
+    email_sent: 'bg-indigo-100 text-indigo-700',
+    open_recorded: 'bg-amber-100 text-amber-700',
+    replied: 'bg-purple-100 text-purple-700',
+    interested: 'bg-emerald-100 text-emerald-800 font-bold',
+    not_interested: 'bg-gray-100 text-gray-600',
+    unsubscribed: 'bg-rose-100 text-rose-700',
+    bounced: 'bg-red-100 text-red-700',
+    archived: 'bg-slate-100 text-slate-500',
 }
 
 watch(() => props.leads?.data, () => {
@@ -315,6 +331,13 @@ const formatDate = (date) => {
                         </select>
                     </div>
                     <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Pipeline Stage</label>
+                        <select :value="filters?.pipeline_stage || ''" @change="updateFilter('pipeline_stage', $event.target.value)" class="input w-full text-xs">
+                            <option value="">All Stages</option>
+                            <option v-for="st in pipelineStages" :key="st" :value="st">{{ formatStatus(st) }}</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Owner</label>
                         <select :value="filters?.owner_id || ''" @change="updateFilter('owner_id', $event.target.value)" class="input w-full text-xs">
                             <option value="">All Owners</option>
@@ -385,6 +408,12 @@ const formatDate = (date) => {
                         </span>
                         <span class="text-[10px] text-gray-400 capitalize">{{ row.category || 'cold' }}</span>
                     </div>
+                </template>
+
+                <template #cell-pipeline_stage="{ row }">
+                    <span :class="['px-2 py-0.5 rounded-full text-[11px] font-medium capitalize', stageColors[row.pipeline_stage] || 'bg-slate-100 text-slate-600']">
+                        {{ formatStatus(row.pipeline_stage || 'new_lead') }}
+                    </span>
                 </template>
 
                 <template #cell-status="{ row }">

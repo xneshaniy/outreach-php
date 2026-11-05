@@ -81,7 +81,7 @@ class HostingerMailService
                 'password_encrypted'      => $encrypted,
                 'from_name'               => $name,
                 'reply_to'                => $email,
-                'daily_send_limit'        => 500,
+                'daily_send_limit'        => 6,
                 'is_active'               => 1,
                 'track_opens'             => 1,
                 'track_clicks'            => 1,

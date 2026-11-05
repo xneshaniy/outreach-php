@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\CrmNotification;
 use App\Models\EmailAccount;
 use App\Models\InboundEmailReply;
 use App\Models\Lead;
-use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -155,13 +155,14 @@ class InboundReplySyncService
                 ]);
             }
 
-            // Create In-App Notification
-            DB::table('notifications')->insert([
-                'id'             => (string) \Illuminate\Support\Str::uuid(),
-                'type'           => 'App\Notifications\NewLeadReplyNotification',
-                'notifiable_type'=> 'App\Models\User',
-                'notifiable_id'  => $account->user_id ?: 1,
-                'data'           => json_encode([
+            // Create In-App CRM Notification
+            CrmNotification::create([
+                'workspace_id'   => $account->workspace_id,
+                'user_id'        => $account->user_id,
+                'type'           => 'inbound_reply',
+                'title'          => "New Reply from {$senderEmail}",
+                'message'        => "{$senderName} ({$senderEmail}) replied: \"{$subject}\" [Sentiment: {$sentiment}]",
+                'data'           => [
                     'reply_id'     => $reply->id,
                     'lead_id'      => $lead?->id,
                     'sender_email' => $senderEmail,
@@ -171,10 +172,8 @@ class InboundReplySyncService
                     'sentiment'    => $sentiment,
                     'preview'      => mb_substr(strip_tags($body), 0, 150),
                     'received_at'  => $date,
-                ]),
+                ],
                 'read_at'        => null,
-                'created_at'     => now(),
-                'updated_at'     => now(),
             ]);
 
             $newRepliesCount++;

@@ -38,13 +38,16 @@ const isUpdatingStage = ref(false)
 
 const pipelineStages = [
     { id: 'new_lead', name: 'New Lead' },
-    { id: 'contacted', name: 'Contacted' },
+    { id: 'qualified', name: 'Qualified' },
+    { id: 'email_ready', name: 'Email Ready' },
+    { id: 'email_sent', name: 'Email Sent' },
+    { id: 'open_recorded', name: 'Open Recorded' },
     { id: 'replied', name: 'Replied' },
-    { id: 'interested', name: 'Interested' },
+    { id: 'interested', name: 'Interested (Warm)' },
+    { id: 'not_interested', name: 'Not Interested' },
     { id: 'meeting_scheduled', name: 'Meeting Scheduled' },
-    { id: 'proposal_sent', name: 'Proposal Sent' },
-    { id: 'negotiation', name: 'Negotiation' },
     { id: 'won', name: 'Won (Deal Closed)' },
+    { id: 'unsubscribed', name: 'Opted Out / Unsubscribed' },
     { id: 'lost', name: 'Lost' },
 ]
 

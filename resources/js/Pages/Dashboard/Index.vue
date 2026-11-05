@@ -18,6 +18,9 @@ const props = defineProps({
     leadCategories: Object,
     pipelineStages: Array,
     replyBreakdown: Object,
+    leadsByCountry: Array,
+    recentDiscovery: Array,
+    recentReplies: Array,
 })
 
 const getStatusBadgeClass = (status) => {
@@ -238,6 +241,97 @@ const getScoreColor = (category) => {
                     </div>
                     <div v-else class="text-center py-6 text-xs text-gray-400">
                         No active campaigns. <Link :href="route('campaigns.create')" class="text-primary-600 underline">Launch a campaign</Link>.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: AUTOMATED LEAD DISCOVERY & GLOBAL OUTREACH INTELLIGENCE -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Country Outreach Breakdown -->
+                <div class="card p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-900 dark:text-white">Leads by Country</h3>
+                            <p class="text-xs text-gray-400">Targeted geographic market distribution</p>
+                        </div>
+                    </div>
+
+                    <div v-if="leadsByCountry && leadsByCountry.length > 0" class="space-y-2 text-xs">
+                        <div
+                            v-for="c in leadsByCountry"
+                            :key="c.country"
+                            class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-800/60 border"
+                        >
+                            <span class="font-medium text-gray-700 dark:text-gray-300">
+                                {{ c.country }}
+                            </span>
+                            <span class="font-bold text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">{{ c.count }} leads</span>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-6 text-xs text-gray-400">
+                        No geographic lead data yet. Run auto-discovery to populate country data.
+                    </div>
+                </div>
+
+                <!-- Recent Lead Discovery Feed -->
+                <div class="card p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-900 dark:text-white">Automated Discovery Feed</h3>
+                            <p class="text-xs text-gray-400">Google Maps scraper runs</p>
+                        </div>
+                        <Link :href="route('leads.index')" class="text-xs text-primary-600 hover:underline">View Leads</Link>
+                    </div>
+
+                    <div v-if="recentDiscovery && recentDiscovery.length > 0" class="space-y-2 text-xs">
+                        <div
+                            v-for="d in recentDiscovery"
+                            :key="d.id"
+                            class="p-2.5 rounded-lg border bg-gray-50/60 dark:bg-gray-800/40"
+                        >
+                            <div class="flex items-center justify-between font-semibold text-gray-900 dark:text-white">
+                                <span>{{ d.keyword || d.industry || 'Search' }} ({{ d.city || d.country }})</span>
+                                <span class="text-emerald-600 font-bold">+{{ d.leads_found || 0 }}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-gray-400 mt-1">
+                                <span class="capitalize">{{ d.status }}</span>
+                                <span>{{ formatDate(d.created_at) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-6 text-xs text-gray-400">
+                        No automated lead discovery runs logged yet.
+                    </div>
+                </div>
+
+                <!-- Recent Incoming Prospect Replies -->
+                <div class="card p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-900 dark:text-white">Recent Inbound Replies</h3>
+                            <p class="text-xs text-gray-400">Synchronized via Hostinger IMAP</p>
+                        </div>
+                        <Link :href="route('inbox.index')" class="text-xs text-primary-600 hover:underline">Inbox</Link>
+                    </div>
+
+                    <div v-if="recentReplies && recentReplies.length > 0" class="space-y-2.5 text-xs">
+                        <div
+                            v-for="rep in recentReplies"
+                            :key="rep.id"
+                            class="p-2.5 rounded-lg border bg-gray-50/60 dark:bg-gray-800/40"
+                        >
+                            <div class="flex items-center justify-between font-semibold">
+                                <span class="text-gray-900 dark:text-white truncate max-w-[150px]">{{ rep.sender_name || rep.sender_email }}</span>
+                                <span :class="['px-2 py-0.5 rounded text-[10px] font-bold uppercase', rep.sentiment === 'positive' ? 'bg-emerald-100 text-emerald-800' : (rep.sentiment === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800')]">
+                                    {{ rep.sentiment }}
+                                </span>
+                            </div>
+                            <p class="text-gray-500 text-[11px] truncate mt-0.5">{{ rep.subject }}</p>
+                            <span class="text-[10px] text-gray-400 block mt-1">{{ formatDate(rep.received_at) }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-6 text-xs text-gray-400">
+                        No new prospect replies yet. Inbound replies sync automatically every 5 minutes.
                     </div>
                 </div>
             </div>

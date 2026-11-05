@@ -28,7 +28,7 @@ class LeadController extends Controller
     {
         $workspace = $request->user()->currentWorkspace;
 
-        $filters = $request->only(['search', 'status', 'owner_id', 'source', 'tags', 'needs_follow_up', 'company_id']);
+        $filters = $request->only(['search', 'status', 'pipeline_stage', 'country_code', 'owner_id', 'source', 'tags', 'needs_follow_up', 'company_id']);
         $sort = $request->only(['field', 'direction']);
         $perPage = (int) $request->input('per_page', 25);
 
@@ -69,6 +69,19 @@ class LeadController extends Controller
             'sources' => $sources,
             'allTags' => $allTags,
             'statuses' => ['new', 'contacted', 'qualified', 'unqualified', 'converted', 'archived'],
+            'pipelineStages' => [
+                'new_lead',
+                'qualified',
+                'email_ready',
+                'email_sent',
+                'open_recorded',
+                'replied',
+                'interested',
+                'not_interested',
+                'unsubscribed',
+                'bounced',
+                'archived',
+            ],
         ]);
     }
 
@@ -88,6 +101,19 @@ class LeadController extends Controller
             'owners' => $owners,
             'companies' => $companies,
             'statuses' => ['new', 'contacted', 'qualified', 'unqualified', 'converted', 'archived'],
+            'pipelineStages' => [
+                'new_lead',
+                'qualified',
+                'email_ready',
+                'email_sent',
+                'open_recorded',
+                'replied',
+                'interested',
+                'not_interested',
+                'unsubscribed',
+                'bounced',
+                'archived',
+            ],
         ]);
     }
 
@@ -160,6 +186,19 @@ class LeadController extends Controller
             'owners' => $owners,
             'companies' => $companies,
             'statuses' => ['new', 'contacted', 'qualified', 'unqualified', 'converted', 'archived'],
+            'pipelineStages' => [
+                'new_lead',
+                'qualified',
+                'email_ready',
+                'email_sent',
+                'open_recorded',
+                'replied',
+                'interested',
+                'not_interested',
+                'unsubscribed',
+                'bounced',
+                'archived',
+            ],
         ]);
     }
 

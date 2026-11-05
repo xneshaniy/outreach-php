@@ -153,6 +153,10 @@ class Message extends Model
         if ($this->campaignRecipient) {
             $this->campaignRecipient->recordSent();
         }
+
+        if ($this->lead && in_array($this->lead->pipeline_stage, ['new_lead', 'qualified', 'email_ready', null])) {
+            $this->lead->update(['pipeline_stage' => 'email_sent']);
+        }
     }
 
     public function markDelivered(): void
@@ -200,6 +204,21 @@ class Message extends Model
 
         if ($this->campaignRecipient) {
             $this->campaignRecipient->recordOpen();
+        }
+
+        if ($this->lead) {
+            $lead = $this->lead;
+            $updates = [
+                'recorded_opens_count' => ($lead->recorded_opens_count ?? 0) + 1,
+                'last_opened_at' => now(),
+            ];
+            if (!$lead->first_opened_at) {
+                $updates['first_opened_at'] = now();
+            }
+            if (in_array($lead->pipeline_stage, ['new_lead', 'qualified', 'email_ready', 'email_sent', null])) {
+                $updates['pipeline_stage'] = 'open_recorded';
+            }
+            $lead->update($updates);
         }
     }
 

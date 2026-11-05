@@ -46,6 +46,11 @@ class AdminEmailAccountController extends Controller
                 'error' => EmailAccount::where('last_test_status', 'failed')->count(),
                 'sentToday' => (int) EmailAccount::sum('sent_today'),
                 'totalDailyQuota' => (int) EmailAccount::sum('daily_send_limit'),
+                'totalSent' => (int) \App\Models\Message::where('status', '!=', 'failed')->count(),
+                'totalDelivered' => (int) \App\Models\Message::whereIn('status', ['sent', 'delivered', 'opened', 'clicked', 'replied'])->count(),
+                'totalBounced' => (int) EmailAccount::sum('bounced_count') + (int) \App\Models\Message::where('status', 'bounced')->count(),
+                'totalFailed' => (int) EmailAccount::sum('failed_count') + (int) \App\Models\Message::where('status', 'failed')->count(),
+                'totalReplies' => (int) \App\Models\InboundEmailReply::count(),
             ],
         ]);
     }
@@ -71,6 +76,8 @@ class AdminEmailAccountController extends Controller
                     'last_test_message' => $result['message'],
                 ]);
 
+                app(\App\Services\AdminAlertService::class)->alertMailboxDisconnected($account, $result['message']);
+
                 return back()->withErrors(['error' => "Connection failed: {$result['message']}"]);
             }
         } catch (\Throwable $e) {
@@ -79,6 +86,8 @@ class AdminEmailAccountController extends Controller
                 'last_test_status' => 'failed',
                 'last_test_message' => $e->getMessage(),
             ]);
+
+            app(\App\Services\AdminAlertService::class)->alertMailboxDisconnected($account, $e->getMessage());
 
             return back()->withErrors(['error' => "Connection test error: {$e->getMessage()}"]);
         }

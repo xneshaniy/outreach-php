@@ -465,7 +465,7 @@ Return ONLY a valid JSON object with:
     /**
      * Dispatch HTTP request to the selected model provider.
      */
-    protected function callModel(AIConfiguration $config, string $systemPrompt, string $userPrompt, int $maxTokens = 800): array
+    public function callModel(AIConfiguration $config, string $systemPrompt, string $userPrompt, int $maxTokens = 800): array
     {
         return $this->callModelDirect(
             $config->provider,
@@ -480,7 +480,7 @@ Return ONLY a valid JSON object with:
     /**
      * Low-level API client for OpenAI, Google Gemini, and Anthropic.
      */
-    protected function callModelDirect(string $provider, string $apiKey, string $model, string $systemPrompt, string $userPrompt, int $maxTokens = 800): array
+    public function callModelDirect(string $provider, string $apiKey, string $model, string $systemPrompt, string $userPrompt, int $maxTokens = 800): array
     {
         if (empty($apiKey)) {
             return ['success' => false, 'error' => 'API Key is empty'];
@@ -488,8 +488,8 @@ Return ONLY a valid JSON object with:
 
         try {
             if ($provider === 'gemini') {
-                $validGeminiModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
-                $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-2.5-flash';
+                $validGeminiModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
+                $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-3.5-flash';
                 $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
                 $body = [
                     'contents' => [
@@ -547,7 +547,7 @@ Return ONLY a valid JSON object with:
     /**
      * Clean and parse json out of markdown code blocks or plain text.
      */
-    protected function parseJson(string $raw): ?array
+    public function parseJson(string $raw): ?array
     {
         $clean = preg_replace('/```json\s*/i', '', $raw);
         $clean = preg_replace('/```\s*$/i', '', $clean);

@@ -290,6 +290,16 @@ class LeadService
             $query->withStatus($filters['status']);
         }
 
+        // Pipeline stage filter
+        if (!empty($filters['pipeline_stage'])) {
+            $query->where('pipeline_stage', $filters['pipeline_stage']);
+        }
+
+        // Country filter
+        if (!empty($filters['country_code'])) {
+            $query->where('country_code', $filters['country_code']);
+        }
+
         // Owner filter
         if (!empty($filters['owner_id'])) {
             $query->ownedBy($filters['owner_id']);
