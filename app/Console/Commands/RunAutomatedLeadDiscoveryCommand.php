@@ -18,6 +18,7 @@ class RunAutomatedLeadDiscoveryCommand extends Command
                             {--industry=IT Services : Target business industry or niche}
                             {--city=Paris : Target city}
                             {--limit=10 : Maximum leads to discover}
+                            {--enrich : Perform deep website contact page scraping}
                             {--workspace=1 : Workspace ID}';
 
     /**
@@ -46,6 +47,8 @@ class RunAutomatedLeadDiscoveryCommand extends Command
 
         $this->info("Initiating automated lead discovery for {$industry} in {$city}, {$country}...");
 
+        $enrich = (bool) $this->option('enrich');
+
         $res = $discoveryService->discoverAndSaveLeads(
             $workspace,
             $country,
@@ -53,7 +56,7 @@ class RunAutomatedLeadDiscoveryCommand extends Command
             $city,
             null,
             $limit,
-            true,
+            $enrich,
             true
         );
 

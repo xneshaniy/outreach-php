@@ -44,6 +44,7 @@ class Lead extends Model
         'city',
         'state',
         'timezone',
+        'company',
         'company_name',
         'business_category',
         'detected_language',

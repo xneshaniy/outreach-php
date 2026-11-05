@@ -65,16 +65,20 @@ class AutomatedLeadDiscoveryService
             );
 
             // Deduplication: check by email (if present) OR by company name within workspace
-            $existing = Lead::where('workspace_id', $workspace->id)
-                ->where(function ($q) use ($email, $companyName) {
-                    if (!empty($email)) {
-                        $q->where('normalized_email', $email);
-                    }
-                    if (!empty($companyName)) {
-                        $q->orWhere('company_name', $companyName);
-                    }
-                })
-                ->first();
+            $existing = null;
+            if (!empty($email) && !empty($companyName)) {
+                $existing = Lead::where('workspace_id', $workspace->id)
+                    ->where(function ($q) use ($email, $companyName) {
+                        $q->where('normalized_email', $email)
+                          ->orWhere('company_name', $companyName);
+                    })->first();
+            } elseif (!empty($email)) {
+                $existing = Lead::where('workspace_id', $workspace->id)
+                    ->where('normalized_email', $email)->first();
+            } elseif (!empty($companyName)) {
+                $existing = Lead::where('workspace_id', $workspace->id)
+                    ->where('company_name', $companyName)->first();
+            }
 
             if ($existing) {
                 $duplicatesCount++;
@@ -109,6 +113,7 @@ class AutomatedLeadDiscoveryService
                 'email'                => $fallbackEmail,
                 'normalized_email'     => strtolower($fallbackEmail),
                 'phone'                => $phone,
+                'company'              => $companyName,
                 'company_name'         => $companyName,
                 'website'              => $website,
                 'country'              => $detection['name'],

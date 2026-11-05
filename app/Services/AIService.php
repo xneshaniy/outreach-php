@@ -549,20 +549,34 @@ Return ONLY a valid JSON object with:
      */
     public function parseJson(string $raw): ?array
     {
-        $clean = preg_replace('/```json\s*/i', '', $raw);
-        $clean = preg_replace('/```\s*$/i', '', $clean);
-        $clean = trim($clean);
+        // Extract content between ```json ... ``` or ``` ... ```
+        if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/i', $raw, $matches)) {
+            $raw = $matches[1];
+        }
+
+        $clean = trim($raw);
 
         $decoded = json_decode($clean, true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
             return $decoded;
         }
 
-        // Try substring search for {...}
-        $start = strpos($clean, '{');
-        $end = strrpos($clean, '}');
-        if ($start !== false && $end !== false && $end > $start) {
-            $sub = substr($clean, $start, $end - $start + 1);
+        // Try substring search for [...] (JSON array)
+        $startBracket = strpos($clean, '[');
+        $endBracket = strrpos($clean, ']');
+        if ($startBracket !== false && $endBracket !== false && $endBracket > $startBracket) {
+            $sub = substr($clean, $startBracket, $endBracket - $startBracket + 1);
+            $decoded = json_decode($sub, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        // Try substring search for {...} (JSON object)
+        $startBrace = strpos($clean, '{');
+        $endBrace = strrpos($clean, '}');
+        if ($startBrace !== false && $endBrace !== false && $endBrace > $startBrace) {
+            $sub = substr($clean, $startBrace, $endBrace - $startBrace + 1);
             $decoded = json_decode($sub, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                 return $decoded;
