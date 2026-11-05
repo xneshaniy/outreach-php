@@ -114,6 +114,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/{lead}/research', [AIController::class, 'researchLead'])->name('research');
         Route::post('/{lead}/personalize', [AIController::class, 'personalizeLead'])->name('personalize');
         Route::post('/{lead}/enrich-company', [AIController::class, 'enrichCompanyFromDomain'])->name('enrich-company');
+        Route::post('/{lead}/send-email', [LeadController::class, 'sendEmail'])->name('send-email');
     });
 
     // Companies

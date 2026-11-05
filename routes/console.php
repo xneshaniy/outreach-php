@@ -62,7 +62,9 @@ Artisan::command('user:password {email} {password}', function ($email, $password
 Schedule::job(new ProcessCampaignsJob)->everyMinute()->withoutOverlapping();
 
 // Process campaign email batches (send due emails across all active campaigns).
-Schedule::command('campaigns:send-batch')->everyFiveMinutes()->withoutOverlapping();
+Schedule::call(function () {
+    Artisan::call('campaigns:send-batch');
+})->everyFiveMinutes()->name('campaigns-send-batch')->withoutOverlapping();
 
 // Sends task reminder emails.
 Schedule::job(new SendReminderEmailsJob)->everyFiveMinutes()->withoutOverlapping();
@@ -70,14 +72,20 @@ Schedule::job(new SendReminderEmailsJob)->everyFiveMinutes()->withoutOverlapping
 // Prunes old messages, logs and import files.
 Schedule::job(new CleanupJob)->dailyAt('02:00');
 
-// Scheduled Warm-up Round
-Schedule::command('email:warmup')->everyTwoHours()->withoutOverlapping();
+// Scheduled Warm-up Round (runs in-process without proc_open)
+Schedule::call(function () {
+    Artisan::call('email:warmup');
+})->everyTwoHours()->name('email-warmup')->withoutOverlapping();
 
 // Hostinger Mailboxes Auto-Sync (Connect newly created mailboxes automatically)
-Schedule::command('hostinger:sync-mailboxes')->hourly()->withoutOverlapping();
+Schedule::call(function () {
+    Artisan::call('hostinger:sync-mailboxes');
+})->hourly()->name('hostinger-sync-mailboxes')->withoutOverlapping();
 
 // Poll connected mailboxes for prospect replies & send alerts
-Schedule::command('email:sync-replies')->everyFiveMinutes()->withoutOverlapping();
+Schedule::call(function () {
+    Artisan::call('email:sync-replies');
+})->everyFiveMinutes()->name('email-sync-replies')->withoutOverlapping();
 
 /*
  * Shared hosting has no long-running queue worker. Drain the database queue

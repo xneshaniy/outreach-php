@@ -161,9 +161,14 @@ class LeadController extends Controller
             ->whereIn('status', ['active', 'draft', 'scheduled', 'paused'])
             ->get(['id', 'name']);
 
+        $emailAccounts = \App\Models\EmailAccount::where('workspace_id', $workspace->id)
+            ->where('is_active', true)
+            ->get(['id', 'name', 'email', 'daily_send_limit', 'sent_today']);
+
         return Inertia::render('Leads/Show', [
             'lead' => $lead,
             'campaigns' => $campaigns,
+            'emailAccounts' => $emailAccounts,
         ]);
     }
 
@@ -515,5 +520,98 @@ class LeadController extends Controller
             'score' => $lead->fresh()->score,
             'category' => $lead->fresh()->category,
         ]);
+    }
+
+    public function sendEmail(Request $request, Lead $lead, \App\Services\EmailService $emailService): \Illuminate\Http\RedirectResponse
+    {
+        $this->authorize('view', $lead);
+
+        $workspace = $request->user()->currentWorkspace;
+        abort_if($lead->workspace_id !== $workspace->id, 403);
+
+        $validated = $request->validate([
+            'subject'          => 'required|string|max:255',
+            'body'             => 'required|string',
+            'email_account_id' => 'nullable|exists:email_accounts,id',
+        ]);
+
+        if (empty($lead->email)) {
+            return back()->withErrors(['error' => 'This lead does not have a valid email address.']);
+        }
+
+        // Select email account
+        $account = null;
+        if (!empty($validated['email_account_id'])) {
+            $account = \App\Models\EmailAccount::where('workspace_id', $workspace->id)
+                ->where('is_active', true)
+                ->find($validated['email_account_id']);
+        }
+
+        if (!$account) {
+            $accounts = \App\Models\EmailAccount::where('workspace_id', $workspace->id)
+                ->where('is_active', true)
+                ->get();
+
+            $account = $accounts->first(fn($a) => $a->canSendToday()) ?? $accounts->first();
+        }
+
+        if (!$account) {
+            return back()->withErrors(['error' => 'No active email mailbox found. Please connect an email account first.']);
+        }
+
+        if (!$account->canSendToday()) {
+            return back()->withErrors(['error' => "Mailbox {$account->email} has reached its daily limit of {$account->daily_send_limit} emails."]);
+        }
+
+        $htmlBody = nl2br(e($validated['body']));
+        $toName = trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? '')) ?: ($lead->company_name ?: $lead->email);
+
+        try {
+            $result = $emailService->send(
+                account: $account,
+                to: [['email' => $lead->email, 'name' => $toName]],
+                subject: $validated['subject'],
+                html: $htmlBody,
+                text: $validated['body'],
+                options: [
+                    'reply_to' => $account->reply_to ? ['email' => $account->reply_to] : null,
+                ]
+            );
+
+            if (!$result['success']) {
+                return back()->withErrors(['error' => 'SMTP failed: ' . ($result['error'] ?? 'Unknown error')]);
+            }
+
+            // Create message record
+            \App\Models\Message::create([
+                'workspace_id'        => $workspace->id,
+                'email_account_id'    => $account->id,
+                'lead_id'             => $lead->id,
+                'message_id'          => $result['message_id'] ?? null,
+                'subject'             => $validated['subject'],
+                'body_html'           => $htmlBody,
+                'body_text'           => $validated['body'],
+                'from_email'          => $account->email,
+                'from_name'           => $account->from_name ?? $account->name,
+                'to_emails'           => [['email' => $lead->email, 'name' => $toName]],
+                'status'              => \App\Models\Message::STATUS_SENT,
+                'sent_at'             => now(),
+            ]);
+
+            // Increment sent counter on mailbox
+            $account->incrementSent();
+
+            // Progress pipeline stage if new/qualified
+            if (in_array($lead->pipeline_stage, ['new_lead', 'qualified', 'email_ready', null])) {
+                $lead->update([
+                    'pipeline_stage'   => 'email_sent',
+                    'last_activity_at' => now(),
+                ]);
+            }
+
+            return back()->with('success', "Direct message sent successfully to {$lead->email} via {$account->email}!");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['error' => 'Failed to send message: ' . $e->getMessage()]);
+        }
     }
 }

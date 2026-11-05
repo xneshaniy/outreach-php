@@ -487,6 +487,34 @@ Return ONLY a valid JSON object with:
         }
 
         try {
+            if ($provider === 'openrouter') {
+                $targetModel = $model ?: 'openai/gpt-4o-mini';
+                $url = 'https://openrouter.ai/api/v1/chat/completions';
+                $body = [
+                    'model' => $targetModel,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => min($maxTokens, 2000),
+                    'temperature' => 0.4,
+                ];
+
+                $response = $this->aiHttp()->withHeaders([
+                    'Authorization' => "Bearer {$apiKey}",
+                    'HTTP-Referer' => 'https://outreach.click',
+                    'X-Title' => 'Outreach.click',
+                ])->timeout(30)->post($url, $body);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $text = $data['choices'][0]['message']['content'] ?? '';
+                    return ['success' => true, 'content' => trim($text)];
+                }
+
+                return ['success' => false, 'error' => $response->json()['error']['message'] ?? $response->body()];
+            }
+
             if ($provider === 'gemini') {
                 $validGeminiModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
                 $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-3.5-flash';

@@ -56,13 +56,15 @@ class AIController extends Controller
             ],
             'rules' => $rules,
             'providers' => [
+                ['id' => 'openrouter', 'name' => 'OpenRouter AI (Multi-model / GPT-4o / Claude / Gemini)', 'default_model' => 'openai/gpt-4o-mini'],
                 ['id' => 'openai', 'name' => 'OpenAI (GPT-4o / GPT-4o-mini)', 'default_model' => 'gpt-4o-mini'],
-                ['id' => 'gemini', 'name' => 'Google Gemini (Gemini 3.5 Flash Lite / Pro)', 'default_model' => 'gemini-3.5-flash-lite'],
+                ['id' => 'gemini', 'name' => 'Google Gemini (Gemini 3.5 Flash Lite / Pro)', 'default_model' => 'gemini-3.5-flash'],
                 ['id' => 'custom', 'name' => 'OpenAI-Compatible Custom Endpoint', 'default_model' => 'gpt-4o-mini'],
             ],
             'models' => [
+                'openrouter' => ['openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite', 'meta-llama/llama-3.3-70b-instruct'],
                 'openai' => ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-                'gemini' => ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-2.5-pro'],
+                'gemini' => ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'],
                 'custom' => ['gpt-4o-mini', 'custom-model'],
             ],
         ]);

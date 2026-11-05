@@ -52,6 +52,42 @@ const pipelineStages = [
 ]
 
 // Assign Campaign Form
+
+// Single Email Composer Form
+const showEmailComposer = ref(false)
+const emailSending = ref(false)
+const emailForm = ref({
+    email_account_id: '',
+    subject: '',
+    body: '',
+})
+
+const openEmailComposer = (presetSubject = '', presetBody = '') => {
+    emailForm.value.subject = presetSubject || (props.lead.company_name ? `Partnership Opportunity - ${props.lead.company_name}` : 'Partnership Opportunity')
+    emailForm.value.body = presetBody || ''
+    if (props.emailAccounts && props.emailAccounts.length > 0) {
+        emailForm.value.email_account_id = props.emailAccounts[0].id
+    }
+    showEmailComposer.value = true
+}
+
+const sendDirectEmail = () => {
+    if (!emailForm.value.subject || !emailForm.value.body) {
+        alert('Please fill in both subject and message body.')
+        return
+    }
+    emailSending.value = true
+    router.post(route('leads.send-email', props.lead.id), emailForm.value, {
+        onSuccess: () => {
+            showEmailComposer.value = false
+            emailForm.value.body = ''
+        },
+        onFinish: () => {
+            emailSending.value = false
+        }
+    })
+}
+
 const selectedCampaignId = ref(props.lead.assigned_campaign_id || '')
 const assigningCampaign = ref(false)
 
@@ -234,6 +270,12 @@ const deleteLead = () => {
                     <span class="text-gray-900 dark:text-white font-medium">{{ lead.first_name }} {{ lead.last_name }}</span>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <button type="button" @click="openEmailComposer()" class="btn bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow-sm font-medium">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span>Send Email</span>
+                    </button>
                     <Link :href="route('leads.edit', lead.id)" class="btn-secondary text-xs">
                         Edit Lead
                     </Link>
@@ -288,6 +330,80 @@ const deleteLead = () => {
                             title="Recalculate lead score using workspace criteria"
                         >
                             {{ isRecalculatingScore ? 'Scoring...' : '↻ Recalculate Score' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single Email Composer Card -->
+            <div v-if="showEmailComposer" class="card p-5 border-2 border-indigo-200 dark:border-indigo-900 bg-white dark:bg-gray-800 shadow-lg space-y-4">
+                <div class="flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-900 dark:text-white flex items-center space-x-2">
+                            <span>Send Direct Email to {{ lead.first_name || lead.email }}</span>
+                            <span class="badge badge-primary text-[10px]">{{ lead.email }}</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Directly dispatched via your configured Hostinger mailbox with deliverability compliance</p>
+                    </div>
+                    <button type="button" @click="showEmailComposer = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label text-xs">Send From Mailbox</label>
+                        <select v-model="emailForm.email_account_id" class="input w-full text-xs">
+                            <option v-for="acc in (emailAccounts || [])" :key="acc.id" :value="acc.id">
+                                {{ acc.name || acc.email }} &lt;{{ acc.email }}&gt; (Quota: {{ acc.daily_send_limit }}/day)
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label text-xs">Subject Line</label>
+                        <input type="text" v-model="emailForm.subject" placeholder="Email subject line..." class="input w-full text-xs" />
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="label text-xs">Message Body</label>
+                        <button
+                            v-if="personalizedEmail && personalizedEmail.body"
+                            type="button"
+                            @click="emailForm.body = personalizedEmail.body; emailForm.subject = personalizedEmail.subject || emailForm.subject"
+                            class="text-[11px] text-primary-600 hover:underline"
+                        >
+                            Insert AI Generated Draft
+                        </button>
+                    </div>
+                    <textarea
+                        v-model="emailForm.body"
+                        rows="6"
+                        placeholder="Write your email message here..."
+                        class="input w-full text-xs font-sans leading-relaxed"
+                    ></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <span class="text-[11px] text-gray-400">
+                        Dispatches immediately using SMTP SSL (Port 465). Tracks open status and reply sync.
+                    </span>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" @click="showEmailComposer = false" class="btn-secondary text-xs">
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            @click="sendDirectEmail"
+                            :disabled="emailSending || !emailForm.subject || !emailForm.body"
+                            class="btn bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 font-medium rounded-lg flex items-center space-x-1.5 shadow-sm"
+                        >
+                            <svg v-if="emailSending" class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>{{ emailSending ? 'Sending...' : 'Send Message' }}</span>
                         </button>
                     </div>
                 </div>
