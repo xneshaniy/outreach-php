@@ -113,7 +113,6 @@ class AutomatedLeadDiscoveryService
                 'email'                => $fallbackEmail,
                 'normalized_email'     => strtolower($fallbackEmail),
                 'phone'                => $phone,
-                'company'              => $companyName,
                 'company_name'         => $companyName,
                 'website'              => $website,
                 'country'              => $detection['name'],
