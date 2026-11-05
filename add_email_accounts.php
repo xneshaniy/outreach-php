@@ -1,14 +1,8 @@
 <?php
-/**
- * Email Account Seeder with IMAP & Warm-up Settings
- * Run from: /home/u311221303/domains/outreach.click/crm
- * Usage:    php add_email_accounts.php
- */
-
 require __DIR__ . '/vendor/autoload.php';
 $app = require_once __DIR__ . '/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-$app->boot();
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
@@ -28,8 +22,7 @@ $password   = 'Outreach@123$';
 $encrypted  = Crypt::encryptString($password);
 $now        = now()->toDateTimeString();
 
-$hasImapCols = Schema::hasColumn('email_accounts', 'imap_host');
-$hasWarmupCols = Schema::hasColumn('email_accounts', 'warmup_enabled');
+echo "Running seeder...\n";
 
 foreach ($accounts as $account) {
     $exists = DB::table('email_accounts')
@@ -39,12 +32,11 @@ foreach ($accounts as $account) {
 
     $data = [
         'workspace_id'       => $workspace_id,
-        'user_id'            => null,
+        'user_id'            => 1, // associate with admin user
         'name'               => $account['name'],
         'email'              => $account['email'],
         'normalized_email'   => strtolower($account['email']),
         'provider'           => 'smtp',
-        // Outgoing SMTP
         'host'               => 'smtp.hostinger.com',
         'port'               => 465,
         'encryption'         => 'ssl',
@@ -60,25 +52,19 @@ foreach ($accounts as $account) {
         'is_default'         => 0,
         'track_opens'        => 1,
         'track_clicks'       => 1,
+        'imap_host'          => 'imap.hostinger.com',
+        'imap_port'          => 993,
+        'imap_encryption'    => 'ssl',
+        'imap_username'      => $account['email'],
+        'warmup_enabled'     => 1,
+        'warmup_daily_limit' => 5,
+        'warmup_max_limit'   => 40,
+        'warmup_step'        => 2,
+        'warmup_sent_today'  => 0,
+        'warmup_status'      => 'warming',
+        'warmup_reputation_score' => 100,
         'updated_at'         => $now,
     ];
-
-    if ($hasImapCols) {
-        $data['imap_host']       = 'imap.hostinger.com';
-        $data['imap_port']       = 993;
-        $data['imap_encryption'] = 'ssl';
-        $data['imap_username']   = $account['email'];
-    }
-
-    if ($hasWarmupCols) {
-        $data['warmup_enabled']          = 1;
-        $data['warmup_daily_limit']      = 5;
-        $data['warmup_max_limit']        = 40;
-        $data['warmup_step']             = 2;
-        $data['warmup_sent_today']       = 0;
-        $data['warmup_status']           = 'warming';
-        $data['warmup_reputation_score'] = 100;
-    }
 
     if ($exists) {
         DB::table('email_accounts')->where('id', $exists->id)->update($data);
@@ -90,4 +76,4 @@ foreach ($accounts as $account) {
     }
 }
 
-echo "\nDone!\n";
+echo "All accounts seeded successfully!\n";

@@ -110,4 +110,16 @@ class AdminEmailAccountController extends Controller
 
         return back()->with('success', 'Email account limits updated.');
     }
+
+    public function syncHostinger(Request $request, \App\Services\HostingerMailService $service): RedirectResponse
+    {
+        $workspace = $request->user()->currentWorkspace ?? \App\Models\Workspace::first();
+        $result = $service->syncMailboxes($workspace ? $workspace->id : 1);
+
+        if (!$result['success']) {
+            return back()->withErrors(['error' => 'Hostinger sync failed: ' . ($result['error'] ?? 'API error')]);
+        }
+
+        return back()->with('success', "Hostinger mailboxes synced! Total: {$result['total']}, Added: {$result['added']}, Updated: {$result['updated']}");
+    }
 }

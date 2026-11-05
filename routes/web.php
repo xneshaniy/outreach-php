@@ -378,6 +378,7 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->gro
         Route::post('/{account}/test', [AdminEmailAccountController::class, 'testConnection'])->name('test');
         Route::post('/{account}/toggle', [AdminEmailAccountController::class, 'toggleStatus'])->name('toggle');
         Route::put('/{account}/limits', [AdminEmailAccountController::class, 'updateLimits'])->name('limits');
+        Route::post('/sync-hostinger', [AdminEmailAccountController::class, 'syncHostinger'])->name('sync-hostinger');
     });
 
     // Campaigns
