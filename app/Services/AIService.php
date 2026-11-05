@@ -488,8 +488,8 @@ Return ONLY a valid JSON object with:
 
         try {
             if ($provider === 'gemini') {
-                $validGeminiModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
-                $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-1.5-flash';
+                $validGeminiModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+                $targetModel = in_array($model, $validGeminiModels) ? $model : 'gemini-2.5-flash';
                 $url = "https://generativelanguage.googleapis.com/v1beta/models/{$targetModel}:generateContent?key={$apiKey}";
                 $body = [
                     'contents' => [
