@@ -32,11 +32,12 @@ const columns = [
     { key: 'name', label: 'Company Name', sortable: true },
     { key: 'domain', label: 'Website / Domain', sortable: true },
     { key: 'industry', label: 'Industry', sortable: true },
+    { key: 'enrichment_status', label: 'Enrichment', sortable: true },
     { key: 'country', label: 'Country', sortable: true },
     { key: 'leads_count', label: 'Leads', sortable: true },
     { key: 'deals_count', label: 'Deals', sortable: true },
     { key: 'created_at', label: 'Created', sortable: true },
-    { key: 'actions', label: 'Actions', width: '100px', sortable: false },
+    { key: 'actions', label: 'Actions', width: '130px', sortable: false },
 ]
 
 let searchTimeout = null
@@ -95,6 +96,17 @@ const deleteCompany = (company) => {
             <!-- Header -->
             <PageHeader title="Companies" description="Manage target accounts, client companies, and organizations.">
                 <template #actions>
+                    <button
+                        type="button"
+                        @click="router.post(route('companies.enrich-all'), {}, { preserveScroll: true })"
+                        class="btn btn-secondary inline-flex items-center text-xs mr-2"
+                        title="Enrich unenriched companies with AI & web scraping"
+                    >
+                        <svg class="w-4 h-4 mr-1 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Enrich All
+                    </button>
                     <button
                         type="button"
                         @click="showCreateModal = true"
@@ -210,6 +222,39 @@ const deleteCompany = (company) => {
                     <span class="badge badge-info text-xs">{{ row.industry || 'General' }}</span>
                 </template>
 
+                <template #cell-enrichment_status="{ row }">
+                    <span
+                        v-if="row.enrichment_status === 'verified'"
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                    >
+                        ✓ Verified
+                    </span>
+                    <span
+                        v-else-if="row.enrichment_status === 'ai_suggested'"
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                    >
+                        ⚡ AI Enriched
+                    </span>
+                    <span
+                        v-else-if="row.enrichment_status === 'flagged_for_review'"
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                    >
+                        ⚠️ Review
+                    </span>
+                    <span
+                        v-else-if="row.enrichment_status === 'failed'"
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
+                    >
+                        Failed
+                    </span>
+                    <span
+                        v-else
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                    >
+                        Pending
+                    </span>
+                </template>
+
                 <template #cell-country="{ row }">
                     <span class="text-xs text-gray-600 dark:text-gray-300">{{ row.country || '—' }}</span>
                 </template>
@@ -228,6 +273,16 @@ const deleteCompany = (company) => {
 
                 <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end space-x-1">
+                        <button
+                            type="button"
+                            @click="router.post(route('companies.enrich', row.id), {}, { preserveScroll: true })"
+                            class="p-1 text-gray-400 hover:text-primary-600 rounded"
+                            title="Enrich with AI"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </button>
                         <Link :href="route('companies.show', row.id)" class="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded" title="View Company">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

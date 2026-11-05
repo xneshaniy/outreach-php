@@ -93,6 +93,24 @@ class ImportService
             $this->recordError($import, $startRow + $error['row'] - 1, $batch[$error['row'] - 1] ?? [], $error['error']);
         }
 
+        // Run company matching on newly created leads (batch from last N created)
+        if ($results['created'] > 0) {
+            $matchingService = app(\App\Services\UnifiedMatchingService::class);
+            $recentLeads = \App\Models\Lead::where('workspace_id', $workspace->id)
+                ->whereNull('company_match_status')
+                ->orWhere('company_match_status', 'unlinked')
+                ->latest()
+                ->limit($results['created'])
+                ->get();
+            foreach ($recentLeads as $lead) {
+                try {
+                    $matchingService->enrichLeadWithCompany($lead, $creator);
+                } catch (\Exception $e) {
+                    // Non-fatal: continue even if enrichment fails
+                }
+            }
+        }
+
         // Add created leads to list if specified
         if ($list && $results['created'] > 0) {
             // Note: In a real implementation, you'd track which leads were created

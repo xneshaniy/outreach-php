@@ -4,8 +4,11 @@ import MainLayout from '@/Layouts/MainLayout.vue'
 import SettingsNav from '@/Components/SettingsNav.vue'
 
 defineProps({
-    workspace: Object,
-    availableIntegrations: Array,
+    workspace:              Object,
+    availableIntegrations:  Array,
+    googleConfigured:       Boolean,
+    googleConnected:        Boolean,
+    googleAccount:          String,
 })
 </script>
 
@@ -17,7 +20,7 @@ defineProps({
         <div class="max-w-5xl space-y-8">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Third-Party & Data Integrations</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Third-Party &amp; Data Integrations</h1>
                     <p class="text-sm text-gray-500">Connect your CRM with Google Sheets, CSV uploads, webhooks, and automation pipelines</p>
                 </div>
             </div>
@@ -30,12 +33,13 @@ defineProps({
                 >
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <!-- Custom Brand / Feature Icons -->
+                            <!-- Google Sheets icon -->
                             <div v-if="item.id === 'google_sheets'" class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600">
                                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/>
                                 </svg>
                             </div>
+                            <!-- CSV icon -->
                             <div v-else-if="item.id === 'csv'" class="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -50,6 +54,8 @@ defineProps({
                                     'px-2.5 py-0.5 rounded-full text-xs font-semibold',
                                     item.status === 'connected'
                                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                        : item.status === 'available'
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                                 ]"
                             >
@@ -59,6 +65,12 @@ defineProps({
 
                         <h3 class="font-bold text-base text-gray-900 dark:text-white">{{ item.name }}</h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{{ item.description }}</p>
+
+                        <!-- Google account display when connected -->
+                        <p v-if="item.id === 'google_sheets' && googleConnected && googleAccount"
+                           class="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+                            ✓ {{ googleAccount }}
+                        </p>
                     </div>
 
                     <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
@@ -78,7 +90,7 @@ defineProps({
                             disabled
                             class="btn btn-secondary w-full text-xs opacity-60 cursor-not-allowed"
                         >
-                            Coming Soon
+                            {{ item.status === 'unavailable' ? 'Not Configured' : 'Coming Soon' }}
                         </button>
                     </div>
                 </div>

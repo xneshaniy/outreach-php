@@ -146,17 +146,28 @@ class SettingsController extends Controller
     {
         $workspace = $request->user()->currentWorkspace;
 
+        // Check Google OAuth status
+        $googleIntegration = \App\Models\GoogleIntegration::where('workspace_id', $workspace->id)
+            ->where('is_active', true)
+            ->latest()
+            ->first();
+        $googleConfigured = !empty(config('google.client_id')) && !empty(config('google.client_secret'));
+        $googleConnected  = $googleIntegration !== null;
+
         return Inertia::render('Settings/Integrations', [
-            'workspace' => $workspace,
+            'workspace'          => $workspace,
+            'googleConfigured'   => $googleConfigured,
+            'googleConnected'    => $googleConnected,
+            'googleAccount'      => $googleConnected ? $googleIntegration->google_email : null,
             'availableIntegrations' => [
                 [
-                    'id' => 'google_sheets',
-                    'name' => 'Google Sheets',
-                    'description' => 'Import contacts directly from Google Sheets shareable links with automatic column mapping.',
-                    'status' => 'connected',
-                    'badge' => 'Active',
-                    'action_label' => 'Import Leads',
-                    'action_url' => route('leads.import.form'),
+                    'id'           => 'google_sheets',
+                    'name'         => 'Google Sheets',
+                    'description'  => 'Connect your Google account and import contacts directly from private or shared Google Sheets with automatic column mapping, duplicate detection, and company auto-matching.',
+                    'status'       => $googleConnected ? 'connected' : ($googleConfigured ? 'available' : 'unavailable'),
+                    'badge'        => $googleConnected ? 'Connected' : ($googleConfigured ? 'Available' : 'Not Configured'),
+                    'action_label' => $googleConnected ? 'Open Google Sheets Import' : ($googleConfigured ? 'Connect Google Account' : null),
+                    'action_url'   => $googleConnected ? route('google.sheets.index') : ($googleConfigured ? route('google.connect') : null),
                 ],
                 [
                     'id' => 'csv',

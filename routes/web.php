@@ -30,6 +30,8 @@ use App\Http\Controllers\Admin\AdminLogController;
 use App\Http\Controllers\Admin\AdminSecurityController;
 use App\Http\Controllers\Admin\AdminLeadController;
 use App\Http\Controllers\Admin\AdminWorkspaceController;
+use App\Http\Controllers\Companies\CompanyEnrichmentController;
+use App\Http\Controllers\Integrations\GoogleIntegrationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -126,6 +128,11 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/{company}/edit', [CompanyController::class, 'edit'])->name('edit');
         Route::put('/{company}', [CompanyController::class, 'update'])->name('update');
         Route::delete('/{company}', [CompanyController::class, 'destroy'])->name('destroy');
+        // Company enrichment
+        Route::post('/enrich-all', [CompanyEnrichmentController::class, 'enrichAll'])->name('enrich-all');
+        Route::post('/{company}/enrich', [CompanyEnrichmentController::class, 'enrichOne'])->name('enrich');
+        Route::post('/{company}/flag-review', [CompanyEnrichmentController::class, 'flagForReview'])->name('flag-review');
+        Route::post('/{company}/mark-verified', [CompanyEnrichmentController::class, 'markVerified'])->name('mark-verified');
     });
 
     // Campaigns
@@ -265,6 +272,20 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+    });
+
+    // Google OAuth & Google Sheets integration
+    Route::get('/google/connect', [GoogleIntegrationController::class, 'connect'])->name('google.connect');
+    Route::get('/google/callback', [GoogleIntegrationController::class, 'callback'])->name('google.callback');
+    Route::post('/google/disconnect', [GoogleIntegrationController::class, 'disconnect'])->name('google.disconnect');
+    Route::prefix('google/sheets')->name('google.sheets.')->group(function () {
+        Route::get('/', [GoogleIntegrationController::class, 'index'])->name('index');
+        Route::get('/list', [GoogleIntegrationController::class, 'listSheets'])->name('list');
+        Route::get('/worksheets/{spreadsheetId}', [GoogleIntegrationController::class, 'listWorksheets'])->name('worksheets');
+        Route::post('/preview', [GoogleIntegrationController::class, 'previewSheet'])->name('preview');
+        Route::post('/import', [GoogleIntegrationController::class, 'importSheet'])->name('import');
+        Route::get('/history', [GoogleIntegrationController::class, 'syncHistory'])->name('history');
+        Route::put('/{sync}/toggle-schedule', [GoogleIntegrationController::class, 'toggleScheduledSync'])->name('toggle-schedule');
     });
 });
 

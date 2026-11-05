@@ -18,6 +18,7 @@ class Lead extends Model
     protected $fillable = [
         'workspace_id',
         'company_id',
+        'company_match_status',
         'owner_id',
         'created_by',
         'website',
@@ -32,6 +33,7 @@ class Lead extends Model
         'last_name',
         'email',
         'normalized_email',
+        'contact_emails',
         'phone',
         'mobile',
         'job_title',
@@ -49,6 +51,8 @@ class Lead extends Model
         'detected_language',
         'lead_quality_score',
         'verification_status',
+        'enrichment_source',
+        'is_verified',
         'source_url',
         'discovery_date',
         'approval_status',
@@ -71,6 +75,8 @@ class Lead extends Model
     protected $casts = [
         'score' => 'integer',
         'email_verified' => 'boolean',
+        'is_verified' => 'boolean',
+        'contact_emails' => 'array',
         'tags' => 'array',
         'custom_fields' => 'array',
         'follow_up_at' => 'datetime',

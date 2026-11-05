@@ -17,6 +17,8 @@ class Company extends Model
         'workspace_id',
         'created_by',
         'name',
+        'email',
+        'company_emails',
         'domain',
         'website',
         'industry',
@@ -30,14 +32,41 @@ class Company extends Model
         'linkedin_url',
         'twitter_url',
         'description',
+        'enrichment_status',
+        'enrichment_source',
+        'verification_status',
+        'source_url',
         'custom_fields',
         'last_contacted_at',
     ];
 
     protected $casts = [
+        'company_emails' => 'array',
         'custom_fields' => 'array',
         'last_contacted_at' => 'datetime',
     ];
+
+    /**
+     * Add a company email address without duplicates.
+     */
+    public function addCompanyEmail(string $email): void
+    {
+        $email = strtolower(trim($email));
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        if (empty($this->email)) {
+            $this->email = $email;
+        }
+
+        $emails = is_array($this->company_emails) ? $this->company_emails : [];
+        if (!in_array($email, $emails, true)) {
+            $emails[] = $email;
+            $this->company_emails = $emails;
+            $this->save();
+        }
+    }
 
     public function workspace(): BelongsTo
     {

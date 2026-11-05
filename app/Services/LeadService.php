@@ -114,41 +114,8 @@ class LeadService
 
     public function findOrCreateCompany(Workspace $workspace, User $creator, array $data): ?Company
     {
-        $website = $data['website'] ?? null;
-        $domain = $data['company_domain'] ?? ($website ? parse_url($website, PHP_URL_HOST) : null);
-        $name = $data['company'] ?? $data['company_name'] ?? null;
-
-        if (!$name && !$domain) {
-            return null;
-        }
-
-        $query = Company::where('workspace_id', $workspace->id);
-
-        if ($domain) {
-            $query->where('domain', $domain);
-        } elseif ($name) {
-            $query->where('name', $name);
-        }
-
-        $company = $query->first();
-
-        if (!$company) {
-            $company = Company::create([
-                'workspace_id' => $workspace->id,
-                'created_by' => $creator->id,
-                'name' => $name ?: $domain,
-                'domain' => $domain,
-                'website' => $data['website'] ?? null,
-                'industry' => $data['industry'] ?? null,
-                'size' => $data['company_size'] ?? null,
-                'country' => $data['country'] ?? null,
-                'city' => $data['city'] ?? null,
-                'state' => $data['state'] ?? null,
-                'phone' => $data['company_phone'] ?? null,
-            ]);
-        }
-
-        return $company;
+        return app(\App\Services\UnifiedMatchingService::class)
+            ->matchOrCreateCompany($workspace, $data, $creator);
     }
 
     public function bulkCreateLeads(array $leadsData, Workspace $workspace, User $creator, array $options = []): array
