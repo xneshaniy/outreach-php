@@ -65,7 +65,7 @@ class HostingerMailService
 
             $existing = DB::table('email_accounts')
                 ->where('email', $email)
-                ->whereNull('deleted_at')
+                ->where('workspace_id', $workspaceId)
                 ->first();
 
             $accountData = [
@@ -99,6 +99,7 @@ class HostingerMailService
             ];
 
             if ($existing) {
+                $accountData['deleted_at'] = null;
                 DB::table('email_accounts')->where('id', $existing->id)->update($accountData);
                 $updated++;
             } else {
