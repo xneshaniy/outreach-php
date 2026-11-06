@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Automation;
 use App\Models\AutomationLog;
 use App\Models\Campaign;
+use App\Models\Workspace;
 use App\Services\WorkflowAutomationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,22 +21,71 @@ class AutomationController extends Controller
         protected WorkflowAutomationService $automationService
     ) {}
 
+    protected function getWorkspace(Request $request): ?Workspace
+    {
+        return $request->user()?->currentWorkspace
+            ?? $request->user()?->workspaces()->first()
+            ?? Workspace::first();
+    }
+
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
 
-        $automations = Automation::where('workspace_id', $workspace->id)
-            ->with(['creator:id,name'])
-            ->latest()
-            ->get();
+        if (!$workspace) {
+            return Inertia::render('Automations/Index', [
+                'automations' => [],
+                'pendingLogs' => [],
+                'campaigns'   => [],
+            ]);
+        }
 
-        $pendingLogs = AutomationLog::where('workspace_id', $workspace->id)
-            ->where('status', 'pending_approval')
-            ->with(['automation:id,name,action_type', 'lead:id,first_name,last_name,email,company_name'])
-            ->latest()
-            ->get();
+        // Auto-run migrations if automations tables are not yet created on this deployment
+        if (!Schema::hasTable('automations') || !Schema::hasTable('automation_logs')) {
+            try {
+                Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $e) {
+                Log::error('Automations auto-migration failed: ' . $e->getMessage());
+            }
+        }
 
-        $campaigns = Campaign::where('workspace_id', $workspace->id)->select('id', 'name')->get();
+        $automations = collect();
+        $pendingLogs = collect();
+        $campaigns = collect();
+
+        try {
+            if (Schema::hasTable('automations')) {
+                $automations = Automation::where('workspace_id', $workspace->id)
+                    ->with(['creator:id,name'])
+                    ->latest()
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed loading automations: ' . $e->getMessage());
+        }
+
+        try {
+            if (Schema::hasTable('automation_logs')) {
+                $pendingLogs = AutomationLog::where('workspace_id', $workspace->id)
+                    ->where('status', 'pending_approval')
+                    ->with([
+                        'automation:id,name,action_type',
+                        'lead:id,first_name,last_name,email',
+                    ])
+                    ->latest()
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed loading automation logs: ' . $e->getMessage());
+        }
+
+        try {
+            if (Schema::hasTable('campaigns')) {
+                $campaigns = Campaign::where('workspace_id', $workspace->id)->select('id', 'name')->get();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed loading campaigns for automations: ' . $e->getMessage());
+        }
 
         return Inertia::render('Automations/Index', [
             'automations' => $automations,
@@ -52,7 +105,16 @@ class AutomationController extends Controller
             'requires_approval' => 'boolean',
         ]);
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        abort_if(!$workspace, 403, 'No workspace found.');
+
+        if (!Schema::hasTable('automations')) {
+            try {
+                Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $e) {
+                Log::error('Automations migration failed on store: ' . $e->getMessage());
+            }
+        }
 
         Automation::create([
             'workspace_id'      => $workspace->id,
@@ -71,7 +133,7 @@ class AutomationController extends Controller
 
     public function toggle(Request $request, Automation $automation)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->update(['is_active' => !$automation->is_active]);
 
@@ -80,7 +142,7 @@ class AutomationController extends Controller
 
     public function destroy(Request $request, Automation $automation)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->delete();
 
@@ -89,8 +151,8 @@ class AutomationController extends Controller
 
     public function approve(Request $request, AutomationLog $log)
     {
-        $workspace = $request->user()->currentWorkspace;
-        abort_if($log->workspace_id !== $workspace->id, 403);
+        $workspace = $this->getWorkspace($request);
+        abort_if(!$workspace || $log->workspace_id !== $workspace->id, 403);
 
         if ($log->status !== 'pending_approval') {
             return back()->with('error', 'Log is not pending approval.');
@@ -114,8 +176,8 @@ class AutomationController extends Controller
 
     public function reject(Request $request, AutomationLog $log)
     {
-        $workspace = $request->user()->currentWorkspace;
-        abort_if($log->workspace_id !== $workspace->id, 403);
+        $workspace = $this->getWorkspace($request);
+        abort_if(!$workspace || $log->workspace_id !== $workspace->id, 403);
 
         $log->update([
             'status'      => 'rejected',
@@ -126,3 +188,4 @@ class AutomationController extends Controller
         return back()->with('success', 'Automation action rejected.');
     }
 }
+

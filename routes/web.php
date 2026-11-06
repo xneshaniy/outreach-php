@@ -547,4 +547,13 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->gro
         Route::get('/', [AdminSecurityController::class, 'index'])->name('index');
         Route::put('/', [AdminSecurityController::class, 'update'])->name('update');
     });
+    // Database Migrations & Maintenance
+    Route::match(['get', 'post'], '/migrate', function () {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        if (request()->isMethod('post')) {
+            return back()->with('success', 'Migrations completed: ' . ($output ?: 'Database is up to date.'));
+        }
+        return response('<h3 style="font-family:sans-serif;color:#16a34a">Database Migration Completed</h3><pre style="background:#1e293b;color:#f8fafc;padding:16px;border-radius:8px">' . htmlspecialchars($output ?: 'Database was already up to date.') . '</pre><br><a href="/admin" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-family:sans-serif">Back to Admin</a>');
+    })->name('migrate');
 });

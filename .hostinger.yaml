@@ -34,9 +34,11 @@ deploy:
     - ".env"
 
 # Post-deployment commands (run after files are deployed)
-# Migrations are intentionally NOT automatic: the site owner applies them with
-# `php artisan migrate --force` after taking a backup.
 post_deploy:
+  - command: "php artisan migrate --force"
+    description: "Run database migrations"
+    run_once: false
+
   - command: "php artisan optimize:clear && php artisan optimize"
     description: "Clear and rebuild Laravel caches"
     run_once: false

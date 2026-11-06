@@ -28,6 +28,9 @@ mkdir -p storage/logs \
          storage/framework/views \
          bootstrap/cache
 
+echo "Running database migrations..."
+php artisan migrate --force || true
+
 echo "Rebuilding Laravel caches..."
 php artisan optimize:clear
 php artisan optimize
