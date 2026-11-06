@@ -28,6 +28,7 @@ class ProcessLeadImportJob implements ShouldQueue
             return;
         }
 
-        $importService->processImport($import);
+        $options = $import->column_mapping['_options'] ?? [];
+        $importService->processImport($import, $options);
     }
 }

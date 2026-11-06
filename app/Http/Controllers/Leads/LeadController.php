@@ -9,6 +9,7 @@ use App\Http\Requests\Lead\BulkActionRequest;
 use App\Models\Lead;
 use App\Models\LeadList;
 use App\Models\Company;
+use App\Models\ImportMappingTemplate;
 use App\Models\User;
 use App\Services\LeadService;
 use App\Services\ImportService;
@@ -271,55 +272,167 @@ class LeadController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $mappingTemplates = ImportMappingTemplate::where('workspace_id', $workspace->id)
+            ->latest()
+            ->get(['id', 'name', 'mapping', 'created_at']);
+
+        $availableFields = [
+            ['key' => 'email', 'label' => 'Email Address', 'required' => true, 'description' => 'Primary email for outreach & deduplication'],
+            ['key' => 'first_name', 'label' => 'First Name', 'required' => false, 'description' => 'Given name of lead'],
+            ['key' => 'last_name', 'label' => 'Last Name', 'required' => false, 'description' => 'Surname or family name'],
+            ['key' => 'phone', 'label' => 'Phone Number', 'required' => false, 'description' => 'Direct or office phone'],
+            ['key' => 'mobile', 'label' => 'Mobile Number', 'required' => false, 'description' => 'Cell or personal phone'],
+            ['key' => 'job_title', 'label' => 'Job Title', 'required' => false, 'description' => 'Role or position in company'],
+            ['key' => 'company', 'label' => 'Company Name', 'required' => false, 'description' => 'Account / organization name'],
+            ['key' => 'company_domain', 'label' => 'Company Domain', 'required' => false, 'description' => 'Website domain e.g. acme.com'],
+            ['key' => 'website', 'label' => 'Website URL', 'required' => false, 'description' => 'Full company or personal link'],
+            ['key' => 'industry', 'label' => 'Industry', 'required' => false, 'description' => 'Sector or vertical'],
+            ['key' => 'country', 'label' => 'Country', 'required' => false, 'description' => 'Country name or code'],
+            ['key' => 'city', 'label' => 'City', 'required' => false, 'description' => 'City or municipality'],
+            ['key' => 'state', 'label' => 'State / Region', 'required' => false, 'description' => 'State, province, or region'],
+            ['key' => 'address', 'label' => 'Street Address', 'required' => false, 'description' => 'Physical or street address'],
+            ['key' => 'linkedin_url', 'label' => 'LinkedIn Profile', 'required' => false, 'description' => 'Personal or company LinkedIn URL'],
+            ['key' => 'source', 'label' => 'Lead Source', 'required' => false, 'description' => 'Acquisition origin or channel'],
+            ['key' => 'tags', 'label' => 'Tags', 'required' => false, 'description' => 'Comma separated tag labels'],
+            ['key' => 'notes', 'label' => 'Notes', 'required' => false, 'description' => 'Internal lead notes & comments'],
+        ];
+
         return Inertia::render('Leads/Import', [
             'leadLists' => $leadLists,
+            'mappingTemplates' => $mappingTemplates,
+            'availableFields' => $availableFields,
         ]);
     }
 
     public function importPreview(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            "file" => "nullable|file|mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel,application/octet-stream|max:10240",
-            "google_sheet_url" => ["nullable", "string", "max:500", "regex:/https:\/\/docs\.google\.com\/spreadsheets\//"],
+            'file' => 'nullable|file|max:20480',
+            'google_sheet_url' => ['nullable', 'string', 'max:500', 'regex:/https:\/\/docs\.google\.com\/spreadsheets\//'],
         ]);
 
-        if (! $request->hasFile("file") && ! $request->filled("google_sheet_url")) {
-            return response()->json(["message" => "Please provide a CSV file or a valid Google Sheets URL."], 422);
+        if (!$request->hasFile('file') && !$request->filled('google_sheet_url')) {
+            return response()->json(['message' => 'Please provide a CSV/Excel file or a valid Google Sheets URL.'], 422);
         }
 
-        if ($request->filled("google_sheet_url")) {
+        $fileType = 'csv';
+
+        if ($request->filled('google_sheet_url')) {
             try {
-                $sheetData = app(\App\Services\GoogleSheetsService::class)->fetchAndStoreCsv($request->input("google_sheet_url"));
-                $path = $sheetData["stored_path"];
-                $originalFilename = $sheetData["original_filename"];
+                $sheetData = app(\App\Services\GoogleSheetsService::class)->fetchAndStoreCsv($request->input('google_sheet_url'));
+                $path = $sheetData['stored_path'];
+                $originalFilename = $sheetData['original_filename'];
+                $fileType = 'google_sheets';
             } catch (\Throwable $e) {
-                return response()->json(["message" => $e->getMessage()], 422);
+                return response()->json(['message' => $e->getMessage()], 422);
             }
         } else {
-            $path = $request->file("file")->store("imports", "local");
-            $originalFilename = $request->file("file")->getClientOriginalName();
+            $uploaded = $request->file('file');
+            $originalFilename = $uploaded->getClientOriginalName();
+            $ext = strtolower($uploaded->getClientOriginalExtension());
+
+            if (in_array($ext, ['xlsx', 'xls'])) {
+                $fileType = 'excel';
+                $tempStored = $uploaded->store('imports/temp', 'local');
+                $tempFullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($tempStored);
+
+                try {
+                    $path = $this->importService->convertExcelToCsv($tempFullPath);
+                    @unlink($tempFullPath);
+                } catch (\Throwable $e) {
+                    return response()->json(['message' => 'Could not read Excel file: ' . $e->getMessage()], 422);
+                }
+            } else {
+                $path = $uploaded->store('imports', 'local');
+            }
         }
 
         $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
         try {
             $columns = $this->importService->detectColumns($fullPath);
-            $preview = $this->importService->previewImport($fullPath);
-            $suggestedMapping = $this->importService->suggestMapping($columns);
+            $preview = $this->importService->previewImport($fullPath, 10);
+            $suggestedResult = $this->importService->suggestMappingWithConfidence($columns);
 
             return response()->json([
-                "columns" => $columns,
-                "preview" => $preview,
-                "suggested_mapping" => $suggestedMapping,
-                "stored_path" => $path,
-                "original_filename" => $originalFilename,
+                'columns' => $columns,
+                'preview' => $preview,
+                'suggested_mapping' => $suggestedResult['mapping'],
+                'suggested_details' => $suggestedResult['details'],
+                'stored_path' => $path,
+                'original_filename' => $originalFilename,
+                'file_type' => $fileType,
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("CSV Import preview failed: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('Import preview failed: ' . $e->getMessage());
             return response()->json([
-                "message" => "Could not process CSV file: " . $e->getMessage(),
+                'message' => 'Could not process file: ' . $e->getMessage(),
             ], 422);
         }
     }
+
+    public function importLivePreview(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'stored_path' => 'required|string',
+            'column_mapping' => 'required|array',
+        ]);
+
+        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($request->input('stored_path'));
+        if (!file_exists($fullPath)) {
+            return response()->json(['message' => 'Uploaded file session expired or not found. Please re-upload.'], 404);
+        }
+
+        $workspace = $request->user()->currentWorkspace;
+        $mapping = $request->input('column_mapping');
+
+        try {
+            $result = $this->importService->generateLivePreview($fullPath, $mapping, $workspace, 20);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to generate live preview: ' . $e->getMessage()], 422);
+        }
+    }
+
+    public function storeTemplate(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'mapping' => 'required|array',
+        ]);
+
+        $workspace = $request->user()->currentWorkspace;
+
+        $template = ImportMappingTemplate::updateOrCreate(
+            [
+                'workspace_id' => $workspace->id,
+                'name' => trim($request->input('name')),
+            ],
+            [
+                'user_id' => $request->user()->id,
+                'mapping' => $request->input('mapping'),
+            ]
+        );
+
+        return response()->json([
+            'template' => $template,
+            'message' => 'Mapping template saved successfully.',
+        ]);
+    }
+
+    public function destroyTemplate(Request $request, ImportMappingTemplate $template): \Illuminate\Http\JsonResponse
+    {
+        $workspace = $request->user()->currentWorkspace;
+        if ($template->workspace_id !== $workspace->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $template->delete();
+
+        return response()->json([
+            'message' => 'Template removed successfully.',
+        ]);
+    }
+
     public function importProcess(Request $request): RedirectResponse
     {
         $request->validate([
@@ -327,9 +440,14 @@ class LeadController extends Controller
             'lead_list_id' => 'nullable|exists:lead_lists,id',
             'column_mapping' => 'required|array',
             'original_filename' => 'required|string',
+            'duplicate_handling' => 'nullable|string|in:skip,update',
         ]);
 
         $workspace = $request->user()->currentWorkspace;
+        $mapping = $request->input('column_mapping');
+        $mapping['_options'] = [
+            'duplicate_handling' => $request->input('duplicate_handling', 'skip'),
+        ];
 
         $import = \App\Models\LeadImport::create([
             'workspace_id' => $workspace->id,
@@ -337,7 +455,7 @@ class LeadController extends Controller
             'created_by' => $request->user()->id,
             'original_filename' => $request->original_filename,
             'stored_path' => $request->stored_path,
-            'column_mapping' => $request->column_mapping,
+            'column_mapping' => $mapping,
             'status' => 'pending',
         ]);
 
@@ -349,32 +467,7 @@ class LeadController extends Controller
         }
 
         return redirect()->route('leads.imports.show', $import)
-            ->with('success', 'Import processed successfully.');
-    }
-
-    public function importsIndex(Request $request): Response
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        $imports = \App\Models\LeadImport::where('workspace_id', $workspace->id)
-            ->with(['leadList', 'creator'])
-            ->latest()
-            ->paginate(20);
-
-        return Inertia::render('Leads/Imports', [
-            'imports' => $imports,
-        ]);
-    }
-
-    public function importShow(Request $request, \App\Models\LeadImport $import): Response
-    {
-        $this->authorize('view', $import);
-
-        $import->load(['leadList', 'creator', 'errors']);
-
-        return Inertia::render('Leads/ImportShow', [
-            'import' => $import,
-        ]);
+            ->with('success', 'Import completed successfully.');
     }
 
     public function export(Request $request)

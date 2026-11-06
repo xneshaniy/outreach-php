@@ -115,6 +115,13 @@ const groups = computed(() => [
         ],
     },
     {
+        label: 'AI & SDR Tools',
+        items: [
+            { name: 'AgentSDR Tools', href: route('tools.agent-sdr.index'), icon: AutomationIcon, active: route().current('tools.agent-sdr.*') },
+            { name: 'LinkedIn AI Applier', href: route('tools.linkedin-applier.index'), icon: LeadsIcon, active: route().current('tools.linkedin-applier.*') },
+        ],
+    },
+    {
         label: 'Insights',
         items: [
             {

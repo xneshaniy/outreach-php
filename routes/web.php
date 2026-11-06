@@ -33,6 +33,8 @@ use App\Http\Controllers\Admin\AdminWorkspaceController;
 use App\Http\Controllers\Companies\CompanyEnrichmentController;
 use App\Http\Controllers\Integrations\GoogleIntegrationController;
 use App\Http\Controllers\Leads\DuplicateMergeController;
+use App\Http\Controllers\Tools\LinkedInApplierController;
+use App\Http\Controllers\Tools\AgentSDRController;
 use App\Http\Controllers\Automations\AutomationController;
 use App\Http\Controllers\Settings\ComplianceController;
 use App\Http\Controllers\Products\ProductController;
@@ -98,6 +100,9 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/', [LeadController::class, 'store'])->name('store');
         Route::get('/import', [LeadController::class, 'importForm'])->name('import.form');
         Route::post('/import/preview', [LeadController::class, 'importPreview'])->name('import.preview');
+        Route::post('/import/live-preview', [LeadController::class, 'importLivePreview'])->name('import.live-preview');
+        Route::post('/import/templates', [LeadController::class, 'storeTemplate'])->name('import.templates.store');
+        Route::delete('/import/templates/{template}', [LeadController::class, 'destroyTemplate'])->name('import.templates.destroy');
         Route::post('/import', [LeadController::class, 'importProcess'])->name('import.process');
         Route::get('/imports', [LeadController::class, 'importsIndex'])->name('imports.index');
         Route::get('/imports/{import}', [LeadController::class, 'importShow'])->name('imports.show');
@@ -351,6 +356,31 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::post('/import', [GoogleIntegrationController::class, 'importSheet'])->name('import');
         Route::get('/history', [GoogleIntegrationController::class, 'syncHistory'])->name('history');
         Route::put('/{sync}/toggle-schedule', [GoogleIntegrationController::class, 'toggleScheduledSync'])->name('toggle-schedule');
+    });
+
+    // LinkedIn AI Job Applier & Networking Bot (inspired by beatwad/LinkedIn-AI-Job-Applier-Ultimate)
+    Route::prefix('tools/linkedin-applier')->name('tools.linkedin-applier.')->group(function () {
+        Route::get('/', [LinkedInApplierController::class, 'index'])->name('index');
+        Route::post('/search', [LinkedInApplierController::class, 'search'])->name('search');
+        Route::post('/applications/{application}/tailor', [LinkedInApplierController::class, 'tailor'])->name('tailor');
+        Route::post('/applications/{application}/solve-questions', [LinkedInApplierController::class, 'solve-questions'])->name('solve-questions');
+        Route::put('/applications/{application}/status', [LinkedInApplierController::class, 'updateStatus'])->name('update-status');
+        Route::post('/network/lion', [LinkedInApplierController::class, 'generateLion'])->name('lion');
+        Route::post('/inbox/classify', [LinkedInApplierController::class, 'classifyMessage'])->name('classify-message');
+    });
+
+    // AgentSDR Tooling & Workspace (inspired by Kandid-ai/AgentSDR tools)
+    Route::prefix('tools/agent-sdr')->name('tools.agent-sdr.')->group(function () {
+        Route::get('/', [AgentSDRController::class, 'index'])->name('index');
+        Route::post('/providers', [AgentSDRController::class, 'saveProvider'])->name('providers.save');
+        Route::post('/enrich/{lead}', [AgentSDRController::class, 'enrichLead'])->name('enrich');
+        Route::post('/ai-columns', [AgentSDRController::class, 'createAiColumn'])->name('ai-columns.create');
+        Route::post('/ai-columns/{column}/run', [AgentSDRController::class, 'runAiColumn'])->name('ai-columns.run');
+        Route::post('/propose-action', [AgentSDRController::class, 'proposeAction'])->name('propose-action');
+        Route::post('/classify-reply', [AgentSDRController::class, 'classifyReply'])->name('classify-reply');
+        Route::post('/approval/{item}/approve', [AgentSDRController::class, 'approveAction'])->name('approval.approve');
+        Route::post('/approval/{item}/reject', [AgentSDRController::class, 'rejectAction'])->name('approval.reject');
+        Route::put('/approval/{item}/draft', [AgentSDRController::class, 'updateDraft'])->name('approval.update-draft');
     });
 });
 

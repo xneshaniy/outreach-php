@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\Lead;
 use App\Models\LeadImport;
 use App\Models\LeadImportError;
@@ -13,10 +14,111 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use League\Csv\Reader;
 use League\Csv\Statement;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Csv as CsvWriter;
 
 class ImportService
 {
-    public function processImport(LeadImport $import): void
+    /**
+     * Comprehensive alias and synonym dictionary for CRM fields.
+     */
+    protected array $fieldAliases = [
+        'email' => [
+            'email', 'email_address', 'e_mail', 'mail', 'contact_email', 'work_email',
+            'business_email', 'corporate_email', 'primary_email', 'electronic_mail',
+        ],
+        'first_name' => [
+            'first_name', 'firstname', 'fname', 'first', 'given_name', 'forename',
+            'contact_first_name', 'lead_first_name',
+        ],
+        'last_name' => [
+            'last_name', 'lastname', 'lname', 'last', 'surname', 'family_name',
+            'contact_last_name', 'lead_last_name',
+        ],
+        'phone' => [
+            'phone', 'phone_number', 'telephone', 'tel', 'phone_no', 'office_phone',
+            'work_phone', 'business_phone', 'contact_number', 'contact_phone',
+        ],
+        'mobile' => [
+            'mobile', 'mobile_phone', 'cell', 'cellphone', 'cell_number', 'mobile_number',
+        ],
+        'job_title' => [
+            'job_title', 'title', 'position', 'role', 'designation', 'job',
+            'occupation', 'professional_title', 'headline',
+        ],
+        'company' => [
+            'company', 'company_name', 'organization', 'organisation', 'org',
+            'business', 'business_name', 'firm', 'employer', 'account', 'account_name',
+            'agency', 'corp', 'corporation',
+        ],
+        'company_domain' => [
+            'domain', 'company_domain', 'website_domain', 'email_domain', 'corp_domain',
+        ],
+        'website' => [
+            'website', 'url', 'site', 'web', 'homepage', 'company_website',
+            'web_address', 'link',
+        ],
+        'industry' => [
+            'industry', 'sector', 'vertical', 'niche', 'business_category', 'category',
+        ],
+        'country' => [
+            'country', 'nation', 'country_name', 'location_country', 'geo_country',
+        ],
+        'city' => [
+            'city', 'town', 'municipality', 'location_city', 'metro',
+        ],
+        'state' => [
+            'state', 'province', 'region', 'state_province', 'location_state',
+        ],
+        'address' => [
+            'address', 'street', 'street_address', 'location', 'full_address',
+        ],
+        'linkedin_url' => [
+            'linkedin', 'linkedin_url', 'linkedin_profile', 'linkedin_link',
+            'social_linkedin', 'profile_url',
+        ],
+        'source' => [
+            'source', 'lead_source', 'origin', 'acquisition_source', 'campaign',
+        ],
+        'tags' => [
+            'tags', 'tag', 'labels', 'categories', 'groups', 'segment',
+        ],
+        'notes' => [
+            'notes', 'note', 'comments', 'comment', 'description', 'details', 'remarks',
+        ],
+    ];
+
+    /**
+     * Converts an uploaded Excel file (.xlsx or .xls) to a CSV in local storage.
+     */
+    public function convertExcelToCsv(string $inputPath, ?string $destinationPath = null): string
+    {
+        $spreadsheet = IOFactory::load($inputPath);
+
+        if (!$destinationPath) {
+            $destinationPath = 'imports/' . Str::random(40) . '.csv';
+        }
+
+        $fullDestPath = Storage::disk('local')->path($destinationPath);
+        $destDir = dirname($fullDestPath);
+        if (!is_dir($destDir)) {
+            mkdir($destDir, 0755, true);
+        }
+
+        $writer = new CsvWriter($spreadsheet);
+        $writer->setSheetIndex($spreadsheet->getActiveSheetIndex());
+        $writer->setDelimiter(',');
+        $writer->setEnclosure('"');
+        $writer->setLineEnding("\r\n");
+        $writer->save($fullDestPath);
+
+        // Sanitize the resulting CSV
+        $this->sanitizeCsvFile($fullDestPath);
+
+        return $destinationPath;
+    }
+
+    public function processImport(LeadImport $import, array $options = []): void
     {
         @set_time_limit(300);
         $import->markAsProcessing();
@@ -41,13 +143,15 @@ class ImportService
             $workspace = $import->workspace;
             $creator = $import->creator;
             $mapping = $import->column_mapping ?? $this->getDefaultMapping();
-            $leadService = app(LeadService::class);
 
             $batchSize = 100;
             $batch = [];
 
+            $skipDuplicates = ($options['duplicate_handling'] ?? 'skip') !== 'update';
+            $updateExisting = ($options['duplicate_handling'] ?? 'skip') === 'update';
+
             foreach ($records as $index => $record) {
-                $rowNumber = $index + 2; // +2 because header is row 1, 0-indexed
+                $rowNumber = $index + 2; // +2 because header is row 1
 
                 try {
                     $leadData = $this->mapRow($record, $mapping);
@@ -56,7 +160,7 @@ class ImportService
                     $batch[] = $leadData;
 
                     if (count($batch) >= $batchSize) {
-                        $this->processBatch($batch, $workspace, $creator, $leadList, $import, $rowNumber - count($batch) + 1);
+                        $this->processBatch($batch, $workspace, $creator, $leadList, $import, $rowNumber - count($batch) + 1, $skipDuplicates, $updateExisting);
                         $batch = [];
                     }
                 } catch (\Exception $e) {
@@ -67,7 +171,7 @@ class ImportService
 
             // Process remaining batch
             if (!empty($batch)) {
-                $this->processBatch($batch, $workspace, $creator, $leadList, $import, $totalRows - count($batch) + 1);
+                $this->processBatch($batch, $workspace, $creator, $leadList, $import, $totalRows - count($batch) + 1, $skipDuplicates, $updateExisting);
             }
 
             $import->markAsCompleted();
@@ -76,11 +180,19 @@ class ImportService
         }
     }
 
-    private function processBatch(array $batch, Workspace $workspace, User $creator, ?LeadList $list, LeadImport $import, int $startRow): void
-    {
+    private function processBatch(
+        array $batch,
+        Workspace $workspace,
+        User $creator,
+        ?LeadList $list,
+        LeadImport $import,
+        int $startRow,
+        bool $skipDuplicates = true,
+        bool $updateExisting = false
+    ): void {
         $results = app(LeadService::class)->bulkCreateLeads($batch, $workspace, $creator, [
-            'skip_duplicates' => true,
-            'update_existing' => false,
+            'skip_duplicates' => $skipDuplicates,
+            'update_existing' => $updateExisting,
         ]);
 
         $import->incrementProcessed(
@@ -93,37 +205,34 @@ class ImportService
             $this->recordError($import, $startRow + $error['row'] - 1, $batch[$error['row'] - 1] ?? [], $error['error']);
         }
 
-        // Run company matching on newly created leads (batch from last N created)
+        // Run company matching & enrichment on newly created leads
         if ($results['created'] > 0) {
             $matchingService = app(\App\Services\UnifiedMatchingService::class);
-            $recentLeads = \App\Models\Lead::where('workspace_id', $workspace->id)
-                ->whereNull('company_match_status')
-                ->orWhere('company_match_status', 'unlinked')
+            $recentLeads = Lead::where('workspace_id', $workspace->id)
+                ->where(function ($q) {
+                    $q->whereNull('company_match_status')
+                      ->orWhere('company_match_status', 'unlinked');
+                })
                 ->latest()
                 ->limit($results['created'])
                 ->get();
+
             foreach ($recentLeads as $lead) {
                 try {
                     $matchingService->enrichLeadWithCompany($lead, $creator);
                 } catch (\Exception $e) {
-                    // Non-fatal: continue even if enrichment fails
+                    // Non-fatal: continue
                 }
             }
         }
-
-        // Add created leads to list if specified
-        if ($list && $results['created'] > 0) {
-            // Note: In a real implementation, you'd track which leads were created
-            // This is simplified - you'd need to return the created lead IDs
-        }
     }
 
-    private function mapRow(array $record, array $mapping): array
+    public function mapRow(array $record, array $mapping): array
     {
         $data = [];
         foreach ($mapping as $field => $column) {
-            if (isset($record[$column])) {
-                $value = trim($record[$column]);
+            if (!empty($column) && isset($record[$column])) {
+                $value = trim((string)$record[$column]);
                 if ($value !== '') {
                     $data[$field] = $value;
                 }
@@ -132,7 +241,7 @@ class ImportService
         return $data;
     }
 
-    private function getDefaultMapping(): array
+    public function getDefaultMapping(): array
     {
         return [
             'first_name' => 'first_name',
@@ -148,6 +257,7 @@ class ImportService
             'country' => 'country',
             'city' => 'city',
             'state' => 'state',
+            'address' => 'address',
             'linkedin_url' => 'linkedin_url',
             'source' => 'source',
             'tags' => 'tags',
@@ -173,6 +283,233 @@ class ImportService
         $records = Statement::create()->offset(0)->limit($rows)->process($csv);
 
         return iterator_to_array($records);
+    }
+
+    /**
+     * Advanced auto-mapping matching algorithm.
+     * Uses exact match, normalized alphanumeric match, alias/synonym dictionary, and similarity scoring.
+     */
+    public function suggestMappingWithConfidence(array $csvColumns): array
+    {
+        $mapping = [];
+        $confidences = [];
+        $usedColumns = [];
+
+        foreach ($this->fieldAliases as $field => $aliases) {
+            $bestMatch = null;
+            $bestScore = 0;
+            $matchType = 'none';
+
+            foreach ($csvColumns as $column) {
+                if (in_array($column, $usedColumns, true)) {
+                    continue;
+                }
+
+                $cleanCol = strtolower(trim((string)$column));
+                $normCol = preg_replace('/[^a-z0-9]/', '', $cleanCol);
+
+                // 1. Exact field name match
+                if ($cleanCol === strtolower($field) || $normCol === preg_replace('/[^a-z0-9]/', '', strtolower($field))) {
+                    $bestMatch = $column;
+                    $bestScore = 100;
+                    $matchType = 'exact';
+                    break;
+                }
+
+                // 2. Exact alias match
+                foreach ($aliases as $alias) {
+                    $cleanAlias = strtolower($alias);
+                    $normAlias = preg_replace('/[^a-z0-9]/', '', $cleanAlias);
+
+                    if ($cleanCol === $cleanAlias || $normCol === $normAlias) {
+                        if ($bestScore < 95) {
+                            $bestMatch = $column;
+                            $bestScore = 95;
+                            $matchType = 'alias';
+                        }
+                    } elseif (str_contains($cleanCol, $cleanAlias)) {
+                        if ($bestScore < 85) {
+                            $bestMatch = $column;
+                            $bestScore = 85;
+                            $matchType = 'contains';
+                        }
+                    } else {
+                        // Levenshtein fuzzy similarity
+                        similar_text($cleanCol, $cleanAlias, $percent);
+                        if ($percent > 80 && $percent > $bestScore) {
+                            $bestMatch = $column;
+                            $bestScore = (int)$percent;
+                            $matchType = 'fuzzy';
+                        }
+                    }
+                }
+            }
+
+            if ($bestMatch && $bestScore >= 75) {
+                $mapping[$field] = $bestMatch;
+                $confidences[$field] = [
+                    'column' => $bestMatch,
+                    'confidence' => $bestScore,
+                    'match_type' => $matchType,
+                ];
+                $usedColumns[] = $bestMatch;
+            } else {
+                $mapping[$field] = '';
+                $confidences[$field] = null;
+            }
+        }
+
+        return [
+            'mapping' => $mapping,
+            'details' => $confidences,
+        ];
+    }
+
+    public function suggestMapping(array $csvColumns): array
+    {
+        $result = $this->suggestMappingWithConfidence($csvColumns);
+        return $result['mapping'];
+    }
+
+    /**
+     * Generates a live mapped preview for the first 10-20 rows with validations:
+     * - Email validity
+     * - Duplicate check in workspace
+     * - Company matching & verified protection status
+     * - Statistics
+     */
+    public function generateLivePreview(string $path, array $mapping, Workspace $workspace, int $limit = 20): array
+    {
+        $this->sanitizeCsvFile($path);
+        $csv = Reader::createFromPath($path, 'r');
+        $csv->setHeaderOffset(0);
+
+        // Read total count
+        $allRecords = Statement::create()->process($csv);
+        $totalRows = iterator_count($allRecords);
+
+        // Read sample records
+        $csv = Reader::createFromPath($path, 'r');
+        $csv->setHeaderOffset(0);
+        $records = Statement::create()->offset(0)->limit($limit)->process($csv);
+
+        $mappedRows = [];
+        $sampleValid = 0;
+        $sampleDuplicates = 0;
+        $sampleInvalidEmails = 0;
+        $sampleCompanyMatches = 0;
+        $sampleVerifiedCompanies = 0;
+
+        foreach ($records as $index => $record) {
+            $rowNumber = $index + 1;
+            $leadData = $this->mapRow($record, $mapping);
+
+            $email = isset($leadData['email']) ? strtolower(trim($leadData['email'])) : '';
+            $companyName = $leadData['company'] ?? '';
+            $companyDomain = $leadData['company_domain'] ?? '';
+
+            // 1. Email validation
+            $hasEmail = !empty($email);
+            $isValidEmail = $hasEmail && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+
+            // 2. Duplicate lead check
+            $isDuplicate = false;
+            $existingLeadId = null;
+            if ($isValidEmail) {
+                $existingLead = Lead::where('workspace_id', $workspace->id)
+                    ->where('normalized_email', $email)
+                    ->select(['id', 'first_name', 'last_name', 'email'])
+                    ->first();
+
+                if ($existingLead) {
+                    $isDuplicate = true;
+                    $existingLeadId = $existingLead->id;
+                }
+            }
+
+            // 3. Company matching & verified data check
+            $matchedCompany = null;
+            $isVerifiedCompany = false;
+
+            if (!empty($companyDomain) || !empty($companyName)) {
+                $query = Company::where('workspace_id', $workspace->id);
+                if (!empty($companyDomain)) {
+                    $cleanDomain = strtolower(preg_replace('#^https?://#i', '', rtrim($companyDomain, '/')));
+                    $query->where(function ($q) use ($cleanDomain, $companyName) {
+                        $q->where('domain', $cleanDomain);
+                        if (!empty($companyName)) {
+                            $q->orWhere('name', $companyName);
+                        }
+                    });
+                } else {
+                    $query->where('name', $companyName);
+                }
+
+                $foundCompany = $query->first(['id', 'name', 'domain', 'verification_status', 'enrichment_status']);
+                if ($foundCompany) {
+                    $isVerifiedCompany = (
+                        $foundCompany->verification_status === 'verified' ||
+                        $foundCompany->enrichment_status === 'verified'
+                    );
+                    $matchedCompany = [
+                        'id' => $foundCompany->id,
+                        'name' => $foundCompany->name,
+                        'domain' => $foundCompany->domain,
+                        'is_verified' => $isVerifiedCompany,
+                    ];
+                    $sampleCompanyMatches++;
+                    if ($isVerifiedCompany) {
+                        $sampleVerifiedCompanies++;
+                    }
+                }
+            }
+
+            // Status determination
+            $status = 'valid';
+            $statusLabel = 'Valid Lead';
+            if (!$hasEmail) {
+                $status = 'missing_email';
+                $statusLabel = 'Missing Email';
+                $sampleInvalidEmails++;
+            } elseif (!$isValidEmail) {
+                $status = 'invalid_email';
+                $statusLabel = 'Invalid Email';
+                $sampleInvalidEmails++;
+            } elseif ($isDuplicate) {
+                $status = 'duplicate';
+                $statusLabel = 'Duplicate Lead';
+                $sampleDuplicates++;
+            } else {
+                $sampleValid++;
+            }
+
+            $mappedRows[] = [
+                'row_number' => $rowNumber,
+                'raw_record' => $record,
+                'data' => $leadData,
+                'status' => $status,
+                'status_label' => $statusLabel,
+                'is_valid' => $isValidEmail && !$isDuplicate,
+                'is_duplicate' => $isDuplicate,
+                'existing_lead_id' => $existingLeadId,
+                'matched_company' => $matchedCompany,
+                'is_verified_company' => $isVerifiedCompany,
+            ];
+        }
+
+        return [
+            'total_rows' => $totalRows,
+            'preview_rows' => $mappedRows,
+            'stats' => [
+                'total_rows' => $totalRows,
+                'sample_size' => count($mappedRows),
+                'sample_valid' => $sampleValid,
+                'sample_duplicates' => $sampleDuplicates,
+                'sample_invalid_emails' => $sampleInvalidEmails,
+                'sample_company_matches' => $sampleCompanyMatches,
+                'sample_verified_companies' => $sampleVerifiedCompanies,
+            ],
+        ];
     }
 
     /**
@@ -245,44 +582,6 @@ class ImportService
             $lines[0] = $newFirstLine;
             file_put_contents($path, implode("\n", $lines));
         }
-    }
-
-    public function suggestMapping(array $csvColumns): array
-    {
-        $fieldAliases = [
-            'first_name' => ['first_name', 'firstname', 'fname', 'given_name'],
-            'last_name' => ['last_name', 'lastname', 'lname', 'surname', 'family_name'],
-            'email' => ['email', 'email_address', 'e_mail', 'mail'],
-            'phone' => ['phone', 'phone_number', 'telephone', 'tel'],
-            'mobile' => ['mobile', 'mobile_phone', 'cell', 'cellphone'],
-            'job_title' => ['job_title', 'title', 'position', 'role'],
-            'company' => ['company', 'company_name', 'organization', 'org'],
-            'company_domain' => ['domain', 'company_domain', 'website_domain'],
-            'website' => ['website', 'url', 'site'],
-            'industry' => ['industry', 'sector'],
-            'country' => ['country', 'nation'],
-            'city' => ['city', 'town'],
-            'state' => ['state', 'province', 'region'],
-            'linkedin_url' => ['linkedin', 'linkedin_url', 'linkedin_profile'],
-            'source' => ['source', 'lead_source', 'origin'],
-            'tags' => ['tags', 'tag', 'labels', 'categories'],
-            'notes' => ['notes', 'note', 'comments', 'description'],
-        ];
-
-        $mapping = [];
-        foreach ($fieldAliases as $field => $aliases) {
-            foreach ($aliases as $alias) {
-                foreach ($csvColumns as $column) {
-                    if (Str::lower($column) === Str::lower($alias) ||
-                        Str::contains(Str::lower($column), Str::lower($alias))) {
-                        $mapping[$field] = $column;
-                        break 2;
-                    }
-                }
-            }
-        }
-
-        return $mapping;
     }
 
     private function recordError(LeadImport $import, int $rowNumber, array $rowData, string $error): void

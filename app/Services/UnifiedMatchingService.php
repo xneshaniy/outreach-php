@@ -141,7 +141,7 @@ class UnifiedMatchingService
      */
     private function mergeIntoCompany(Company $company, array $leadData): void
     {
-        $skip = $company->verification_status === 'verified';
+        $skip = ($company->verification_status === 'verified' || $company->enrichment_status === 'verified');
         $dirty = false;
 
         $fields = [
