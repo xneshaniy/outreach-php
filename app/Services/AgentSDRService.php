@@ -48,13 +48,14 @@ class AgentSDRService
             $enrichedFields = $this->synthesizeEnrichmentWithAI($lead);
         }
 
-        // Update lead fields
+        // Update lead fields — NOTE: enrichment_status is on companies table, not leads.
+        // Use enrichment_source (which IS on leads) to track that enrichment ran.
         $lead->update(array_filter([
-            'phone' => empty($lead->phone) ? ($enrichedFields['phone'] ?? null) : $lead->phone,
-            'job_title' => empty($lead->job_title) ? ($enrichedFields['job_title'] ?? null) : $lead->job_title,
-            'linkedin_url' => empty($lead->linkedin_url) ? ($enrichedFields['linkedin_url'] ?? null) : $lead->linkedin_url,
-            'industry' => empty($lead->industry) ? ($enrichedFields['industry'] ?? null) : $lead->industry,
-            'enrichment_status' => 'enriched',
+            'phone'            => empty($lead->phone)        ? ($enrichedFields['phone']        ?? null) : $lead->phone,
+            'job_title'        => empty($lead->job_title)    ? ($enrichedFields['job_title']    ?? null) : $lead->job_title,
+            'linkedin_url'     => empty($lead->linkedin_url) ? ($enrichedFields['linkedin_url'] ?? null) : $lead->linkedin_url,
+            'industry'         => empty($lead->industry)     ? ($enrichedFields['industry']     ?? null) : $lead->industry,
+            'enrichment_source' => $providerUsed,
         ]));
 
         return [
