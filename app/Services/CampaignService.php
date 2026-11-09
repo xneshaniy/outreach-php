@@ -68,6 +68,15 @@ class CampaignService
                 }
             }
 
+            if (!empty($data['lead_list_id'])) {
+                $list = LeadList::find($data['lead_list_id']);
+                if ($list) {
+                    $this->addRecipientsFromList($campaign, $list);
+                }
+            } elseif (!empty($data['lead_ids'])) {
+                $this->addRecipients($campaign, (array) $data['lead_ids']);
+            }
+
             return $campaign->load('steps');
         });
     }
@@ -214,7 +223,7 @@ class CampaignService
 
     public function addRecipientsFromList(Campaign $campaign, LeadList $list): int
     {
-        $leadIds = $list->leads()->pluck('id')->toArray();
+        $leadIds = $list->leads()->pluck('leads.id')->toArray();
         return $this->addRecipients($campaign, $leadIds);
     }
 
@@ -244,6 +253,30 @@ class CampaignService
         // on and will simply have nothing to send until recipients are added.
         $campaign->activate();
 
+        // Auto-populate recipients if none are attached yet
+        if ($campaign->recipients()->count() === 0) {
+            if ($campaign->lead_list_id) {
+                $list = LeadList::find($campaign->lead_list_id);
+                if ($list) {
+                    $this->addRecipientsFromList($campaign, $list);
+                }
+            }
+
+            if ($campaign->recipients()->count() === 0) {
+                $availableLeadIds = Lead::where('workspace_id', $campaign->workspace_id)
+                    ->where('status', '!=', 'archived')
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->limit(min(100, $campaign->daily_send_limit ?: 100))
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($availableLeadIds)) {
+                    $this->addRecipients($campaign, $availableLeadIds);
+                }
+            }
+        }
+
         // Schedule first step for all pending recipients
         $this->scheduleFirstStep($campaign);
     }
@@ -254,7 +287,7 @@ class CampaignService
         if (!$firstStep) return;
 
         $delay = $firstStep->getTotalDelayMinutes();
-        $sendAt = now()->addMinutes($delay);
+        $sendAt = $delay > 0 ? now()->addMinutes($delay) : now();
 
         // Apply sending window
         $window = $campaign->sending_window;

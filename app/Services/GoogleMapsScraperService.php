@@ -27,11 +27,15 @@ class GoogleMapsScraperService
     public function scrapeGoogleMaps(
         Workspace $workspace,
         string $query,
-        string $location = '',
-        int $limit = 10,
-        bool $enrichWebsites = true,
-        string $ratingFilter = 'all'
+        ?string $location = '',
+        ?int $limit = 10,
+        ?bool $enrichWebsites = true,
+        ?string $ratingFilter = 'all'
     ): array {
+        $location = (string) ($location ?? '');
+        $limit = max(1, (int) ($limit ?: 10));
+        $enrichWebsites = (bool) ($enrichWebsites ?? true);
+        $ratingFilter = (string) ($ratingFilter ?? 'all');
         // 0. Detect and extract query & location if a Google Maps URL is provided
         if (str_contains($query, 'http://') || str_contains($query, 'https://') || str_contains($query, 'google.com/maps') || str_contains($query, 'maps.app.goo.gl') || str_contains($query, 'goo.gl/maps')) {
             $parsed = $this->parseMapsUrl($query);
@@ -312,10 +316,11 @@ class GoogleMapsScraperService
     protected function synthesizeLocalBusinessesWithAi(
         Workspace $workspace,
         string $query,
-        string $location,
-        int $limit,
+        ?string $location = '',
+        int $limit = 10,
         string $ratingFilter = 'all'
     ): array {
+        $location = (string) ($location ?? '');
         $config = $this->aiService->getConfig($workspace);
         if (!$config || empty($config->api_key)) {
             return [];

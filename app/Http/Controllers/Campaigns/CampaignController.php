@@ -315,7 +315,16 @@ class CampaignController extends Controller
     {
         $this->authorize('update', $campaign);
 
+        if ($campaign->recipients()->count() === 0) {
+            $this->campaignService->activateCampaign($campaign);
+        }
+
         $sent = $this->campaignService->processDueEmails($campaign, 50);
+        try {
+            \App\Support\QueueDrain::run(50);
+        } catch (\Throwable $e) {
+            // background scheduler will drain
+        }
 
         return back()->with('success', "Batch run complete: processed {$sent} email(s) across selected sending accounts.");
     }
@@ -368,10 +377,46 @@ class CampaignController extends Controller
 
         try {
             $this->campaignService->activateCampaign($campaign);
-            return back()->with('success', 'Campaign started and active. Distributing emails across sending accounts.');
+
+            // Immediately send up to 20 emails
+            $sent = $this->campaignService->processDueEmails($campaign, 20);
+            try {
+                \App\Support\QueueDrain::run(20);
+            } catch (\Throwable $e) {
+                // background worker will process
+            }
+
+            $msg = $sent > 0
+                ? "Campaign started and active! Dispatched {$sent} email(s) immediately."
+                : "Campaign started and active. Emails scheduled and queued for sending.";
+
+            return back()->with('success', $msg);
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    public function addWorkspaceLeads(Request $request, Campaign $campaign): RedirectResponse
+    {
+        $this->authorize('update', $campaign);
+
+        $limit = (int) $request->input('limit', 100);
+        $leadIds = \App\Models\Lead::where('workspace_id', $campaign->workspace_id)
+            ->where('status', '!=', 'archived')
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->limit($limit)
+            ->pluck('id')
+            ->toArray();
+
+        $added = $this->campaignService->addRecipients($campaign, $leadIds);
+
+        if (in_array($campaign->status, [Campaign::STATUS_ACTIVE, Campaign::STATUS_COMPLETED])) {
+            $campaign->update(['status' => Campaign::STATUS_ACTIVE]);
+            $this->campaignService->scheduleFirstStep($campaign);
+        }
+
+        return back()->with('success', "Added {$added} leads to '{$campaign->name}'.");
     }
 
     public function pause(Request $request, Campaign $campaign): RedirectResponse

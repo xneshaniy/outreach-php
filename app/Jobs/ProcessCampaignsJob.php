@@ -75,6 +75,7 @@ class ProcessCampaignsJob implements ShouldQueue
     private function checkCompletedCampaigns(): void
     {
         $campaigns = Campaign::where('status', Campaign::STATUS_ACTIVE)
+            ->whereHas('recipients')
             ->whereDoesntHave('recipients', function ($q) {
                 $q->whereIn('status', [CampaignRecipient::STATUS_PENDING, CampaignRecipient::STATUS_ACTIVE]);
             })

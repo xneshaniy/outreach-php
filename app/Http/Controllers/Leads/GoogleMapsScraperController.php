@@ -103,11 +103,11 @@ class GoogleMapsScraperController extends Controller
         ]);
 
         $workspace = $this->getWorkspace($request);
-        $query = $request->input('query');
-        $location = $request->input('location', '');
-        $limit = (int) $request->input('limit', 20);
-        $rating = $request->input('rating', 'all');
-        $enrich = (bool) $request->input('enrich_websites', true);
+        $query = (string) ($request->input('query') ?? '');
+        $location = (string) ($request->input('location') ?? '');
+        $limit = max(1, (int) ($request->input('limit') ?: 20));
+        $rating = (string) ($request->input('rating') ?? 'all');
+        $enrich = $request->boolean('enrich_websites', true);
 
         try {
             $result = $this->mapsScraperService->scrapeGoogleMaps(
