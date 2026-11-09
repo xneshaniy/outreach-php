@@ -95,8 +95,11 @@ class LeadService
 
             // Handle company
             if (isset($data['company']) || isset($data['company_domain'])) {
-                $company = $this->findOrCreateCompany($lead->workspace, auth()->user(), $data);
-                $data['company_id'] = $company?->id;
+                $creatorUser = auth()->user() ?? $lead->creator ?? $lead->workspace?->users()->first() ?? User::first();
+                if ($creatorUser) {
+                    $company = $this->findOrCreateCompany($lead->workspace, $creatorUser, $data);
+                    $data['company_id'] = $company?->id;
+                }
             }
 
             $lead->update(array_merge($data, [
@@ -112,8 +115,12 @@ class LeadService
         });
     }
 
-    public function findOrCreateCompany(Workspace $workspace, User $creator, array $data): ?Company
+public function findOrCreateCompany(Workspace $workspace, ?User $creator, array $data): ?Company
     {
+        $creator = $creator ?? auth()->user() ?? $workspace->users()->first() ?? User::first();
+        if (!$creator) {
+            return null;
+        }
         return app(\App\Services\UnifiedMatchingService::class)
             ->matchOrCreateCompany($workspace, $data, $creator);
     }

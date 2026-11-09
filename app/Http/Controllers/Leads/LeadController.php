@@ -10,6 +10,11 @@ use App\Models\Lead;
 use App\Models\LeadList;
 use App\Models\Company;
 use App\Models\ImportMappingTemplate;
+use App\Models\LeadImport;
+use App\Models\Workspace;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Services\LeadService;
 use App\Services\ImportService;
@@ -24,6 +29,18 @@ class LeadController extends Controller
         protected LeadService $leadService,
         protected ImportService $importService
     ) {}
+
+    protected function getWorkspace(Request $request): ?Workspace
+    {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        return $user->currentWorkspace
+            ?? $user->workspaces()->first()
+            ?? Workspace::first();
+    }
 
     public function index(Request $request): Response
     {
@@ -266,15 +283,7 @@ class LeadController extends Controller
 
     public function importForm(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
-
-        $leadLists = LeadList::where('workspace_id', $workspace->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        $mappingTemplates = ImportMappingTemplate::where('workspace_id', $workspace->id)
-            ->latest()
-            ->get(['id', 'name', 'mapping', 'created_at']);
+        $workspace = $this->getWorkspace($request);
 
         $availableFields = [
             ['key' => 'email', 'label' => 'Email Address', 'required' => true, 'description' => 'Primary email for outreach & deduplication'],
@@ -297,6 +306,36 @@ class LeadController extends Controller
             ['key' => 'notes', 'label' => 'Notes', 'required' => false, 'description' => 'Internal lead notes & comments'],
         ];
 
+        if (! $workspace) {
+            return Inertia::render('Leads/Import', [
+                'leadLists' => [],
+                'mappingTemplates' => [],
+                'availableFields' => $availableFields,
+            ]);
+        }
+
+        $leadLists = [];
+        try {
+            if (Schema::hasTable('lead_lists')) {
+                $leadLists = LeadList::where('workspace_id', $workspace->id)
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('LeadController@importForm: lead_lists query failed - ' . $e->getMessage());
+        }
+
+        $mappingTemplates = [];
+        try {
+            if (Schema::hasTable('import_mapping_templates')) {
+                $mappingTemplates = ImportMappingTemplate::where('workspace_id', $workspace->id)
+                    ->latest()
+                    ->get(['id', 'name', 'mapping', 'created_at']);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('LeadController@importForm: import_mapping_templates query failed - ' . $e->getMessage());
+        }
+
         return Inertia::render('Leads/Import', [
             'leadLists' => $leadLists,
             'mappingTemplates' => $mappingTemplates,
@@ -313,6 +352,14 @@ class LeadController extends Controller
 
         if (!$request->hasFile('file') && !$request->filled('google_sheet_url')) {
             return response()->json(['message' => 'Please provide a CSV/Excel file or a valid Google Sheets URL.'], 422);
+        }
+
+        // Ensure storage directories exist
+        try {
+            Storage::disk('local')->makeDirectory('imports');
+            Storage::disk('local')->makeDirectory('imports/temp');
+        } catch (\Throwable $e) {
+            // ignore directory creation error
         }
 
         $fileType = 'csv';
@@ -334,7 +381,7 @@ class LeadController extends Controller
             if (in_array($ext, ['xlsx', 'xls'])) {
                 $fileType = 'excel';
                 $tempStored = $uploaded->store('imports/temp', 'local');
-                $tempFullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($tempStored);
+                $tempFullPath = Storage::disk('local')->path($tempStored);
 
                 try {
                     $path = $this->importService->convertExcelToCsv($tempFullPath);
@@ -347,7 +394,7 @@ class LeadController extends Controller
             }
         }
 
-        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
+        $fullPath = Storage::disk('local')->path($path);
         try {
             $columns = $this->importService->detectColumns($fullPath);
             $preview = $this->importService->previewImport($fullPath, 10);
@@ -363,7 +410,7 @@ class LeadController extends Controller
                 'file_type' => $fileType,
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Import preview failed: ' . $e->getMessage());
+            Log::warning('Import preview failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Could not process file: ' . $e->getMessage(),
             ], 422);
@@ -377,12 +424,16 @@ class LeadController extends Controller
             'column_mapping' => 'required|array',
         ]);
 
-        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($request->input('stored_path'));
+        $fullPath = Storage::disk('local')->path($request->input('stored_path'));
         if (!file_exists($fullPath)) {
             return response()->json(['message' => 'Uploaded file session expired or not found. Please re-upload.'], 404);
         }
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        if (!$workspace) {
+            return response()->json(['message' => 'No active workspace found.'], 422);
+        }
+
         $mapping = $request->input('column_mapping');
 
         try {
@@ -400,29 +451,40 @@ class LeadController extends Controller
             'mapping' => 'required|array',
         ]);
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        if (!$workspace) {
+            return response()->json(['message' => 'No active workspace found.'], 422);
+        }
 
-        $template = ImportMappingTemplate::updateOrCreate(
-            [
-                'workspace_id' => $workspace->id,
-                'name' => trim($request->input('name')),
-            ],
-            [
-                'user_id' => $request->user()->id,
-                'mapping' => $request->input('mapping'),
-            ]
-        );
+        if (!Schema::hasTable('import_mapping_templates')) {
+            return response()->json(['message' => 'Mapping templates feature is not configured yet.'], 422);
+        }
 
-        return response()->json([
-            'template' => $template,
-            'message' => 'Mapping template saved successfully.',
-        ]);
+        try {
+            $template = ImportMappingTemplate::updateOrCreate(
+                [
+                    'workspace_id' => $workspace->id,
+                    'name' => trim($request->input('name')),
+                ],
+                [
+                    'user_id' => $request->user()?->id,
+                    'mapping' => $request->input('mapping'),
+                ]
+            );
+
+            return response()->json([
+                'template' => $template,
+                'message' => 'Mapping template saved successfully.',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Could not save template: ' . $e->getMessage()], 422);
+        }
     }
 
     public function destroyTemplate(Request $request, ImportMappingTemplate $template): \Illuminate\Http\JsonResponse
     {
-        $workspace = $request->user()->currentWorkspace;
-        if ($template->workspace_id !== $workspace->id) {
+        $workspace = $this->getWorkspace($request);
+        if (!$workspace || $template->workspace_id !== $workspace->id) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -443,16 +505,20 @@ class LeadController extends Controller
             'duplicate_handling' => 'nullable|string|in:skip,update',
         ]);
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        if (!$workspace) {
+            return back()->with('error', 'No active workspace found.');
+        }
+
         $mapping = $request->input('column_mapping');
         $mapping['_options'] = [
             'duplicate_handling' => $request->input('duplicate_handling', 'skip'),
         ];
 
-        $import = \App\Models\LeadImport::create([
+        $import = LeadImport::create([
             'workspace_id' => $workspace->id,
             'lead_list_id' => $request->lead_list_id,
-            'created_by' => $request->user()->id,
+            'created_by' => $request->user()?->id ?? $workspace->users()->first()?->id ?? 1,
             'original_filename' => $request->original_filename,
             'stored_path' => $request->stored_path,
             'column_mapping' => $mapping,
@@ -462,12 +528,61 @@ class LeadController extends Controller
         try {
             \App\Jobs\ProcessLeadImportJob::dispatchSync($import->id);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Synchronous import failed, queueing: ' . $e->getMessage());
-            \App\Jobs\ProcessLeadImportJob::dispatch($import->id);
+            Log::warning('Synchronous import failed, queueing: ' . $e->getMessage());
+            try {
+                \App\Jobs\ProcessLeadImportJob::dispatch($import->id);
+            } catch (\Throwable $qe) {
+                Log::error('Dispatching import job failed: ' . $qe->getMessage());
+            }
         }
 
         return redirect()->route('leads.imports.show', $import)
             ->with('success', 'Import completed successfully.');
+    }
+
+    public function importsIndex(Request $request): Response
+    {
+        $workspace = $this->getWorkspace($request);
+        if (!$workspace) {
+            return Inertia::render('Leads/Imports', [
+                'imports' => ['data' => []],
+            ]);
+        }
+
+        $imports = ['data' => []];
+        try {
+            if (Schema::hasTable('lead_imports')) {
+                $imports = LeadImport::where('workspace_id', $workspace->id)
+                    ->with(['creator', 'leadList'])
+                    ->latest()
+                    ->paginate(15);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('LeadController@importsIndex failed: ' . $e->getMessage());
+            $imports = ['data' => []];
+        }
+
+        return Inertia::render('Leads/Imports', [
+            'imports' => $imports,
+        ]);
+    }
+
+    public function importShow(Request $request, LeadImport $import): Response
+    {
+        $workspace = $this->getWorkspace($request);
+        if ($workspace && $import->workspace_id !== $workspace->id) {
+            abort(403);
+        }
+
+        try {
+            $import->load(['leadList', 'creator', 'errors']);
+        } catch (\Throwable $e) {
+            Log::warning('LeadController@importShow load failed: ' . $e->getMessage());
+        }
+
+        return Inertia::render('Leads/ImportShow', [
+            'import' => $import,
+        ]);
     }
 
     public function export(Request $request)

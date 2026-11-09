@@ -62,7 +62,7 @@ class AgentSDRController extends Controller
         // Guard: no workspace yet → return empty page so Vue can render gracefully
         if (! $workspace) {
             return Inertia::render('Tools/AgentSDR/Index', [
-                'pendingApprovals' => [],
+                'pendingApprovals' => ['data' => []],
                 'providers'        => [],
                 'aiColumns'        => [],
                 'leadLists'        => [],
@@ -76,7 +76,7 @@ class AgentSDRController extends Controller
 
         // ---- queries (each wrapped in try/catch) ----------------------------
 
-        $pendingApprovals = [];
+        $pendingApprovals = ['data' => []];
         try {
             if (Schema::hasTable('sdr_approval_queues')) {
                 $pendingApprovals = SdrApprovalQueue::where('workspace_id', $workspace->id)

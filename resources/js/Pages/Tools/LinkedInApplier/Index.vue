@@ -34,7 +34,7 @@ const isSearching = ref(false)
 const searchMessage = ref('')
 
 // Job list reactive copy
-const appList = ref([...props.applications.data])
+const appList = ref(props.applications?.data ? [...props.applications.data] : (Array.isArray(props.applications) ? [...props.applications] : []))
 const selectedApp = ref(null)
 const isTailoring = ref(false)
 const isSolvingQuestions = ref(false)

@@ -141,7 +141,7 @@ class ImportService
 
             $leadList = $import->lead_list_id ? LeadList::find($import->lead_list_id) : null;
             $workspace = $import->workspace;
-            $creator = $import->creator;
+            $creator = $import->creator ?? $workspace?->users()->first() ?? User::first();
             $mapping = $import->column_mapping ?? $this->getDefaultMapping();
 
             $batchSize = 100;
@@ -183,7 +183,7 @@ class ImportService
     private function processBatch(
         array $batch,
         Workspace $workspace,
-        User $creator,
+        ?User $creator,
         ?LeadList $list,
         LeadImport $import,
         int $startRow,
@@ -205,24 +205,53 @@ class ImportService
             $this->recordError($import, $startRow + $error['row'] - 1, $batch[$error['row'] - 1] ?? [], $error['error']);
         }
 
-        // Run company matching & enrichment on newly created leads
-        if ($results['created'] > 0) {
-            $matchingService = app(\App\Services\UnifiedMatchingService::class);
-            $recentLeads = Lead::where('workspace_id', $workspace->id)
-                ->where(function ($q) {
-                    $q->whereNull('company_match_status')
-                      ->orWhere('company_match_status', 'unlinked');
-                })
-                ->latest()
-                ->limit($results['created'])
-                ->get();
-
-            foreach ($recentLeads as $lead) {
-                try {
-                    $matchingService->enrichLeadWithCompany($lead, $creator);
-                } catch (\Exception $e) {
-                    // Non-fatal: continue
+        // Attach newly imported leads to the target LeadList if provided
+        if ($list && $creator) {
+            try {
+                $emailsInBatch = array_filter(array_map(fn($item) => strtolower(trim($item['email'] ?? '')), $batch));
+                if (!empty($emailsInBatch)) {
+                    $leadsInBatch = Lead::where('workspace_id', $workspace->id)
+                        ->whereIn('normalized_email', $emailsInBatch)
+                        ->get();
+                    foreach ($leadsInBatch as $bLead) {
+                        try {
+                            $list->leads()->syncWithoutDetaching([
+                                $bLead->id => ['added_by' => $creator->id],
+                            ]);
+                        } catch (\Throwable $e) {
+                            // Non-fatal
+                        }
+                    }
                 }
+            } catch (\Throwable $e) {
+                // Non-fatal
+            }
+        }
+
+        // Run company matching & enrichment on newly created leads
+        if ($results['created'] > 0 && $creator) {
+            try {
+                $matchingService = app(\App\Services\UnifiedMatchingService::class);
+                $query = Lead::where('workspace_id', $workspace->id);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('leads', 'company_match_status')) {
+                    $query->where(function ($q) {
+                        $q->whereNull('company_match_status')
+                          ->orWhere('company_match_status', 'unlinked');
+                    });
+                }
+                $recentLeads = $query->latest()
+                    ->limit($results['created'])
+                    ->get();
+
+                foreach ($recentLeads as $lead) {
+                    try {
+                        $matchingService->enrichLeadWithCompany($lead, $creator);
+                    } catch (\Throwable $e) {
+                        // Non-fatal: continue
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal
             }
         }
     }
@@ -445,11 +474,18 @@ class ImportService
                     $query->where('name', $companyName);
                 }
 
-                $foundCompany = $query->first(['id', 'name', 'domain', 'verification_status', 'enrichment_status']);
+                $cols = ['id', 'name', 'domain'];
+                if (\Illuminate\Support\Facades\Schema::hasColumn('companies', 'verification_status')) {
+                    $cols[] = 'verification_status';
+                }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('companies', 'enrichment_status')) {
+                    $cols[] = 'enrichment_status';
+                }
+                $foundCompany = $query->first($cols);
                 if ($foundCompany) {
                     $isVerifiedCompany = (
-                        $foundCompany->verification_status === 'verified' ||
-                        $foundCompany->enrichment_status === 'verified'
+                        (($foundCompany->verification_status ?? null) === 'verified') ||
+                        (($foundCompany->enrichment_status ?? null) === 'verified')
                     );
                     $matchedCompany = [
                         'id' => $foundCompany->id,

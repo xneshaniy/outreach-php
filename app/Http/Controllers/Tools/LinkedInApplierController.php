@@ -61,7 +61,7 @@ class LinkedInApplierController extends Controller
         // Guard: no workspace yet → return empty page so Vue can render gracefully
         if (! $workspace) {
             return Inertia::render('Tools/LinkedInApplier/Index', [
-                'applications'  => [],
+                'applications'  => ['data' => []],
                 'networkInvites' => [],
                 'inboxMessages' => [],
                 'searches'      => [],
@@ -73,7 +73,7 @@ class LinkedInApplierController extends Controller
 
         // ---- queries (each wrapped in try/catch) ----------------------------
 
-        $applications = [];
+        $applications = ['data' => []];
         try {
             if (Schema::hasTable('linkedin_job_applications')) {
                 $applications = LinkedInJobApplication::where('workspace_id', $workspace->id)

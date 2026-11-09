@@ -35,7 +35,7 @@ const props = defineProps({
 const activeTab = ref('queue') // 'queue', 'enrichment', 'formulas', 'reply'
 
 // Approval Queue
-const queueList = ref([...props.pendingApprovals.data])
+const queueList = ref(props.pendingApprovals?.data ? [...props.pendingApprovals.data] : (Array.isArray(props.pendingApprovals) ? [...props.pendingApprovals] : []))
 const isApproving = ref({})
 const isRejecting = ref({})
 const editingItem = ref(null)
