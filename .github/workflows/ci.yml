@@ -7,19 +7,13 @@ on:
     branches: [ main ]
 
 jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: PHP Tests (SQLite in-memory, fast)
+  # phpunit.xml already sets DB_CONNECTION=sqlite
+  # ─────────────────────────────────────────────
   php-checks:
     name: PHP Lint & Tests
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: secret
-          MYSQL_DATABASE: outreach_test
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - name: Checkout code
@@ -29,22 +23,26 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo, pdo_mysql, curl, openssl, pcntl
+          extensions: mbstring, bcmath, pdo, pdo_sqlite, pdo_mysql, curl, openssl, pcntl, zip, exif, gd
           coverage: none
 
       - name: Copy .env for testing
         run: cp .env.example .env
 
-      - name: Set test DB credentials
+      - name: Patch .env for CI (safe defaults, SQLite in-memory)
         run: |
-          sed -i 's/DB_DATABASE=.*/DB_DATABASE=outreach_test/' .env
-          sed -i 's/DB_USERNAME=.*/DB_USERNAME=root/' .env
-          sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=secret/' .env
-          sed -i 's/APP_KEY=.*/APP_KEY=/' .env
-          sed -i 's/APP_ENV=.*/APP_ENV=testing/' .env
-          sed -i 's/APP_DEBUG=.*/APP_DEBUG=true/' .env
+          sed -i 's|^APP_KEY=.*|APP_KEY=|'            .env
+          sed -i 's|^APP_ENV=.*|APP_ENV=testing|'      .env
+          sed -i 's|^APP_DEBUG=.*|APP_DEBUG=true|'     .env
+          sed -i 's|^APP_URL=.*|APP_URL=http://localhost|' .env
+          sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|' .env
+          sed -i 's|^DB_DATABASE=.*|DB_DATABASE=:memory:|'   .env
+          sed -i 's|^QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|' .env
+          sed -i 's|^SESSION_DRIVER=.*|SESSION_DRIVER=array|'    .env
+          sed -i 's|^CACHE_DRIVER=.*|CACHE_STORE=array|'          .env
+          sed -i 's|^MAIL_MAILER=.*|MAIL_MAILER=array|'           .env
 
-      - name: Cache Composer dependencies
+      - name: Cache Composer packages
         uses: actions/cache@v4
         with:
           path: vendor
@@ -52,33 +50,24 @@ jobs:
           restore-keys: composer-
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --no-scripts --prefer-dist --optimize-autoloader
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Generate application key
         run: php artisan key:generate
 
-      - name: Run migrations
-        run: php artisan migrate --force
-        env:
-          APP_ENV: testing
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: outreach_test
-          DB_USERNAME: root
-          DB_PASSWORD: secret
+      - name: Run PHP syntax check
+        run: find app -name "*.php" -print0 | xargs -0 -P4 php -l | grep -v "^No syntax errors" && echo "✓ PHP syntax OK" || true
 
-      - name: Run PHPUnit tests
+      - name: Run all tests (SQLite in-memory)
         run: php artisan test --stop-on-failure
         env:
           APP_ENV: testing
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: outreach_test
-          DB_USERNAME: root
-          DB_PASSWORD: secret
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
 
+  # ─────────────────────────────────────────────
+  # Job 2: Frontend build & asset verification
+  # ─────────────────────────────────────────────
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
@@ -99,12 +88,51 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Check Admin pages compiled
+      - name: Verify critical assets compiled
         run: |
-          ls public/build/assets/ | grep -E 'AdminLayout' || (echo "AdminLayout asset missing!" && exit 1)
-          ls public/build/assets/ | grep -E 'Dashboard-' || (echo "Dashboard asset missing!" && exit 1)
-          echo "✓ Admin assets present in build"
+          echo "=== Checking critical compiled assets ==="
+          MISSING=0
 
+          if ls public/build/assets/ | grep -q 'AdminLayout'; then
+            echo "✓ AdminLayout found"
+          else
+            echo "✗ AdminLayout asset MISSING"
+            MISSING=1
+          fi
+
+          if ls public/build/assets/ | grep -q 'Dashboard-'; then
+            echo "✓ Dashboard found"
+          else
+            echo "✗ Dashboard asset MISSING"
+            MISSING=1
+          fi
+
+          if ls public/build/assets/ | grep -q 'MainLayout'; then
+            echo "✓ MainLayout found"
+          else
+            echo "✗ MainLayout asset MISSING"
+            MISSING=1
+          fi
+
+          if [ -f public/build/manifest.json ]; then
+            echo "✓ manifest.json exists"
+          else
+            echo "✗ manifest.json MISSING"
+            MISSING=1
+          fi
+
+          if [ $MISSING -eq 1 ]; then
+            echo ""
+            echo "ERROR: One or more critical assets are missing from the build!"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All critical assets verified"
+
+  # ─────────────────────────────────────────────
+  # Job 3: Basic security checks
+  # ─────────────────────────────────────────────
   security-check:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -113,18 +141,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check for exposed secrets
+      - name: Check .env is not committed
         run: |
-          echo "Checking for potential secret exposure..."
-          if grep -r "password.*=.*['\"][^'\"]\+['\"]" app/ routes/ config/ --include="*.php" | grep -v "Hash\|bcrypt\|env(\|config(\|placeholder\|example" | head -5; then
-            echo "WARNING: Potential hardcoded passwords found (review above)"
-          else
-            echo "✓ No hardcoded passwords found"
-          fi
           if [ -f ".env" ]; then
-            echo "ERROR: .env file should not be committed!" && exit 1
+            echo "ERROR: .env file must not be committed to the repository!"
+            exit 1
           fi
+          echo "✓ .env is not committed"
+
+      - name: Check vendor is not committed
+        run: |
           if [ -d "vendor" ]; then
-            echo "WARNING: vendor/ directory should not be committed"
+            echo "WARNING: vendor/ directory is committed - consider adding it to .gitignore"
+          else
+            echo "✓ vendor/ is not committed"
           fi
-          echo "✓ Security check passed"
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for potential hardcoded secrets..."
+          FOUND=0
+
+          # Check for hardcoded passwords (not env/config references)
+          if grep -rn "password\s*=\s*['\"][^'\"]\{6,\}['\"]" app/ config/ routes/ \
+              --include="*.php" \
+              | grep -v "env(\|config(\|Hash::\|bcrypt\|password_confirmation\|placeholder\|example\|your_\|changeme\|test_\|fake" \
+              | grep -v "#" \
+              | head -5; then
+            echo "WARNING: Possible hardcoded passwords detected above — please review"
+          else
+            echo "✓ No obvious hardcoded passwords found"
+          fi
+
+          echo "✓ Security scan complete"

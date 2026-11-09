@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true" cacheDirectory=".phpunit.cache">
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+
   <testsuites>
     <testsuite name="Unit">
       <directory suffix="Test.php">./tests/Unit</directory>
@@ -8,23 +13,30 @@
       <directory suffix="Test.php">./tests/Feature</directory>
     </testsuite>
   </testsuites>
+
   <php>
-    <env name="APP_ENV" value="testing"/>
-    <env name="APP_DEBUG" value="false"/>
-    <env name="APP_KEY" value="base64:dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHQ="/>
-    <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-    <env name="BCRYPT_ROUNDS" value="4"/>
-    <env name="CACHE_STORE" value="array"/>
-    <env name="DB_CONNECTION" value="sqlite"/>
-    <env name="DB_DATABASE" value=":memory:"/>
-    <env name="MAIL_MAILER" value="array"/>
-    <env name="QUEUE_CONNECTION" value="sync"/>
-    <env name="SESSION_DRIVER" value="array"/>
-    <env name="TELESCOPE_ENABLED" value="false"/>
+    <!-- Core test environment — these always use in-memory SQLite for speed/isolation -->
+    <env name="APP_ENV"                 value="testing"/>
+    <env name="APP_DEBUG"               value="false"/>
+    <env name="APP_KEY"                 value="base64:dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHQ="/>
+    <env name="APP_MAINTENANCE_DRIVER"  value="file"/>
+    <env name="BCRYPT_ROUNDS"           value="4"/>
+    <!-- Database: always SQLite in-memory for tests (fast, isolated, no server needed) -->
+    <env name="DB_CONNECTION"           value="sqlite"/>
+    <env name="DB_DATABASE"             value=":memory:"/>
+    <!-- Drivers: use fast in-process drivers, never hit real services -->
+    <env name="CACHE_STORE"             value="array"/>
+    <env name="QUEUE_CONNECTION"        value="sync"/>
+    <env name="SESSION_DRIVER"          value="array"/>
+    <env name="MAIL_MAILER"             value="array"/>
+    <env name="TELESCOPE_ENABLED"       value="false"/>
+    <env name="SCOUT_DRIVER"            value="null"/>
   </php>
+
   <source>
     <include>
       <directory suffix=".php">./app</directory>
     </include>
   </source>
+
 </phpunit>
