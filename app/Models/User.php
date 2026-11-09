@@ -86,10 +86,36 @@ class User extends Authenticatable
         }
 
         // 2. Fall back to the most-recently-accessed active workspace.
-        return $this->activeWorkspaces()
+        $recent = $this->activeWorkspaces()
             ->where('workspaces.is_active', true)
             ->orderByDesc('workspace_user.last_accessed_at')
             ->first();
+
+        if ($recent) {
+            return $recent;
+        }
+
+        // 3. Fall back to any workspace the user is associated with
+        $anyUserWs = $this->workspaces()->first();
+        if ($anyUserWs) {
+            return $anyUserWs;
+        }
+
+        // 4. For super admin, fall back to the first active workspace
+        if ($this->is_super_admin) {
+            $systemWs = Workspace::where('is_active', true)->first() ?? Workspace::first();
+            if ($systemWs) {
+                try {
+                    $this->setCurrentWorkspace($systemWs);
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+                return $systemWs;
+            }
+        }
+
+        // 5. Global fallback to any workspace
+        return Workspace::first();
     }
 
     /**

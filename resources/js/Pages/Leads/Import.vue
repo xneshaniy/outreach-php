@@ -57,7 +57,7 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 // Templates
-const templates = ref([...props.mappingTemplates])
+const templates = ref(props.mappingTemplates ? [...props.mappingTemplates] : [])
 const selectedTemplateId = ref('')
 const newTemplateName = ref('')
 const showSaveTemplateModal = ref(false)
