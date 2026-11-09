@@ -23,7 +23,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo, pdo_sqlite, pdo_mysql, curl, openssl, pcntl, zip, exif, gd
+          extensions: mbstring, bcmath, pdo, pdo_sqlite, sqlite3, pdo_mysql, curl, openssl, pcntl, zip, exif, gd
           coverage: none
 
       - name: Copy .env for testing
@@ -41,6 +41,9 @@ jobs:
           sed -i 's|^SESSION_DRIVER=.*|SESSION_DRIVER=array|'    .env
           sed -i 's|^CACHE_DRIVER=.*|CACHE_STORE=array|'          .env
           sed -i 's|^MAIL_MAILER=.*|MAIL_MAILER=array|'           .env
+          mkdir -p database && touch database/database.sqlite
+          mkdir -p storage/framework/{cache/data,sessions,views} storage/logs bootstrap/cache
+          chmod -R 777 storage bootstrap/cache
 
       - name: Cache Composer packages
         uses: actions/cache@v4
@@ -59,7 +62,7 @@ jobs:
         run: find app -name "*.php" -print0 | xargs -0 -P4 php -l | grep -v "^No syntax errors" && echo "✓ PHP syntax OK" || true
 
       - name: Run all tests (SQLite in-memory)
-        run: php artisan test --stop-on-failure
+        run: php artisan test
 
   # ─────────────────────────────────────────────
   # Job 2: Frontend build & asset verification
