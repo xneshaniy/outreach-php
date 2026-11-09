@@ -10,6 +10,8 @@ class SdrApprovalQueue extends Model
 {
     use HasFactory;
 
+    protected $table = 'sdr_approval_queues';
+
     protected $fillable = [
         'workspace_id',
         'lead_id',

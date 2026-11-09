@@ -10,6 +10,8 @@ class LinkedInJobApplication extends Model
 {
     use HasFactory;
 
+    protected $table = 'linkedin_job_applications';
+
     protected $fillable = [
         'workspace_id',
         'user_id',

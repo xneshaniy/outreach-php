@@ -10,6 +10,8 @@ class LinkedInInboundMessage extends Model
 {
     use HasFactory;
 
+    protected $table = 'linkedin_inbound_messages';
+
     protected $fillable = [
         'workspace_id',
         'user_id',

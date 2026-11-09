@@ -366,7 +366,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/', [LinkedInApplierController::class, 'index'])->name('index');
         Route::post('/search', [LinkedInApplierController::class, 'search'])->name('search');
         Route::post('/applications/{application}/tailor', [LinkedInApplierController::class, 'tailor'])->name('tailor');
-        Route::post('/applications/{application}/solve-questions', [LinkedInApplierController::class, 'solve-questions'])->name('solve-questions');
+        Route::post('/applications/{application}/solve-questions', [LinkedInApplierController::class, 'solveQuestions'])->name('solve-questions');
         Route::put('/applications/{application}/status', [LinkedInApplierController::class, 'updateStatus'])->name('update-status');
         Route::post('/network/lion', [LinkedInApplierController::class, 'generateLion'])->name('lion');
         Route::post('/inbox/classify', [LinkedInApplierController::class, 'classifyMessage'])->name('classify-message');

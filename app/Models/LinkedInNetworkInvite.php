@@ -10,6 +10,8 @@ class LinkedInNetworkInvite extends Model
 {
     use HasFactory;
 
+    protected $table = 'linkedin_network_invites';
+
     protected $fillable = [
         'workspace_id',
         'user_id',

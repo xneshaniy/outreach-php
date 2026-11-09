@@ -10,6 +10,8 @@ class SdrAiColumn extends Model
 {
     use HasFactory;
 
+    protected $table = 'sdr_ai_columns';
+
     protected $fillable = [
         'workspace_id',
         'lead_list_id',

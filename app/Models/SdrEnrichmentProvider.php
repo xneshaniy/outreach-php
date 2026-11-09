@@ -10,6 +10,8 @@ class SdrEnrichmentProvider extends Model
 {
     use HasFactory;
 
+    protected $table = 'sdr_enrichment_providers';
+
     protected $fillable = [
         'workspace_id',
         'provider_name',

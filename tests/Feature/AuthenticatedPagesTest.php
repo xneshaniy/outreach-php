@@ -46,6 +46,15 @@ class AuthenticatedPagesTest extends TestCase
             '/settings/integrations',
             '/settings/users',
             '/settings/workspace',
+            '/automations',
+            '/tools/agent-sdr',
+            '/tools/linkedin-applier',
+            '/leads/google-maps-scraper',
+            '/inbox',
+            '/reports/client-reports',
+            '/products',
+            '/quotes',
+            '/invoices',
         ];
 
         $failures = [];
