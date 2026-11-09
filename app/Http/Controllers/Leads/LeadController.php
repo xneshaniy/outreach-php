@@ -83,7 +83,8 @@ class LeadController extends Controller
             ?? Workspace::where('is_active', true)->first()
             ?? Workspace::first();
 
-        if ($workspace && (!$user->current_workspace_id || $user->current_workspace_id !== $workspace->id)) {
+        if ($workspace) {
+            session(['current_workspace_id' => $workspace->id]);
             try {
                 $user->setCurrentWorkspace($workspace);
             } catch (\Throwable $e) {

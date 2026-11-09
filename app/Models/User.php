@@ -122,6 +122,18 @@ class User extends Authenticatable
      * Allow $user->currentWorkspace property access (used across middleware,
      * controllers and Inertia shared props).
      */
+        public function getCurrentWorkspaceIdAttribute(): ?int
+    {
+        return session('current_workspace_id') ?? $this->currentWorkspace?->id;
+    }
+
+    public function setCurrentWorkspaceIdAttribute($value): void
+    {
+        if ($value) {
+            session(['current_workspace_id' => (int) $value]);
+        }
+    }
+
     public function getCurrentWorkspaceAttribute(): ?Workspace
     {
         return $this->currentWorkspace();

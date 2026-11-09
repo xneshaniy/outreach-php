@@ -8,6 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Ensure users table has current_workspace_id
+        if (Schema::hasTable('users')) {
+            Schema::table('users', function (Blueprint $table) {
+                if (!Schema::hasColumn('users', 'current_workspace_id')) {
+                    $table->unsignedBigInteger('current_workspace_id')->nullable()->after('is_super_admin')->index();
+                }
+            });
+        }
+
         // 1. Ensure leads table has all essential columns
         if (Schema::hasTable('leads')) {
             Schema::table('leads', function (Blueprint $table) {

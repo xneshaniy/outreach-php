@@ -27,8 +27,12 @@ class QuoteController extends Controller
                 ?? \App\Models\Workspace::where('is_active', true)->orderBy('name')->first()
                 ?? \App\Models\Workspace::first();
             if ($workspace) {
-                $user->current_workspace_id = $workspace->id;
-                $user->saveQuietly();
+                session(['current_workspace_id' => $workspace->id]);
+                try {
+                    $user->setCurrentWorkspace($workspace);
+                } catch (\Throwable $e) {
+                    // ignore
+                }
             }
         }
 
