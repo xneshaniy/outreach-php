@@ -30,6 +30,17 @@ class LeadController extends Controller
         protected ImportService $importService
     ) {}
 
+    protected function ensureImportTables(): void
+    {
+        try {
+            if (!Schema::hasTable('lead_imports') || !Schema::hasTable('import_mapping_templates')) {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('LeadController ensureImportTables failed: ' . $e->getMessage());
+        }
+    }
+
     protected function getWorkspace(Request $request): ?Workspace
     {
         $user = $request->user();
@@ -37,9 +48,20 @@ class LeadController extends Controller
             return null;
         }
 
-        return $user->currentWorkspace
+        $workspace = $user->currentWorkspace
             ?? $user->workspaces()->first()
+            ?? Workspace::where('is_active', true)->first()
             ?? Workspace::first();
+
+        if ($workspace && (!$user->current_workspace_id || $user->current_workspace_id !== $workspace->id)) {
+            try {
+                $user->setCurrentWorkspace($workspace);
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        return $workspace;
     }
 
     public function index(Request $request): Response
@@ -283,6 +305,7 @@ class LeadController extends Controller
 
     public function importForm(Request $request): Response
     {
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
 
         $availableFields = [
@@ -375,6 +398,9 @@ class LeadController extends Controller
             }
         } else {
             $uploaded = $request->file('file');
+            if (!$uploaded || !$uploaded->isValid()) {
+                return response()->json(['message' => 'Uploaded file is invalid or exceeded server upload limit.'], 422);
+            }
             $originalFilename = $uploaded->getClientOriginalName();
             $ext = strtolower($uploaded->getClientOriginalExtension());
 
@@ -429,6 +455,7 @@ class LeadController extends Controller
             return response()->json(['message' => 'Uploaded file session expired or not found. Please re-upload.'], 404);
         }
 
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if (!$workspace) {
             return response()->json(['message' => 'No active workspace found.'], 422);
@@ -451,6 +478,7 @@ class LeadController extends Controller
             'mapping' => 'required|array',
         ]);
 
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if (!$workspace) {
             return response()->json(['message' => 'No active workspace found.'], 422);
@@ -483,6 +511,7 @@ class LeadController extends Controller
 
     public function destroyTemplate(Request $request, ImportMappingTemplate $template): \Illuminate\Http\JsonResponse
     {
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if (!$workspace || $template->workspace_id !== $workspace->id) {
             return response()->json(['message' => 'Unauthorized.'], 403);
@@ -499,12 +528,13 @@ class LeadController extends Controller
     {
         $request->validate([
             'stored_path' => 'required|string',
-            'lead_list_id' => 'nullable|exists:lead_lists,id',
+            'lead_list_id' => 'nullable',
             'column_mapping' => 'required|array',
             'original_filename' => 'required|string',
             'duplicate_handling' => 'nullable|string|in:skip,update',
         ]);
 
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if (!$workspace) {
             return back()->with('error', 'No active workspace found.');
@@ -517,8 +547,8 @@ class LeadController extends Controller
 
         $import = LeadImport::create([
             'workspace_id' => $workspace->id,
-            'lead_list_id' => $request->lead_list_id,
-            'created_by' => $request->user()?->id ?? $workspace->users()->first()?->id ?? 1,
+            'lead_list_id' => (!empty($request->lead_list_id) && is_numeric($request->lead_list_id)) ? (int)$request->lead_list_id : null,
+            'created_by' => $request->user()?->id ?? $workspace->users()->first()?->id ?? User::first()?->id ?? 1,
             'original_filename' => $request->original_filename,
             'stored_path' => $request->stored_path,
             'column_mapping' => $mapping,
@@ -542,6 +572,7 @@ class LeadController extends Controller
 
     public function importsIndex(Request $request): Response
     {
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if (!$workspace) {
             return Inertia::render('Leads/Imports', [
@@ -569,6 +600,7 @@ class LeadController extends Controller
 
     public function importShow(Request $request, LeadImport $import): Response
     {
+        $this->ensureImportTables();
         $workspace = $this->getWorkspace($request);
         if ($workspace && $import->workspace_id !== $workspace->id) {
             abort(403);

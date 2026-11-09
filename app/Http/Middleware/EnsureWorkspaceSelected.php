@@ -33,6 +33,21 @@ class EnsureWorkspaceSelected
                 $user->setCurrentWorkspace($workspace);
             }
 
+            // Fallback: If user still has no current workspace, assign default active workspace
+            if (!$user->currentWorkspace) {
+                $defaultWs = Workspace::where('is_active', true)->orderBy('name')->first() ?? Workspace::first();
+                if ($defaultWs) {
+                    try {
+                        if (!$user->workspaces()->where('workspaces.id', $defaultWs->id)->exists()) {
+                            $user->workspaces()->attach($defaultWs->id, ['role' => 'admin']);
+                        }
+                        $user->setCurrentWorkspace($defaultWs);
+                    } catch (\Throwable $e) {
+                        // ignore
+                    }
+                }
+            }
+
             // If user has a current workspace but it's inactive, try to find another
             if ($user->currentWorkspace && !$user->currentWorkspace->is_active) {
                 $workspace = $user->activeWorkspaces()->where('workspaces.is_active', true)->first();

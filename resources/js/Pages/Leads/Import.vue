@@ -57,7 +57,39 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 // Templates
-const templates = ref(props.mappingTemplates ? [...props.mappingTemplates] : [])
+const templates = ref(Array.isArray(props.mappingTemplates) ? [...props.mappingTemplates] : (props.mappingTemplates?.data ? [...props.mappingTemplates.data] : []))
+
+const safeLeadLists = computed(() => {
+    if (Array.isArray(props.leadLists)) return props.leadLists
+    if (props.leadLists && Array.isArray(props.leadLists.data)) return props.leadLists.data
+    return []
+})
+
+const safeAvailableFields = computed(() => {
+    if (Array.isArray(props.availableFields) && props.availableFields.length > 0) {
+        return props.availableFields
+    }
+    return [
+        { key: 'email', label: 'Email Address', required: true, description: 'Primary email for outreach & deduplication' },
+        { key: 'first_name', label: 'First Name', required: false, description: 'Given name of lead' },
+        { key: 'last_name', label: 'Last Name', required: false, description: 'Surname or family name' },
+        { key: 'phone', label: 'Phone Number', required: false, description: 'Direct or office phone' },
+        { key: 'mobile', label: 'Mobile Number', required: false, description: 'Cell or personal phone' },
+        { key: 'job_title', label: 'Job Title', required: false, description: 'Role or position in company' },
+        { key: 'company', label: 'Company Name', required: false, description: 'Account / organization name' },
+        { key: 'company_domain', label: 'Company Domain', required: false, description: 'Website domain e.g. acme.com' },
+        { key: 'website', label: 'Website URL', required: false, description: 'Full company or personal link' },
+        { key: 'industry', label: 'Industry', required: false, description: 'Sector or vertical' },
+        { key: 'country', label: 'Country', required: false, description: 'Country name or code' },
+        { key: 'city', label: 'City', required: false, description: 'City or municipality' },
+        { key: 'state', label: 'State / Region', required: false, description: 'State, province, or region' },
+        { key: 'address', label: 'Street Address', required: false, description: 'Physical or street address' },
+        { key: 'linkedin_url', label: 'LinkedIn Profile', required: false, description: 'Personal or company LinkedIn URL' },
+        { key: 'source', label: 'Lead Source', required: false, description: 'Acquisition origin or channel' },
+        { key: 'tags', label: 'Tags', required: false, description: 'Comma separated tag labels' },
+        { key: 'notes', label: 'Notes', required: false, description: 'Internal lead notes & comments' },
+    ]
+})
 const selectedTemplateId = ref('')
 const newTemplateName = ref('')
 const showSaveTemplateModal = ref(false)
@@ -164,8 +196,8 @@ const uploadAndAutoMap = async () => {
         }
 
         uploadData.value = {
-            columns: response.data.columns || [],
-            preview: response.data.preview || [],
+            columns: Array.isArray(response.data.columns) ? response.data.columns : [],
+            preview: Array.isArray(response.data.preview) ? response.data.preview : Object.values(response.data.preview || {}),
             suggested_mapping: response.data.suggested_mapping || {},
             suggested_details: response.data.suggested_details || {},
             stored_path: response.data.stored_path,
@@ -175,7 +207,7 @@ const uploadAndAutoMap = async () => {
 
         // Initialize mapping from suggestions
         const initialMap = {}
-        props.availableFields.forEach(field => {
+        safeAvailableFields.value.forEach(field => {
             initialMap[field.key] = response.data.suggested_mapping[field.key] || ''
         })
         columnMapping.value = initialMap
@@ -195,7 +227,7 @@ const uploadAndAutoMap = async () => {
 // Template management
 const applyTemplate = () => {
     if (!selectedTemplateId.value) return
-    const tmpl = templates.value.find(t => t.id === parseInt(selectedTemplateId.value))
+    const tmpl = templates.value.find(t => t.id == selectedTemplateId.value)
     if (!tmpl || !tmpl.mapping) return
 
     const newMap = { ...columnMapping.value }
@@ -258,7 +290,7 @@ const deleteSelectedTemplate = async () => {
             withCredentials: true,
             withXSRFToken: true,
         })
-        templates.value = templates.value.filter(t => t.id !== parseInt(selectedTemplateId.value))
+        templates.value = templates.value.filter(t => t.id != selectedTemplateId.value)
         selectedTemplateId.value = ''
         successMessage.value = 'Template deleted.'
         setTimeout(() => { successMessage.value = '' }, 4000)
@@ -290,7 +322,19 @@ const proceedToPreview = async () => {
             withXSRFToken: true,
         })
 
-        livePreview.value = response.data
+        livePreview.value = {
+            total_rows: response.data?.total_rows || 0,
+            preview_rows: Array.isArray(response.data?.preview_rows) ? response.data.preview_rows : [],
+            stats: response.data?.stats || {
+                total_rows: 0,
+                sample_size: 0,
+                sample_valid: 0,
+                sample_duplicates: 0,
+                sample_invalid_emails: 0,
+                sample_company_matches: 0,
+                sample_verified_companies: 0,
+            },
+        }
         step.value = 3
     } catch (err) {
         errorMessage.value = err.response?.data?.message || 'Failed to generate live preview. Please check mappings.'
@@ -332,15 +376,19 @@ const confirmAndExecuteImport = () => {
 // Filtered preview rows
 const filteredPreviewRows = computed(() => {
     if (previewFilter.value === 'valid') {
-        return livePreview.value.preview_rows.filter(r => r.status === 'valid')
+        const rows = Array.isArray(livePreview.value?.preview_rows) ? livePreview.value.preview_rows : []
+    return rows.filter(r => r.status === 'valid')
     }
     if (previewFilter.value === 'duplicate') {
-        return livePreview.value.preview_rows.filter(r => r.is_duplicate)
+        const rows = Array.isArray(livePreview.value?.preview_rows) ? livePreview.value.preview_rows : []
+    return rows.filter(r => r.is_duplicate)
     }
     if (previewFilter.value === 'invalid') {
-        return livePreview.value.preview_rows.filter(r => r.status === 'invalid_email' || r.status === 'missing_email')
+        const rows = Array.isArray(livePreview.value?.preview_rows) ? livePreview.value.preview_rows : []
+    return rows.filter(r => r.status === 'invalid_email' || r.status === 'missing_email')
     }
-    return livePreview.value.preview_rows
+    const rows = Array.isArray(livePreview.value?.preview_rows) ? livePreview.value.preview_rows : []
+    return rows
 })
 
 // Mapped fields count
@@ -354,7 +402,8 @@ const downloadSampleFile = (type = 'csv') => {
     const row1 = ['sarah.connor@cybertech.com', 'Sarah', 'Connor', 'Cyberdyne Systems', 'VP Operations', '+1 415-555-0143', 'https://cyberdyne.com', 'United States', 'San Francisco', 'Technology']
     const row2 = ['john.doe@innovate.io', 'John', 'Doe', 'Innovate Global', 'Director of Sales', '+44 20 7946 0958', 'https://innovate.io', 'United Kingdom', 'London', 'SaaS']
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), row1.join(','), row2.join(',')].join('\n')
-    const encodedUri = encodeURI(csvContent)
+    const blob = new Blob([[headers.join(','), row1.join(','), row2.join(',')].join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const encodedUri = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
     link.setAttribute('download', `outreach_leads_sample.${type}`)
@@ -539,7 +588,7 @@ const downloadSampleFile = (type = 'csv') => {
                             <label class="label font-medium text-xs text-gray-700 dark:text-gray-300">Target Lead List (Optional)</label>
                             <select v-model="selectedListId" class="input text-xs w-full">
                                 <option value="">Do not assign to a list (Global Leads)</option>
-                                <option v-for="list in leadLists" :key="list.id" :value="list.id">
+                                <option v-for="list in safeLeadLists" :key="list.id" :value="list.id">
                                     {{ list.name }}
                                 </option>
                             </select>
@@ -722,7 +771,7 @@ const downloadSampleFile = (type = 'csv') => {
                     <div class="card-body">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div
-                                v-for="field in availableFields"
+                                v-for="field in safeAvailableFields"
                                 :key="field.key"
                                 class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-2 hover:border-primary-400 transition-colors"
                             >
@@ -973,7 +1022,7 @@ const downloadSampleFile = (type = 'csv') => {
                         <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
                             <div class="text-xs text-gray-500 font-semibold uppercase">Destination List</div>
                             <div class="text-sm font-bold text-gray-900 dark:text-white mt-1">
-                                {{ leadLists.find(l => l.id === selectedListId)?.name || 'Global Leads (No list)' }}
+                                {{ safeLeadLists.find(l => l.id == selectedListId)?.name || 'Global Leads (No list)' }}
                             </div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ mappedFieldsCount }} CRM fields mapped</div>
                         </div>

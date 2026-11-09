@@ -86,6 +86,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(function () {
     // Legacy route-name URL aliases (e.g. /leads.index?page=2 -> /leads?page=2)
     Route::get('/leads.index', fn(\Illuminate\Http\Request $request) => redirect()->route('leads.index', $request->query()));
+    Route::get('/leads.import', fn(\Illuminate\Http\Request $request) => redirect()->route('leads.import.form', $request->query()));
     Route::get('/companies.index', fn(\Illuminate\Http\Request $request) => redirect()->route('companies.index', $request->query()));
     Route::get('/campaigns.index', fn(\Illuminate\Http\Request $request) => redirect()->route('campaigns.index', $request->query()));
     Route::get('/deals.index', fn(\Illuminate\Http\Request $request) => redirect()->route('deals.index', $request->query()));
@@ -99,6 +100,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
         Route::get('/create', [LeadController::class, 'create'])->name('create');
         Route::post('/', [LeadController::class, 'store'])->name('store');
         Route::get('/import', [LeadController::class, 'importForm'])->name('import.form');
+        Route::get('/import-leads', [LeadController::class, 'importForm'])->name('import');
         Route::post('/import/preview', [LeadController::class, 'importPreview'])->name('import.preview');
         Route::post('/import/live-preview', [LeadController::class, 'importLivePreview'])->name('import.live-preview');
         Route::post('/import/templates', [LeadController::class, 'storeTemplate'])->name('import.templates.store');

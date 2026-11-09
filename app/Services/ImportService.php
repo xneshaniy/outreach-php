@@ -143,6 +143,7 @@ class ImportService
             $workspace = $import->workspace;
             $creator = $import->creator ?? $workspace?->users()->first() ?? User::first();
             $mapping = $import->column_mapping ?? $this->getDefaultMapping();
+            unset($mapping['_options']);
 
             $batchSize = 100;
             $batch = [];
@@ -163,7 +164,7 @@ class ImportService
                         $this->processBatch($batch, $workspace, $creator, $leadList, $import, $rowNumber - count($batch) + 1, $skipDuplicates, $updateExisting);
                         $batch = [];
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $this->recordError($import, $rowNumber, $record, $e->getMessage());
                     $import->incrementProcessed(0, 1);
                 }
@@ -175,7 +176,7 @@ class ImportService
             }
 
             $import->markAsCompleted();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $import->markAsFailed($e->getMessage());
         }
     }
@@ -260,7 +261,10 @@ class ImportService
     {
         $data = [];
         foreach ($mapping as $field => $column) {
-            if (!empty($column) && isset($record[$column])) {
+            if ($field === '_options' || !is_string($column) || trim($column) === '') {
+                continue;
+            }
+            if (isset($record[$column])) {
                 $value = trim((string)$record[$column]);
                 if ($value !== '') {
                     $data[$field] = $value;
@@ -301,7 +305,7 @@ class ImportService
         $csv->setHeaderOffset(0);
         $header = $csv->getHeader();
 
-        return $header ?? [];
+        return is_array($header) ? array_values($header) : [];
     }
 
     public function previewImport(string $path, int $rows = 5): array
@@ -311,7 +315,7 @@ class ImportService
         $csv->setHeaderOffset(0);
         $records = Statement::create()->offset(0)->limit($rows)->process($csv);
 
-        return iterator_to_array($records);
+        return array_values(iterator_to_array($records));
     }
 
     /**

@@ -75,10 +75,14 @@ class LeadImport extends Model
 
     public function markAsFailed(string $error): void
     {
+        $existingErrors = $this->getAttribute('errors');
+        $errorList = is_array($existingErrors) ? $existingErrors : [];
+        $errorList[] = $error;
+
         $this->update([
             'status' => 'failed',
             'completed_at' => now(),
-            'errors' => array_merge($this->errors ?? [], [$error]),
+            'errors' => $errorList,
         ]);
     }
 

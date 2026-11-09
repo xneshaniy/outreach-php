@@ -39,7 +39,7 @@ class LeadService
                 'workspace_id' => $workspace->id,
                 'company_id' => $companyId,
                 'owner_id' => $data['owner_id'] ?? null,
-                'created_by' => $creator->id,
+                'created_by' => $creator?->id ?? $workspace->users()->first()?->id ?? User::first()?->id ?? 1,
                 'first_name' => $data['first_name'] ?? '',
                 'last_name' => $data['last_name'] ?? '',
                 'email' => $data['email'],
@@ -125,7 +125,7 @@ public function findOrCreateCompany(Workspace $workspace, ?User $creator, array 
             ->matchOrCreateCompany($workspace, $data, $creator);
     }
 
-    public function bulkCreateLeads(array $leadsData, Workspace $workspace, User $creator, array $options = []): array
+    public function bulkCreateLeads(array $leadsData, Workspace $workspace, ?User $creator = null, array $options = []): array
     {
         $results = [
             'created' => 0,
@@ -136,6 +136,7 @@ public function findOrCreateCompany(Workspace $workspace, ?User $creator, array 
 
         $skipDuplicates = $options['skip_duplicates'] ?? false;
         $updateExisting = $options['update_existing'] ?? false;
+        $creator = $creator ?? auth()->user() ?? $workspace->users()->first() ?? User::first();
 
         foreach ($leadsData as $index => $data) {
             try {
