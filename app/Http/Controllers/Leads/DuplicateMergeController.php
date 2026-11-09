@@ -21,7 +21,19 @@ class DuplicateMergeController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-        $duplicates = $this->duplicateService->findDuplicates($workspace);
+        if (!$workspace) {
+            return Inertia::render('Leads/Duplicates', [
+                'duplicateGroups' => [],
+                'totalGroups'     => 0,
+            ]);
+        }
+
+        $duplicates = [];
+        try {
+            $duplicates = $this->duplicateService->findDuplicates($workspace);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('DuplicateMergeController: ' . $e->getMessage());
+        }
 
         return Inertia::render('Leads/Duplicates', [
             'duplicateGroups' => $duplicates,

@@ -19,30 +19,46 @@ class InvoiceController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-
-        $query = Invoice::where('workspace_id', $workspace->id)
-            ->with(['lead:id,first_name,last_name,email,company_name', 'company:id,name', 'deal:id,title']);
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('lead', fn($l) => $l->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%"))
-                  ->orWhereHas('company', fn($c) => $c->where('name', 'like', "%{$search}%"));
-            });
+        if (!$workspace) {
+            return Inertia::render('Invoices/Index', [
+                'invoices' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
+                'summary'  => ['total' => 0, 'paid_count' => 0, 'total_billed' => 0.0, 'total_paid' => 0.0],
+                'filters'  => $request->only(['search', 'status']),
+            ]);
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
+        $invoices = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        $summary = ['total' => 0, 'paid_count' => 0, 'total_billed' => 0.0, 'total_paid' => 0.0];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('invoices')) {
+                $query = Invoice::where('workspace_id', $workspace->id)
+                    ->with(['lead:id,first_name,last_name,email,company_name', 'company:id,name', 'deal:id,title']);
+
+                if ($search = $request->input('search')) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('invoice_number', 'like', "%{$search}%")
+                          ->orWhereHas('lead', fn($l) => $l->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%"))
+                          ->orWhereHas('company', fn($c) => $c->where('name', 'like', "%{$search}%"));
+                    });
+                }
+
+                if ($status = $request->input('status')) {
+                    $query->where('status', $status);
+                }
+
+                $invoices = $query->latest()->paginate(15)->withQueryString();
+
+                $summary = [
+                    'total'       => Invoice::where('workspace_id', $workspace->id)->count(),
+                    'paid_count'  => Invoice::where('workspace_id', $workspace->id)->where('status', 'paid')->count(),
+                    'total_billed'=> (float) Invoice::where('workspace_id', $workspace->id)->where('status', '!=', 'cancelled')->sum('total'),
+                    'total_paid'  => (float) Invoice::where('workspace_id', $workspace->id)->sum('amount_paid'),
+                ];
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('InvoiceController index failed: ' . $e->getMessage());
         }
-
-        $invoices = $query->latest()->paginate(15)->withQueryString();
-
-        $summary = [
-            'total'       => Invoice::where('workspace_id', $workspace->id)->count(),
-            'paid_count'  => Invoice::where('workspace_id', $workspace->id)->where('status', 'paid')->count(),
-            'total_billed'=> (float) Invoice::where('workspace_id', $workspace->id)->where('status', '!=', 'cancelled')->sum('total'),
-            'total_paid'  => (float) Invoice::where('workspace_id', $workspace->id)->sum('amount_paid'),
-        ];
 
         return Inertia::render('Invoices/Index', [
             'invoices' => $invoices,

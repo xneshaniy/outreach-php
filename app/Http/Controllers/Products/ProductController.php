@@ -14,24 +14,49 @@ class ProductController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-
-        $query = Product::where('workspace_id', $workspace->id)
-            ->with('category:id,name');
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
+        if (!$workspace) {
+            return Inertia::render('Products/Index', [
+                'products' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
+                'categories' => [],
+                'filters' => $request->only(['search', 'category_id']),
+            ]);
         }
 
-        if ($cat = $request->input('category_id')) {
-            $query->where('category_id', $cat);
+        $products = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        $categories = [];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                $query = Product::where('workspace_id', $workspace->id);
+                if (\Illuminate\Support\Facades\Schema::hasTable('product_categories')) {
+                    $query->with('category:id,name');
+                }
+
+                if ($search = $request->input('search')) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('sku', 'like', "%{$search}%")
+                          ->orWhere('description', 'like', "%{$search}%");
+                    });
+                }
+
+                if ($cat = $request->input('category_id')) {
+                    $query->where('category_id', $cat);
+                }
+
+                $products = $query->latest()->paginate(15)->withQueryString();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ProductController index failed: ' . $e->getMessage());
         }
 
-        $products = $query->latest()->paginate(15)->withQueryString();
-        $categories = ProductCategory::where('workspace_id', $workspace->id)->get();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('product_categories')) {
+                $categories = ProductCategory::where('workspace_id', $workspace->id)->get();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ProductCategory query failed: ' . $e->getMessage());
+        }
 
         return Inertia::render('Products/Index', [
             'products' => $products,

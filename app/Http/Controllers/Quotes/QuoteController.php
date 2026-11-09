@@ -21,29 +21,45 @@ class QuoteController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
-
-        $query = Quote::where('workspace_id', $workspace->id)
-            ->with(['lead:id,first_name,last_name,email,company_name', 'company:id,name', 'deal:id,title']);
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('quote_number', 'like', "%{$search}%")
-                  ->orWhereHas('lead', fn($l) => $l->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%"))
-                  ->orWhereHas('company', fn($c) => $c->where('name', 'like', "%{$search}%"));
-            });
+        if (!$workspace) {
+            return Inertia::render('Quotes/Index', [
+                'quotes'  => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
+                'summary' => ['total' => 0, 'accepted' => 0, 'total_val' => 0.0],
+                'filters' => $request->only(['search', 'status']),
+            ]);
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
+        $quotes = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        $summary = ['total' => 0, 'accepted' => 0, 'total_val' => 0.0];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('quotes')) {
+                $query = Quote::where('workspace_id', $workspace->id)
+                    ->with(['lead:id,first_name,last_name,email,company_name', 'company:id,name', 'deal:id,title']);
+
+                if ($search = $request->input('search')) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('quote_number', 'like', "%{$search}%")
+                          ->orWhereHas('lead', fn($l) => $l->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%"))
+                          ->orWhereHas('company', fn($c) => $c->where('name', 'like', "%{$search}%"));
+                    });
+                }
+
+                if ($status = $request->input('status')) {
+                    $query->where('status', $status);
+                }
+
+                $quotes = $query->latest()->paginate(15)->withQueryString();
+
+                $summary = [
+                    'total'     => Quote::where('workspace_id', $workspace->id)->count(),
+                    'accepted'  => Quote::where('workspace_id', $workspace->id)->where('status', 'accepted')->count(),
+                    'total_val' => (float) Quote::where('workspace_id', $workspace->id)->whereIn('status', ['sent', 'accepted', 'invoiced'])->sum('total'),
+                ];
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('QuoteController index failed: ' . $e->getMessage());
         }
-
-        $quotes = $query->latest()->paginate(15)->withQueryString();
-
-        $summary = [
-            'total'     => Quote::where('workspace_id', $workspace->id)->count(),
-            'accepted'  => Quote::where('workspace_id', $workspace->id)->where('status', 'accepted')->count(),
-            'total_val' => (float) Quote::where('workspace_id', $workspace->id)->whereIn('status', ['sent', 'accepted', 'invoiced'])->sum('total'),
-        ];
 
         return Inertia::render('Quotes/Index', [
             'quotes'  => $quotes,

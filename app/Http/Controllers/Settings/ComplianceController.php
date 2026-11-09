@@ -19,15 +19,31 @@ class ComplianceController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
+        if (!$workspace) {
+            return Inertia::render('Settings/Compliance', [
+                'suppressions'     => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
+                'regionalFooters'  => GDPRComplianceService::REGIONAL_FOOTERS,
+                'suppressionCount' => 0,
+            ]);
+        }
 
-        $suppressions = SuppressionList::where('workspace_id', $workspace->id)
-            ->latest()
-            ->paginate(15);
+        $suppressions = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        $count = 0;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('suppression_list')) {
+                $suppressions = SuppressionList::where('workspace_id', $workspace->id)
+                    ->latest()
+                    ->paginate(15);
+                $count = SuppressionList::where('workspace_id', $workspace->id)->count();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ComplianceController index failed: ' . $e->getMessage());
+        }
 
         return Inertia::render('Settings/Compliance', [
             'suppressions'     => $suppressions,
             'regionalFooters'  => GDPRComplianceService::REGIONAL_FOOTERS,
-            'suppressionCount' => SuppressionList::where('workspace_id', $workspace->id)->count(),
+            'suppressionCount' => $count,
         ]);
     }
 

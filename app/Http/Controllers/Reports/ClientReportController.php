@@ -17,11 +17,23 @@ class ClientReportController extends Controller
     public function index(Request $request): Response
     {
         $workspace = $request->user()->currentWorkspace;
+        if (!$workspace) {
+            return Inertia::render('Reports/ClientReports/Index', [
+                'reports' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
+            ]);
+        }
 
-        $reports = ClientReport::where('workspace_id', $workspace->id)
-            ->with('creator:id,name')
-            ->latest()
-            ->paginate(15);
+        $reports = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('client_reports')) {
+                $reports = ClientReport::where('workspace_id', $workspace->id)
+                    ->with('creator:id,name')
+                    ->latest()
+                    ->paginate(15);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ClientReportController index failed: ' . $e->getMessage());
+        }
 
         return Inertia::render('Reports/ClientReports/Index', [
             'reports' => $reports,

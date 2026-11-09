@@ -25,22 +25,52 @@ class GoogleIntegrationController extends Controller
      */
     public function index(Request $request)
     {
-        $workspace   = $request->user()->currentWorkspace;
-        $integration = GoogleIntegration::where('workspace_id', $workspace->id)
-            ->where('is_active', true)
-            ->latest()
-            ->first();
+        $workspace = $request->user()->currentWorkspace;
+        if (!$workspace) {
+            return Inertia::render('Integrations/GoogleSheets', [
+                'configured'  => false,
+                'integration' => null,
+                'syncs'       => [],
+                'importLogs'  => [],
+            ]);
+        }
 
-        $syncs = GoogleSheetSync::where('workspace_id', $workspace->id)
-            ->latest()
-            ->limit(10)
-            ->get();
+        $integration = null;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('google_integrations')) {
+                $integration = GoogleIntegration::where('workspace_id', $workspace->id)
+                    ->where('is_active', true)
+                    ->latest()
+                    ->first();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('GoogleIntegration index: ' . $e->getMessage());
+        }
 
-        $logs = GoogleImportLog::where('workspace_id', $workspace->id)
-            ->where('source_type', 'like', 'google%')
-            ->latest()
-            ->limit(20)
-            ->get();
+        $syncs = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('google_sheet_syncs')) {
+                $syncs = GoogleSheetSync::where('workspace_id', $workspace->id)
+                    ->latest()
+                    ->limit(10)
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('GoogleSheetSync index: ' . $e->getMessage());
+        }
+
+        $logs = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('google_import_logs')) {
+                $logs = GoogleImportLog::where('workspace_id', $workspace->id)
+                    ->where('source_type', 'like', 'google%')
+                    ->latest()
+                    ->limit(20)
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('GoogleImportLog index: ' . $e->getMessage());
+        }
 
         return Inertia::render('Integrations/GoogleSheets', [
             'configured'  => $this->oauthService->isConfigured(),
