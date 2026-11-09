@@ -33,9 +33,17 @@ class AgentSDRController extends Controller
             return null;
         }
 
-        return $user->currentWorkspace
+        $workspace = $user->currentWorkspace
             ?? $user->workspaces()->first()
+            ?? Workspace::where('is_active', true)->orderBy('name')->first()
             ?? Workspace::first();
+
+        if ($workspace && $user->current_workspace_id !== $workspace->id) {
+            $user->current_workspace_id = $workspace->id;
+            $user->saveQuietly();
+        }
+
+        return $workspace;
     }
 
     // -------------------------------------------------------------------------
@@ -123,14 +131,15 @@ class AgentSDRController extends Controller
             Log::warning('AgentSDR: lead_lists query failed – ' . $e->getMessage());
         }
 
-        // NOTE: 'enrichment_status' is NOT a column on leads – removed to prevent SQL error
+        // NOTE: 'enrichment_status' is NOT a column on leads; use company relation for safe display
         $recentLeads = [];
         try {
             if (Schema::hasTable('leads')) {
                 $recentLeads = Lead::where('workspace_id', $workspace->id)
+                    ->with('company:id,name')
                     ->latest()
                     ->limit(20)
-                    ->get(['id', 'first_name', 'last_name', 'email', 'company_name', 'job_title', 'phone', 'linkedin_url']);
+                    ->get(['id', 'first_name', 'last_name', 'email', 'company_id', 'job_title', 'phone', 'linkedin_url']);
             }
         } catch (\Throwable $e) {
             Log::warning('AgentSDR: leads query failed – ' . $e->getMessage());

@@ -23,25 +23,65 @@ class GoogleMapsScraperController extends Controller
         protected CampaignService $campaignService
     ) {}
 
+    protected function getWorkspace(Request $request): \App\Models\Workspace
+    {
+        $user = $request->user();
+        $workspace = $user?->currentWorkspace;
+        if (!$workspace && $user) {
+            $workspace = $user->workspaces()->first()
+                ?? \App\Models\Workspace::where('is_active', true)->orderBy('name')->first()
+                ?? \App\Models\Workspace::first();
+            if ($workspace) {
+                $user->current_workspace_id = $workspace->id;
+                $user->saveQuietly();
+            }
+        }
+
+        if (!$workspace) {
+            $workspace = \App\Models\Workspace::create([
+                'name' => 'Default Workspace',
+                'slug' => 'default-' . \Illuminate\Support\Str::random(6),
+                'is_active' => true,
+            ]);
+            if ($user) {
+                $user->workspaces()->attach($workspace->id, ['role' => 'admin']);
+                $user->setCurrentWorkspace($workspace);
+            }
+        }
+
+        return $workspace;
+    }
+
     /**
      * Show Google Maps Scraper view.
      */
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
 
-        $campaigns = Campaign::where('workspace_id', $workspace->id)
-            ->whereIn('status', ['active', 'draft', 'scheduled', 'paused'])
-            ->orderBy('name')
-            ->get(['id', 'name', 'status']);
+        $campaigns = collect();
+        $leadLists = collect();
 
-        $leadLists = LeadList::where('workspace_id', $workspace->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        try {
+            $campaigns = Campaign::where('workspace_id', $workspace->id)
+                ->whereIn('status', ['active', 'draft', 'scheduled', 'paused'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'status']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('GoogleMapsScraper campaigns query failed: ' . $e->getMessage());
+        }
+
+        try {
+            $leadLists = LeadList::where('workspace_id', $workspace->id)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('GoogleMapsScraper leadLists query failed: ' . $e->getMessage());
+        }
 
         return Inertia::render('Leads/GoogleMapsScraper', [
-            'campaigns' => $campaigns,
-            'leadLists' => $leadLists,
+            'campaigns' => $campaigns->values()->all(),
+            'leadLists' => $leadLists->values()->all(),
         ]);
     }
 
@@ -58,23 +98,32 @@ class GoogleMapsScraperController extends Controller
             'enrich_websites' => 'nullable|boolean',
         ]);
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         $query = $request->input('query');
         $location = $request->input('location', '');
         $limit = (int) $request->input('limit', 20);
         $rating = $request->input('rating', 'all');
         $enrich = (bool) $request->input('enrich_websites', true);
 
-        $result = $this->mapsScraperService->scrapeGoogleMaps(
-            $workspace,
-            $query,
-            $location,
-            $limit,
-            $enrich,
-            $rating
-        );
+        try {
+            $result = $this->mapsScraperService->scrapeGoogleMaps(
+                $workspace,
+                $query,
+                $location,
+                $limit,
+                $enrich,
+                $rating
+            );
 
-        return response()->json($result);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('GoogleMapsScraper search error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Scraper encountered an error: ' . $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
     }
 
     /**
@@ -99,7 +148,7 @@ class GoogleMapsScraperController extends Controller
             'lead_list_id'   => 'nullable|exists:lead_lists,id',
         ]);
 
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         $user = $request->user();
         $importedCount = 0;
         $createdLeadIds = [];

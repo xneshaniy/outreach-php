@@ -23,9 +23,20 @@ class AutomationController extends Controller
 
     protected function getWorkspace(Request $request): ?Workspace
     {
-        return $request->user()?->currentWorkspace
-            ?? $request->user()?->workspaces()->first()
+        $user = $request->user();
+        if (!$user) return null;
+
+        $workspace = $user->currentWorkspace
+            ?? $user->workspaces()->first()
+            ?? Workspace::where('is_active', true)->orderBy('name')->first()
             ?? Workspace::first();
+
+        if ($workspace && $user->current_workspace_id !== $workspace->id) {
+            $user->current_workspace_id = $workspace->id;
+            $user->saveQuietly();
+        }
+
+        return $workspace;
     }
 
     public function index(Request $request): Response
@@ -88,9 +99,9 @@ class AutomationController extends Controller
         }
 
         return Inertia::render('Automations/Index', [
-            'automations' => $automations,
-            'pendingLogs' => $pendingLogs,
-            'campaigns'   => $campaigns,
+            'automations' => $automations->values()->all(),
+            'pendingLogs' => $pendingLogs->values()->all(),
+            'campaigns'   => $campaigns->values()->all(),
         ]);
     }
 

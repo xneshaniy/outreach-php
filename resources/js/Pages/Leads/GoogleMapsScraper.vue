@@ -27,10 +27,13 @@ const isImporting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+const safeCampaigns = computed(() => Array.isArray(props.campaigns) ? props.campaigns : [])
+const safeLeadLists = computed(() => Array.isArray(props.leadLists) ? props.leadLists : [])
+
 const results = ref([])
 const selectedIndices = ref([])
 
-const selectedCampaignId = ref(props.campaigns.length > 0 ? props.campaigns[0].id : '')
+const selectedCampaignId = ref(props.campaigns && props.campaigns.length > 0 ? props.campaigns[0].id : '')
 const selectedLeadListId = ref('')
 
 const isAllSelected = computed(() => {
@@ -267,14 +270,14 @@ const importSelected = async () => {
                     <div class="flex flex-wrap items-center gap-2">
                         <select v-model="selectedCampaignId" class="input text-xs py-1.5 max-w-xs">
                             <option value="">-- No Campaign (CRM only) --</option>
-                            <option v-for="c in campaigns" :key="c.id" :value="c.id">
+                            <option v-for="c in safeCampaigns" :key="c.id" :value="c.id">
                                 Enroll: {{ c.name }} ({{ c.status }})
                             </option>
                         </select>
 
                         <select v-model="selectedLeadListId" class="input text-xs py-1.5 max-w-xs">
                             <option value="">-- No Lead List --</option>
-                            <option v-for="l in leadLists" :key="l.id" :value="l.id">
+                            <option v-for="l in safeLeadLists" :key="l.id" :value="l.id">
                                 List: {{ l.name }}
                             </option>
                         </select>

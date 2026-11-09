@@ -8,19 +8,54 @@ use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
+    protected function getWorkspace(Request $request): \App\Models\Workspace
+    {
+        $user = $request->user();
+        $workspace = $user?->currentWorkspace;
+        if (!$workspace && $user) {
+            $workspace = $user->workspaces()->first()
+                ?? \App\Models\Workspace::where('is_active', true)->orderBy('name')->first()
+                ?? \App\Models\Workspace::first();
+            if ($workspace) {
+                $user->current_workspace_id = $workspace->id;
+                $user->saveQuietly();
+            }
+        }
+
+        if (!$workspace) {
+            $workspace = \App\Models\Workspace::create([
+                'name' => 'Default Workspace',
+                'slug' => 'default-' . Str::random(6),
+                'is_active' => true,
+            ]);
+            if ($user) {
+                $user->workspaces()->attach($workspace->id, ['role' => 'admin']);
+                $user->setCurrentWorkspace($workspace);
+            }
+        }
+
+        return $workspace;
+    }
+
+    protected function ensureTables(): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('products')) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('ProductController ensureTables migration error: ' . $e->getMessage());
+            }
+        }
+    }
+
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
-        if (!$workspace) {
-            return Inertia::render('Products/Index', [
-                'products' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
-                'categories' => [],
-                'filters' => $request->only(['search', 'category_id']),
-            ]);
-        }
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $products = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
         $categories = [];
@@ -67,7 +102,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
@@ -92,7 +128,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($product->workspace_id !== $workspace->id, 403);
 
         $validated = $request->validate([
@@ -115,7 +151,7 @@ class ProductController extends Controller
 
     public function destroy(Request $request, Product $product)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($product->workspace_id !== $workspace->id, 403);
 
         $product->delete();
@@ -125,7 +161,8 @@ class ProductController extends Controller
 
     public function storeCategory(Request $request)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $request->validate([
             'name' => 'required|string|max:255',

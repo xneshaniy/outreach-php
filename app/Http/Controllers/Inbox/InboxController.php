@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Inbox;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\EmailAccount;
+use App\Models\Lead;
 use App\Models\Message;
+use App\Models\Workspace;
 use App\Services\EmailService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,13 +23,43 @@ class InboxController extends Controller
         protected EmailService $emailService
     ) {}
 
+    protected function getWorkspace(Request $request): Workspace
+    {
+        $user = $request->user();
+        $workspace = $user?->currentWorkspace;
+        if (!$workspace && $user) {
+            $workspace = $user->workspaces()->first()
+                ?? Workspace::where('is_active', true)->orderBy('name')->first()
+                ?? Workspace::first();
+            if ($workspace) {
+                $user->current_workspace_id = $workspace->id;
+                $user->saveQuietly();
+            }
+        }
+
+        if (!$workspace) {
+            $workspace = Workspace::create([
+                'name' => 'Default Workspace',
+                'slug' => 'default-' . Str::random(6),
+                'is_active' => true,
+            ]);
+            if ($user) {
+                $user->workspaces()->attach($workspace->id, ['role' => 'admin']);
+                $user->setCurrentWorkspace($workspace);
+            }
+        }
+
+        return $workspace;
+    }
+
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
 
         $query = Message::where('workspace_id', $workspace->id)
             ->with([
-                'lead:id,first_name,last_name,email,company_name',
+                'lead:id,first_name,last_name,email,company_id',
+                'lead.company:id,name',
                 'campaign:id,name',
                 'emailAccount:id,name,email',
             ]);
@@ -39,13 +74,13 @@ class InboxController extends Controller
                         $lq->where('first_name', 'like', "%{$search}%")
                             ->orWhere('last_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%")
-                            ->orWhere('company_name', 'like', "%{$search}%");
+                            ->orWhereHas('company', fn($cq) => $cq->where('name', 'like', "%{$search}%"));
                     });
             });
         }
 
         // Status filter
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
@@ -89,11 +124,11 @@ class InboxController extends Controller
 
     public function show(Request $request, Message $message): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($message->workspace_id !== $workspace->id, 403);
 
         $message->load([
-            'lead',
+            'lead.company:id,name',
             'campaign',
             'emailAccount',
             'events' => fn($q) => $q->latest('occurred_at'),
@@ -123,7 +158,7 @@ class InboxController extends Controller
 
     public function reply(Request $request, Message $message): RedirectResponse
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($message->workspace_id !== $workspace->id, 403);
 
         $validated = $request->validate([
@@ -140,7 +175,8 @@ class InboxController extends Controller
             $account = EmailAccount::where('workspace_id', $workspace->id)->find($message->email_account_id);
         }
         if (!$account) {
-            $account = EmailAccount::where('workspace_id', $workspace->id)->where('is_active', true)->first();
+            $account = EmailAccount::where('workspace_id', $workspace->id)->where('is_active', true)->first()
+                ?? EmailAccount::where('is_active', true)->first();
         }
 
         if (!$account) {
@@ -182,7 +218,7 @@ class InboxController extends Controller
                 'email_account_id' => $account->id,
                 'campaign_id' => $message->campaign_id,
                 'lead_id' => $message->lead_id,
-                'message_id' => $result['message_id'] ?? null,
+                'message_id' => $result['message_id'] ?? ('reply_' . Str::random(24)),
                 'in_reply_to' => $message->message_id,
                 'subject' => $validated['subject'],
                 'body_html' => $htmlBody,
@@ -194,9 +230,100 @@ class InboxController extends Controller
                 'sent_at' => now(),
             ]);
 
+            $account->incrementSent();
+
             return back()->with('success', "Reply sent successfully to {$toEmail}!");
         } catch (\Throwable $e) {
             return back()->with('error', 'Failed to send reply: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send direct email to any email address using any sender account
+     */
+    public function send(Request $request): RedirectResponse
+    {
+        $workspace = $this->getWorkspace($request);
+
+        $validated = $request->validate([
+            'to_email'         => 'required|email|max:255',
+            'to_name'          => 'nullable|string|max:255',
+            'subject'          => 'required|string|max:255',
+            'body'             => 'required|string',
+            'email_account_id' => 'nullable|exists:email_accounts,id',
+        ]);
+
+        $account = null;
+        if (!empty($validated['email_account_id'])) {
+            $account = EmailAccount::where('workspace_id', $workspace->id)->find($validated['email_account_id']);
+        }
+        if (!$account) {
+            $account = EmailAccount::where('workspace_id', $workspace->id)->where('is_active', true)->first()
+                ?? EmailAccount::where('is_active', true)->first();
+        }
+
+        if (!$account) {
+            return back()->with('error', 'No active email account found. Please connect an email account under Email Accounts first.');
+        }
+
+        $toEmail = trim($validated['to_email']);
+        $toName = trim($validated['to_name'] ?? '');
+
+        // Find or create lead so conversation history and inbox tracking work seamlessly
+        $lead = Lead::where('workspace_id', $workspace->id)
+            ->where('normalized_email', Lead::normalizeEmail($toEmail))
+            ->first();
+
+        if (!$lead) {
+            $nameParts = explode(' ', $toName ?: 'Contact', 2);
+            $lead = Lead::create([
+                'workspace_id'     => $workspace->id,
+                'created_by'       => $request->user()?->id,
+                'first_name'       => $nameParts[0] ?: 'Contact',
+                'last_name'        => $nameParts[1] ?? '',
+                'email'            => $toEmail,
+                'status'           => 'contacted',
+                'source'           => 'inbox_direct',
+                'last_contacted_at'=> now(),
+            ]);
+        }
+
+        $htmlBody = nl2br(e($validated['body']));
+
+        try {
+            $result = $this->emailService->send(
+                account: $account,
+                to: [['email' => $toEmail, 'name' => $toName ?: $lead->full_name]],
+                subject: $validated['subject'],
+                html: $htmlBody,
+                text: $validated['body']
+            );
+
+            $messageId = $result['message_id'] ?? ('msg_' . Str::random(24));
+
+            Message::create([
+                'workspace_id'     => $workspace->id,
+                'email_account_id' => $account->id,
+                'campaign_id'      => null,
+                'lead_id'          => $lead->id,
+                'message_id'       => $messageId,
+                'subject'          => $validated['subject'],
+                'body_html'        => $htmlBody,
+                'body_text'        => $validated['body'],
+                'from_email'       => $account->email,
+                'from_name'        => $account->from_name ?? $account->name,
+                'to_emails'        => [['email' => $toEmail, 'name' => $toName ?: $lead->full_name]],
+                'status'           => Message::STATUS_SENT,
+                'sent_at'          => now(),
+            ]);
+
+            $account->incrementSent();
+            $lead->update(['last_contacted_at' => now()]);
+
+            return back()->with('success', "Email sent successfully to {$toEmail} from {$account->email}!");
+        } catch (\Throwable $e) {
+            Log::error('Inbox direct send failed: ' . $e->getMessage());
+            return back()->with('error', 'Failed to send email: ' . $e->getMessage());
         }
     }
 }

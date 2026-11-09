@@ -29,7 +29,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo, pdo_mysql, curl, openssl
+          extensions: mbstring, bcmath, pdo, pdo_mysql, curl, openssl, pcntl
           coverage: none
 
       - name: Copy .env for testing
@@ -41,6 +41,8 @@ jobs:
           sed -i 's/DB_USERNAME=.*/DB_USERNAME=root/' .env
           sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=secret/' .env
           sed -i 's/APP_KEY=.*/APP_KEY=/' .env
+          sed -i 's/APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/APP_DEBUG=.*/APP_DEBUG=true/' .env
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
@@ -57,9 +59,17 @@ jobs:
 
       - name: Run migrations
         run: php artisan migrate --force
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: outreach_test
+          DB_USERNAME: root
+          DB_PASSWORD: secret
 
       - name: Run PHPUnit tests
-        run: php artisan test --parallel --stop-on-failure
+        run: php artisan test --stop-on-failure
         env:
           APP_ENV: testing
           DB_CONNECTION: mysql
@@ -91,7 +101,8 @@ jobs:
 
       - name: Check Admin pages compiled
         run: |
-          ls public/build/assets/ | grep -E 'AdminLayout|Dashboard-' || (echo "Admin assets missing!" && exit 1)
+          ls public/build/assets/ | grep -E 'AdminLayout' || (echo "AdminLayout asset missing!" && exit 1)
+          ls public/build/assets/ | grep -E 'Dashboard-' || (echo "Dashboard asset missing!" && exit 1)
           echo "✓ Admin assets present in build"
 
   security-check:

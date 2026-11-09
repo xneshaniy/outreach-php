@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 
@@ -8,6 +8,8 @@ const props = defineProps({
     categories: Array,
     filters: Object,
 })
+
+const safeCategories = computed(() => Array.isArray(props.categories) ? props.categories : [])
 
 const search = ref(props.filters?.search || '')
 const selectedCategory = ref(props.filters?.category_id || '')
@@ -141,7 +143,7 @@ const saveCategory = () => {
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <select v-model="selectedCategory" @change="applyFilters" class="input text-xs">
                         <option value="">All Categories</option>
-                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                        <option v-for="cat in safeCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                     </select>
                     <button @click="applyFilters" class="btn btn-secondary text-xs">Filter</button>
                 </div>
@@ -163,7 +165,7 @@ const saveCategory = () => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                            <tr v-for="p in (products?.data || [])" :key="p.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-gray-900 dark:text-white">{{ p.name }}</div>
                                     <div v-if="p.sku" class="text-[10px] text-gray-400 font-mono">SKU: {{ p.sku }}</div>
@@ -234,7 +236,7 @@ const saveCategory = () => {
                             <label class="block font-semibold mb-1">Category</label>
                             <select v-model="form.category_id" class="input w-full text-xs">
                                 <option value="">No Category</option>
-                                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                                <option v-for="cat in safeCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                             </select>
                         </div>
                     </div>

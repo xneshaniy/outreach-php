@@ -18,16 +18,50 @@ use Illuminate\Support\Str;
 
 class QuoteController extends Controller
 {
+    protected function getWorkspace(Request $request): \App\Models\Workspace
+    {
+        $user = $request->user();
+        $workspace = $user?->currentWorkspace;
+        if (!$workspace && $user) {
+            $workspace = $user->workspaces()->first()
+                ?? \App\Models\Workspace::where('is_active', true)->orderBy('name')->first()
+                ?? \App\Models\Workspace::first();
+            if ($workspace) {
+                $user->current_workspace_id = $workspace->id;
+                $user->saveQuietly();
+            }
+        }
+
+        if (!$workspace) {
+            $workspace = \App\Models\Workspace::create([
+                'name' => 'Default Workspace',
+                'slug' => 'default-' . Str::random(6),
+                'is_active' => true,
+            ]);
+            if ($user) {
+                $user->workspaces()->attach($workspace->id, ['role' => 'admin']);
+                $user->setCurrentWorkspace($workspace);
+            }
+        }
+
+        return $workspace;
+    }
+
+    protected function ensureTables(): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('quotes')) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('QuoteController ensureTables migration error: ' . $e->getMessage());
+            }
+        }
+    }
+
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
-        if (!$workspace) {
-            return Inertia::render('Quotes/Index', [
-                'quotes'  => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15),
-                'summary' => ['total' => 0, 'accepted' => 0, 'total_val' => 0.0],
-                'filters' => $request->only(['search', 'status']),
-            ]);
-        }
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $quotes = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
         $summary = ['total' => 0, 'accepted' => 0, 'total_val' => 0.0];
@@ -35,7 +69,7 @@ class QuoteController extends Controller
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('quotes')) {
                 $query = Quote::where('workspace_id', $workspace->id)
-                    ->with(['lead:id,first_name,last_name,email,company_name', 'company:id,name', 'deal:id,title']);
+                    ->with(['lead:id,first_name,last_name,email,company_id', 'lead.company:id,name', 'company:id,name', 'deal:id,title']);
 
                 if ($search = $request->input('search')) {
                     $query->where(function ($q) use ($search) {
@@ -70,16 +104,46 @@ class QuoteController extends Controller
 
     public function create(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $nextNumber = 'QUO-' . strtoupper(Str::random(6));
 
+        $products = collect();
+        $leads = collect();
+        $companies = collect();
+        $deals = collect();
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                $products = Product::where('workspace_id', $workspace->id)->where('is_active', true)->select('id', 'name', 'price', 'type')->get();
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('leads')) {
+                $leads = Lead::where('workspace_id', $workspace->id)->select('id', 'first_name', 'last_name', 'email', 'company_id')->with('company:id,name')->limit(100)->get();
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('companies')) {
+                $companies = Company::where('workspace_id', $workspace->id)->select('id', 'name')->limit(100)->get();
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('deals')) {
+                $deals = Deal::where('workspace_id', $workspace->id)->select('id', 'title', 'value')->limit(100)->get();
+            }
+        } catch (\Throwable $e) {}
+
         return Inertia::render('Quotes/Create', [
             'nextNumber' => $nextNumber,
-            'products'   => Product::where('workspace_id', $workspace->id)->where('is_active', true)->select('id', 'name', 'price', 'type')->get(),
-            'leads'      => Lead::where('workspace_id', $workspace->id)->select('id', 'first_name', 'last_name', 'email', 'company_name')->limit(100)->get(),
-            'companies'  => Company::where('workspace_id', $workspace->id)->select('id', 'name')->limit(100)->get(),
-            'deals'      => Deal::where('workspace_id', $workspace->id)->select('id', 'title', 'value')->limit(100)->get(),
+            'products'   => $products,
+            'leads'      => $leads,
+            'companies'  => $companies,
+            'deals'      => $deals,
             'preselected' => [
                 'lead_id'    => $request->input('lead_id'),
                 'deal_id'    => $request->input('deal_id'),
@@ -90,7 +154,8 @@ class QuoteController extends Controller
 
     public function store(Request $request)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
+        $this->ensureTables();
 
         $validated = $request->validate([
             'quote_number'    => 'required|string|max:50',
@@ -135,7 +200,7 @@ class QuoteController extends Controller
             'discount_amount' => $discount,
             'total'           => $total,
             'currency'        => 'USD',
-            'issue_date'      => $validated['issue_date'] ?: now()->toDateString(),
+            'issue_date'      => $validated['issue_date'],
             'expiry_date'     => $validated['expiry_date'],
             'terms'           => $validated['terms'],
             'notes'           => $validated['notes'],
@@ -146,7 +211,6 @@ class QuoteController extends Controller
                 'quote_id'    => $quote->id,
                 'product_id'  => $item['product_id'] ?? null,
                 'item_name'   => $item['item_name'],
-                'description' => $item['description'] ?? null,
                 'quantity'    => $item['quantity'],
                 'unit_price'  => $item['unit_price'],
                 'total'       => ($item['quantity'] * $item['unit_price']),
@@ -158,12 +222,13 @@ class QuoteController extends Controller
 
     public function show(Request $request, Quote $quote): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($quote->workspace_id !== $workspace->id, 403);
 
         $quote->load([
             'items.product',
-            'lead:id,first_name,last_name,email,phone,company_name',
+            'lead:id,first_name,last_name,email,phone,company_id',
+            'lead.company:id,name',
             'company:id,name,domain,website,phone,address,city,country',
             'deal:id,title,value',
             'user:id,name,email',
@@ -177,7 +242,7 @@ class QuoteController extends Controller
 
     public function updateStatus(Request $request, Quote $quote)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($quote->workspace_id !== $workspace->id, 403);
 
         $request->validate([
@@ -196,7 +261,7 @@ class QuoteController extends Controller
 
     public function convertToInvoice(Request $request, Quote $quote)
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $this->getWorkspace($request);
         abort_if($quote->workspace_id !== $workspace->id, 403);
 
         $invoiceNumber = 'INV-' . strtoupper(Str::random(6));

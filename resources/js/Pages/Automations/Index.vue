@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, Link, useForm, router } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import PageHeader from '@/Components/PageHeader.vue'
@@ -10,6 +10,10 @@ const props = defineProps({
     pendingLogs: Array,
     campaigns: Array,
 })
+
+const safeAutomations = computed(() => Array.isArray(props.automations) ? props.automations : [])
+const safePendingLogs = computed(() => Array.isArray(props.pendingLogs) ? props.pendingLogs : [])
+const safeCampaigns = computed(() => Array.isArray(props.campaigns) ? props.campaigns : [])
 
 const showCreateModal = ref(false)
 
@@ -71,19 +75,19 @@ function rejectLog(log) {
             </PageHeader>
 
             <!-- Pending Approvals Queue -->
-            <div v-if="pendingLogs && pendingLogs.length > 0" class="card p-6 border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-950/10 space-y-4">
+            <div v-if="safePendingLogs.length > 0" class="card p-6 border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-950/10 space-y-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <span class="text-xl">⏳</span>
                         <h3 class="font-bold text-sm text-gray-900 dark:text-white">
-                            Pending Approval Queue ({{ pendingLogs.length }})
+                            Pending Approval Queue ({{ safePendingLogs.length }})
                         </h3>
                     </div>
                     <span class="text-xs text-amber-700 dark:text-amber-400 font-medium">Requires Super Admin / Manager Confirmation</span>
                 </div>
 
                 <div class="divide-y divide-amber-200 dark:divide-amber-800/40">
-                    <div v-for="log in pendingLogs" :key="log.id" class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div v-for="log in safePendingLogs" :key="log.id" class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-semibold text-xs text-gray-900 dark:text-white">{{ log.automation?.name }}</span>
@@ -116,7 +120,7 @@ function rejectLog(log) {
             <!-- Active Automations List -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div
-                    v-for="auto in automations"
+                    v-for="auto in safeAutomations"
                     :key="auto.id"
                     class="card p-6 flex flex-col justify-between border border-gray-200 dark:border-gray-800 hover:shadow-sm transition"
                 >
@@ -202,7 +206,7 @@ function rejectLog(log) {
                         <label class="block text-xs font-semibold mb-1">Select Campaign</label>
                         <select v-model="form.action_config.campaign_id" class="input w-full text-xs">
                             <option value="">— Select Target Campaign —</option>
-                            <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            <option v-for="c in safeCampaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
                         </select>
                     </div>
 

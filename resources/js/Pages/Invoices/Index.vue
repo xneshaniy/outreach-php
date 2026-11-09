@@ -45,22 +45,22 @@ const applyFilters = () => {
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-gray-400">Total Invoices</span>
-                    <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{{ summary.total }}</p>
+                    <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{{ summary?.total || 0 }}</p>
                 </div>
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-emerald-600">Paid Invoices</span>
-                    <p class="text-2xl font-extrabold text-emerald-600 mt-1">{{ summary.paid_count }}</p>
+                    <p class="text-2xl font-extrabold text-emerald-600 mt-1">{{ summary?.paid_count || 0 }}</p>
                 </div>
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-primary-600">Total Billed</span>
                     <p class="text-2xl font-extrabold text-primary-600 mt-1">
-                        ${{ Number(summary.total_billed || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                        ${{ Number(summary?.total_billed || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                     </p>
                 </div>
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-violet-600">Collected Revenue</span>
                     <p class="text-2xl font-extrabold text-violet-600 mt-1">
-                        ${{ Number(summary.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                        ${{ Number(summary?.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                     </p>
                 </div>
             </div>
@@ -107,7 +107,7 @@ const applyFilters = () => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            <tr v-for="inv in invoices.data" :key="inv.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                            <tr v-for="inv in (invoices?.data || [])" :key="inv.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                                 <td class="py-3 px-4 font-mono font-bold text-primary-600">
                                     <Link :href="route('invoices.show', inv.id)" class="hover:underline">{{ inv.invoice_number }}</Link>
                                 </td>

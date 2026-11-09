@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 
@@ -57,6 +57,25 @@ const goToPage = (url) => {
     if (url) {
         router.visit(url, { preserveState: true, preserveScroll: true })
     }
+}
+
+// Compose email modal
+const showCompose = ref(false)
+const composeForm = useForm({
+    email_account_id: '',
+    to_email: '',
+    to_name: '',
+    subject: '',
+    body: '',
+})
+const submitCompose = () => {
+    composeForm.post(route('inbox.send'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showCompose.value = false
+            composeForm.reset()
+        },
+    })
 }
 </script>
 
@@ -249,6 +268,51 @@ const goToPage = (url) => {
                         />
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Compose Email Modal -->
+        <div v-if="showCompose" class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center">
+            <div class="absolute inset-0 bg-black/50" @click="showCompose = false"></div>
+            <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Compose Email</h3>
+                    <button @click="showCompose = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">&times;</button>
+                </div>
+                <form @submit.prevent="submitCompose" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">From (Mailbox)</label>
+                        <select v-model="composeForm.email_account_id" class="input w-full">
+                            <option value="">Auto-select active mailbox</option>
+                            <option v-for="acc in emailAccounts" :key="acc.id" :value="acc.id">{{ acc.name }} ({{ acc.email }})</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">To Email <span class="text-red-500">*</span></label>
+                        <input v-model="composeForm.to_email" type="email" placeholder="recipient@example.com" class="input w-full" required />
+                        <p v-if="composeForm.errors.to_email" class="text-xs text-red-500 mt-1">{{ composeForm.errors.to_email }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Recipient Name (optional)</label>
+                        <input v-model="composeForm.to_name" type="text" placeholder="John Doe" class="input w-full" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Subject <span class="text-red-500">*</span></label>
+                        <input v-model="composeForm.subject" type="text" placeholder="Email subject" class="input w-full" required />
+                        <p v-if="composeForm.errors.subject" class="text-xs text-red-500 mt-1">{{ composeForm.errors.subject }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Message <span class="text-red-500">*</span></label>
+                        <textarea v-model="composeForm.body" rows="6" placeholder="Write your message here..." class="input w-full resize-none" required></textarea>
+                        <p v-if="composeForm.errors.body" class="text-xs text-red-500 mt-1">{{ composeForm.errors.body }}</p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="showCompose = false" class="btn-secondary text-sm">Cancel</button>
+                        <button type="submit" :disabled="composeForm.processing" class="btn-primary text-sm">
+                            {{ composeForm.processing ? 'Sending...' : 'Send Email' }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </MainLayout>

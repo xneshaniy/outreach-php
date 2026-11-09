@@ -32,9 +32,17 @@ class LinkedInApplierController extends Controller
             return null;
         }
 
-        return $user->currentWorkspace
+        $workspace = $user->currentWorkspace
             ?? $user->workspaces()->first()
+            ?? Workspace::where('is_active', true)->orderBy('name')->first()
             ?? Workspace::first();
+
+        if ($workspace && $user->current_workspace_id !== $workspace->id) {
+            $user->current_workspace_id = $workspace->id;
+            $user->saveQuietly();
+        }
+
+        return $workspace;
     }
 
     // -------------------------------------------------------------------------

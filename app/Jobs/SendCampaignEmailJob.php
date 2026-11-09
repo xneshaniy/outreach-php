@@ -63,11 +63,15 @@ class SendCampaignEmailJob implements ShouldQueue
             $emailAccount = EmailAccount::find($this->emailAccountId);
         }
         if (!$emailAccount) {
-            $emailAccount = $step->emailAccount ?? $campaign->emailAccount;
+            $emailAccount = $step->emailAccount
+                ?? $campaign->emailAccounts()->where('is_active', true)->first()
+                ?? $campaign->emailAccount
+                ?? EmailAccount::where('workspace_id', $campaign->workspace_id)->where('is_active', true)->first()
+                ?? EmailAccount::where('is_active', true)->first();
         }
         if (!$emailAccount || !$emailAccount->is_active || !$emailAccount->canSendToday()) {
-            // Re-queue for later
-            $this->release(300);
+            // No suitable email account found — stop retrying to avoid endless loop
+            Log::warning("SendCampaignEmailJob: No active email account for campaign {$campaign?->id}");
             return;
         }
 

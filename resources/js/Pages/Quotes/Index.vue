@@ -45,16 +45,16 @@ const applyFilters = () => {
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-gray-400">Total Quotes</span>
-                    <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{{ summary.total }}</p>
+                    <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{{ summary?.total || 0 }}</p>
                 </div>
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-emerald-600">Accepted Quotes</span>
-                    <p class="text-2xl font-extrabold text-emerald-600 mt-1">{{ summary.accepted }}</p>
+                    <p class="text-2xl font-extrabold text-emerald-600 mt-1">{{ summary?.accepted || 0 }}</p>
                 </div>
                 <div class="card p-5">
                     <span class="text-xs uppercase font-semibold text-primary-600">Active Quoted Pipeline Value</span>
                     <p class="text-2xl font-extrabold text-primary-600 mt-1">
-                        ${{ Number(summary.total_val || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                        ${{ Number(summary?.total_val || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                     </p>
                 </div>
             </div>
@@ -100,7 +100,7 @@ const applyFilters = () => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            <tr v-for="q in quotes.data" :key="q.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                            <tr v-for="q in (quotes?.data || [])" :key="q.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                                 <td class="py-3 px-4 font-mono font-bold text-primary-600">
                                     <Link :href="route('quotes.show', q.id)" class="hover:underline">{{ q.quote_number }}</Link>
                                 </td>

@@ -43,7 +43,7 @@ const props = defineProps({
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            <tr v-for="r in reports.data" :key="r.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                            <tr v-for="r in (reports?.data || [])" :key="r.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                                 <td class="py-3 px-4 font-bold text-gray-900 dark:text-white">
                                     <Link :href="route('reports.client-reports.show', r.id)" class="hover:underline text-primary-600">
                                         {{ r.title }}

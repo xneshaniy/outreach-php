@@ -180,6 +180,7 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
     // Inbox & Emails
     Route::prefix('inbox')->name('inbox.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Inbox\InboxController::class, 'index'])->name('index');
+        Route::post('/send', [\App\Http\Controllers\Inbox\InboxController::class, 'send'])->name('send');
         Route::get('/{message}', [\App\Http\Controllers\Inbox\InboxController::class, 'show'])->name('show');
         Route::post('/{message}/reply', [\App\Http\Controllers\Inbox\InboxController::class, 'reply'])->name('reply');
     });

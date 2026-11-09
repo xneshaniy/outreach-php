@@ -90,6 +90,7 @@ class Lead extends Model
     protected $appends = [
         'full_name',
         'display_name',
+        'company_name',
     ];
 
     public static function boot(): void
@@ -194,6 +195,11 @@ class Lead extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->full_name ?: ($this->email ?: 'Unnamed Lead');
+    }
+
+    public function getCompanyNameAttribute(): ?string
+    {
+        return $this->attributes['company_name'] ?? $this->company?->name;
     }
 
     public function getInitialsAttribute(): string

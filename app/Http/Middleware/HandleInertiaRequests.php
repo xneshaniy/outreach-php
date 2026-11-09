@@ -48,22 +48,36 @@ class HandleInertiaRequests extends Middleware
                 'name' => $user->currentWorkspace->name,
                 'slug' => $user->currentWorkspace->slug,
             ] : null,
-            'notifications' => fn () => $user && $user->currentWorkspace ? \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)
-                ->whereNull('read_at')
-                ->latest()
-                ->limit(10)
-                ->get(['id', 'type', 'title', 'message', 'created_at'])
-                ->map(fn($n) => [
-                    'id' => $n->id,
-                    'type' => $n->type,
-                    'title' => $n->title,
-                    'message' => $n->message,
-                    'time' => $n->created_at->diffForHumans(),
-                    'read' => false,
-                ]) : [],
-            'unreadNotificationsCount' => fn () => $user && $user->currentWorkspace
-                ? \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)->whereNull('read_at')->count()
-                : 0,
+            'notifications' => function () use ($user) {
+                if (!$user || !$user->currentWorkspace) return [];
+                try {
+                    if (!\Illuminate\Support\Facades\Schema::hasTable('crm_notifications')) return [];
+                    return \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)
+                        ->whereNull('read_at')
+                        ->latest()
+                        ->limit(10)
+                        ->get(['id', 'type', 'title', 'message', 'created_at'])
+                        ->map(fn($n) => [
+                            'id' => $n->id,
+                            'type' => $n->type,
+                            'title' => $n->title,
+                            'message' => $n->message,
+                            'time' => $n->created_at->diffForHumans(),
+                            'read' => false,
+                        ])->toArray();
+                } catch (\Throwable $e) {
+                    return [];
+                }
+            },
+            'unreadNotificationsCount' => function () use ($user) {
+                if (!$user || !$user->currentWorkspace) return 0;
+                try {
+                    if (!\Illuminate\Support\Facades\Schema::hasTable('crm_notifications')) return 0;
+                    return \App\Models\CrmNotification::where('workspace_id', $user->currentWorkspace->id)->whereNull('read_at')->count();
+                } catch (\Throwable $e) {
+                    return 0;
+                }
+            },
             'navWorkspaces' => fn () => $user
                 ? ($user->is_super_admin
                     ? \App\Models\Workspace::where('is_active', true)->orderBy('name')->get(['id', 'name', 'slug'])->toArray()
