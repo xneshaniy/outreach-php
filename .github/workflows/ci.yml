@@ -33,7 +33,7 @@ jobs:
         run: |
           sed -i 's|^APP_KEY=.*|APP_KEY=|'            .env
           sed -i 's|^APP_ENV=.*|APP_ENV=testing|'      .env
-          sed -i 's|^APP_DEBUG=.*|APP_DEBUG=true|'     .env
+          sed -i 's|^APP_DEBUG=.*|APP_DEBUG=false|'    .env
           sed -i 's|^APP_URL=.*|APP_URL=http://localhost|' .env
           sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|' .env
           sed -i 's|^DB_DATABASE=.*|DB_DATABASE=:memory:|'   .env
@@ -60,10 +60,6 @@ jobs:
 
       - name: Run all tests (SQLite in-memory)
         run: php artisan test --stop-on-failure
-        env:
-          APP_ENV: testing
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
 
   # ─────────────────────────────────────────────
   # Job 2: Frontend build & asset verification

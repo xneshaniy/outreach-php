@@ -33,8 +33,38 @@ class LeadController extends Controller
     protected function ensureImportTables(): void
     {
         try {
-            if (!Schema::hasTable('lead_imports') || !Schema::hasTable('import_mapping_templates')) {
-                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            if (!Schema::hasTable('lead_imports')) {
+                Schema::create('lead_imports', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->foreignId('workspace_id')->constrained('workspaces')->cascadeOnDelete();
+                    $table->foreignId('lead_list_id')->nullable()->constrained('lead_lists')->nullOnDelete();
+                    $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+                    $table->string('original_filename');
+                    $table->string('stored_path');
+                    $table->string('status')->default('pending');
+                    $table->integer('total_rows')->default(0);
+                    $table->integer('processed_rows')->default(0);
+                    $table->integer('successful_rows')->default(0);
+                    $table->integer('failed_rows')->default(0);
+                    $table->integer('duplicate_rows')->default(0);
+                    $table->json('column_mapping')->nullable();
+                    $table->json('errors')->nullable();
+                    $table->timestamp('started_at')->nullable();
+                    $table->timestamp('completed_at')->nullable();
+                    $table->timestamps();
+                    $table->softDeletes();
+                });
+            }
+            if (!Schema::hasTable('import_mapping_templates')) {
+                Schema::create('import_mapping_templates', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->foreignId('workspace_id')->constrained('workspaces')->cascadeOnDelete();
+                    $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+                    $table->string('name');
+                    $table->json('mapping');
+                    $table->timestamps();
+                    $table->index(['workspace_id', 'name']);
+                });
             }
         } catch (\Throwable $e) {
             Log::warning('LeadController ensureImportTables failed: ' . $e->getMessage());

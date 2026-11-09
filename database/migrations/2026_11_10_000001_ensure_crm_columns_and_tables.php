@@ -185,9 +185,56 @@ return new class extends Migration
                 $table->index('workspace_id');
             });
         }
-    }
+            // 9. Ensure import_mapping_templates table exists
+        if (!Schema::hasTable('import_mapping_templates')) {
+            Schema::create('import_mapping_templates', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('workspace_id')->constrained('workspaces')->cascadeOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+                $table->string('name');
+                $table->json('mapping');
+                $table->timestamps();
+                $table->index(['workspace_id', 'name']);
+            });
+        }
 
-    public function down(): void
+        // 10. Ensure lead_imports table exists
+        if (!Schema::hasTable('lead_imports')) {
+            Schema::create('lead_imports', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('workspace_id')->constrained('workspaces')->cascadeOnDelete();
+                $table->foreignId('lead_list_id')->nullable()->constrained('lead_lists')->nullOnDelete();
+                $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+                $table->string('original_filename');
+                $table->string('stored_path');
+                $table->string('status')->default('pending');
+                $table->integer('total_rows')->default(0);
+                $table->integer('processed_rows')->default(0);
+                $table->integer('successful_rows')->default(0);
+                $table->integer('failed_rows')->default(0);
+                $table->integer('duplicate_rows')->default(0);
+                $table->json('column_mapping')->nullable();
+                $table->json('errors')->nullable();
+                $table->timestamp('started_at')->nullable();
+                $table->timestamp('completed_at')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
+        // 11. Ensure lead_import_errors table exists
+        if (!Schema::hasTable('lead_import_errors')) {
+            Schema::create('lead_import_errors', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('lead_import_id')->constrained('lead_imports')->cascadeOnDelete();
+                $table->integer('row_number');
+                $table->json('row_data');
+                $table->text('error_message');
+                $table->timestamps();
+            });
+        }
+    }
+public function down(): void
     {
         // Safe down: do not drop production data
     }
