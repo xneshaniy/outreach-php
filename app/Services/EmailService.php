@@ -106,7 +106,11 @@ class EmailService
 
         try {
             $mailer->send($message);
-            $account->recordSent();
+            if (method_exists($account, 'recordSent')) {
+                $account->recordSent();
+            } elseif (method_exists($account, 'incrementSent')) {
+                $account->incrementSent();
+            }
             return ['success' => true];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];

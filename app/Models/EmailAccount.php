@@ -206,6 +206,11 @@ class EmailAccount extends Model
         return max(0, $this->daily_send_limit - $this->sent_today);
     }
 
+    public function recordSent(): void
+    {
+        $this->incrementSent();
+    }
+
     public function incrementSent(): void
     {
         $today = now()->toDateString();
