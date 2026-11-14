@@ -653,11 +653,39 @@ class LeadController extends Controller
         $workspace = $request->user()->currentWorkspace;
         $filters = $request->only(['search', 'status', 'owner_id', 'source', 'tags', 'company_id']);
 
-        $leads = $this->leadService->export($workspace, $filters);
+        $scope = $request->input('scope', 'filtered');
+        $format = strtolower($request->input('format', 'csv'));
+        $columns = $request->input('columns', []);
+        if (is_string($columns)) {
+            $columns = explode(',', $columns);
+        }
+        $columns = array_filter(array_map('trim', (array)$columns));
+
+        if ($scope === 'all') {
+            $leads = Lead::where('workspace_id', $workspace->id)
+                ->with(['company:id,name', 'owner:id,name'])
+                ->latest()
+                ->get();
+        } elseif ($scope === 'selected' && $request->filled('selected_ids')) {
+            $ids = is_array($request->selected_ids) ? $request->selected_ids : explode(',', $request->selected_ids);
+            $leads = Lead::where('workspace_id', $workspace->id)
+                ->whereIn('id', $ids)
+                ->with(['company:id,name', 'owner:id,name'])
+                ->latest()
+                ->get();
+        } else {
+            $leads = $this->leadService->export($workspace, $filters);
+        }
+
+        $isExcel = in_array($format, ['xlsx', 'excel']);
+        $extension = $isExcel ? 'xlsx' : 'csv';
+        $writerType = $isExcel ? \Maatwebsite\Excel\Excel::XLSX : \Maatwebsite\Excel\Excel::CSV;
+        $filename = 'leads-export-' . now()->format('Y-m-d_His') . '.' . $extension;
 
         return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\LeadsExport($leads),
-            'leads-' . now()->format('Y-m-d') . '.csv'
+            new \App\Exports\LeadsExport($leads, $columns),
+            $filename,
+            $writerType
         );
     }
 

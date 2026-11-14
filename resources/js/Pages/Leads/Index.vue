@@ -20,11 +20,75 @@ const props = defineProps({
 })
 
 const showCreateModal = ref(false)
+const showExportModal = ref(false)
 const selectedLeads = ref([])
 const selectAll = ref(false)
 const bulkAction = ref('')
 const bulkTargetOwner = ref('')
 const bulkTargetList = ref('')
+
+const exportForm = ref({
+    scope: 'filtered',
+    format: 'csv',
+    columns: [
+        'first_name', 'last_name', 'email', 'phone', 'job_title',
+        'company', 'status', 'source', 'score', 'owner', 'city', 'country'
+    ]
+})
+
+const availableExportColumns = [
+    { key: 'first_name', label: 'First Name' },
+    { key: 'last_name', label: 'Last Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'job_title', label: 'Job Title' },
+    { key: 'company', label: 'Company' },
+    { key: 'status', label: 'Status' },
+    { key: 'source', label: 'Source' },
+    { key: 'score', label: 'Quality Score' },
+    { key: 'owner', label: 'Owner' },
+    { key: 'city', label: 'City' },
+    { key: 'country', label: 'Country' },
+    { key: 'website', label: 'Website' },
+    { key: 'linkedin_url', label: 'LinkedIn' },
+    { key: 'follow_up_at', label: 'Follow Up' },
+    { key: 'created_at', label: 'Created At' },
+]
+
+const toggleExportColumn = (key) => {
+    const idx = exportForm.value.columns.indexOf(key)
+    if (idx > -1) {
+        exportForm.value.columns.splice(idx, 1)
+    } else {
+        exportForm.value.columns.push(key)
+    }
+}
+
+const selectAllExportColumns = () => {
+    exportForm.value.columns = availableExportColumns.map(c => c.key)
+}
+
+const deselectAllExportColumns = () => {
+    exportForm.value.columns = ['email', 'first_name', 'company']
+}
+
+const triggerExport = () => {
+    const params = new URLSearchParams()
+    params.set('scope', exportForm.value.scope)
+    params.set('format', exportForm.value.format)
+    params.set('columns', exportForm.value.columns.join(','))
+
+    if (exportForm.value.scope === 'filtered' && props.filters) {
+        Object.entries(props.filters).forEach(([k, v]) => {
+            if (v) params.set(k, v)
+        })
+    } else if (exportForm.value.scope === 'selected' && selectedLeads.value.length > 0) {
+        params.set('selected_ids', selectedLeads.value.join(','))
+    }
+
+    window.location.href = route('leads.export') + '?' + params.toString()
+    showExportModal.value = false
+}
 
 const form = useForm({
     first_name: '',
@@ -233,16 +297,17 @@ const formatDate = (date) => {
                     >
                         Quick Clean
                     </button>
-                    <a
-                        :href="route('leads.export', filters || {})"
-                        class="btn btn-secondary text-xs inline-flex items-center"
-                        title="Export current leads as CSV"
+                    <button
+                        type="button"
+                        @click="showExportModal = true"
+                        class="btn btn-secondary text-xs inline-flex items-center shadow-sm hover:border-primary-500"
+                        title="Configure and export leads as CSV or Excel"
                     >
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 mr-1 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        Export CSV
-                    </a>
+                        <span>Export Leads</span>
+                    </button>
                     <Link :href="route('leads.scraper.index')" class="btn btn-secondary text-xs inline-flex items-center border-indigo-200 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40">
                           <svg class="w-3.5 h-3.5 mr-1 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -571,6 +636,155 @@ const formatDate = (date) => {
                         </div>
                     </div>
                 </form>
+            </Modal>
+
+            <!-- Professional Lead Export Modal -->
+            <Modal :show="showExportModal" @close="showExportModal = false" max-width="2xl">
+                <div class="p-6 space-y-6">
+                    <div class="flex items-center justify-between pb-4 border-b dark:border-gray-700">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900 dark:text-white">Export Leads Dataset</h3>
+                                <p class="text-xs text-gray-500">Configure file format, data scope, and export columns</p>
+                            </div>
+                        </div>
+                        <button @click="showExportModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Step 1: Export Scope -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">1. Select Leads Scope</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <label
+                                :class="[
+                                    'cursor-pointer border rounded-xl p-3 flex flex-col transition-all',
+                                    exportForm.scope === 'filtered' ? 'border-primary-600 bg-primary-50/40 dark:bg-primary-950/20 ring-1 ring-primary-600' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                ]"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white">Filtered View</span>
+                                    <input type="radio" value="filtered" v-model="exportForm.scope" class="text-primary-600 focus:ring-primary-500" />
+                                </div>
+                                <span class="text-[11px] text-gray-500 mt-1">Export leads matching active filters ({{ leads?.total || 0 }})</span>
+                            </label>
+
+                            <label
+                                :class="[
+                                    'cursor-pointer border rounded-xl p-3 flex flex-col transition-all',
+                                    exportForm.scope === 'all' ? 'border-primary-600 bg-primary-50/40 dark:bg-primary-950/20 ring-1 ring-primary-600' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                ]"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white">All Leads</span>
+                                    <input type="radio" value="all" v-model="exportForm.scope" class="text-primary-600 focus:ring-primary-500" />
+                                </div>
+                                <span class="text-[11px] text-gray-500 mt-1">Export entire workspace database</span>
+                            </label>
+
+                            <label
+                                :class="[
+                                    'cursor-pointer border rounded-xl p-3 flex flex-col transition-all',
+                                    selectedLeads.length === 0 ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700' : (exportForm.scope === 'selected' ? 'border-primary-600 bg-primary-50/40 dark:bg-primary-950/20 ring-1 ring-primary-600' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50')
+                                ]"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white">Selected Leads</span>
+                                    <input type="radio" value="selected" v-model="exportForm.scope" :disabled="selectedLeads.length === 0" class="text-primary-600 focus:ring-primary-500" />
+                                </div>
+                                <span class="text-[11px] text-gray-500 mt-1">{{ selectedLeads.length }} lead(s) checked</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: File Format -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">2. Choose File Format</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label
+                                :class="[
+                                    'cursor-pointer border rounded-xl p-3 flex items-center space-x-3 transition-all',
+                                    exportForm.format === 'csv' ? 'border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-600' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                ]"
+                            >
+                                <input type="radio" value="csv" v-model="exportForm.format" class="text-emerald-600 focus:ring-emerald-500" />
+                                <div>
+                                    <div class="text-xs font-bold text-gray-900 dark:text-white">CSV (.csv)</div>
+                                    <div class="text-[11px] text-gray-500">Universal, fast, compatible with all tools</div>
+                                </div>
+                            </label>
+
+                            <label
+                                :class="[
+                                    'cursor-pointer border rounded-xl p-3 flex items-center space-x-3 transition-all',
+                                    exportForm.format === 'xlsx' ? 'border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-600' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                ]"
+                            >
+                                <input type="radio" value="xlsx" v-model="exportForm.format" class="text-emerald-600 focus:ring-emerald-500" />
+                                <div>
+                                    <div class="text-xs font-bold text-gray-900 dark:text-white">Excel Spreadsheet (.xlsx)</div>
+                                    <div class="text-[11px] text-gray-500">Formatted workbook with auto-sized columns</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Select Columns -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                3. Columns to Include ({{ exportForm.columns.length }} selected)
+                            </label>
+                            <div class="space-x-2 text-xs">
+                                <button type="button" @click="selectAllExportColumns" class="text-primary-600 hover:underline">Select All</button>
+                                <span class="text-gray-300">|</span>
+                                <button type="button" @click="deselectAllExportColumns" class="text-gray-500 hover:underline">Reset</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border dark:border-gray-700">
+                            <label
+                                v-for="col in availableExportColumns"
+                                :key="col.key"
+                                class="flex items-center space-x-2 text-xs p-1.5 rounded hover:bg-white dark:hover:bg-gray-700/50 cursor-pointer"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :checked="exportForm.columns.includes(col.key)"
+                                    @change="toggleExportColumn(col.key)"
+                                    class="rounded text-primary-600 focus:ring-primary-500"
+                                />
+                                <span class="text-gray-700 dark:text-gray-300 truncate">{{ col.label }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Action Footer -->
+                    <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
+                        <span class="text-xs text-gray-500">
+                            Ready to export with <strong class="text-gray-900 dark:text-white">{{ exportForm.columns.length }} fields</strong>
+                        </span>
+                        <div class="flex space-x-2">
+                            <button type="button" @click="showExportModal = false" class="btn btn-secondary text-xs">Cancel</button>
+                            <button
+                                type="button"
+                                @click="triggerExport"
+                                :disabled="exportForm.columns.length === 0"
+                                class="btn btn-primary text-xs inline-flex items-center bg-emerald-600 hover:bg-emerald-700 border-transparent text-white font-semibold shadow-sm"
+                            >
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Download {{ exportForm.format.toUpperCase() }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </Modal>
         </div>
     </MainLayout>

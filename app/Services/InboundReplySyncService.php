@@ -76,7 +76,12 @@ class InboundReplySyncService
         $newRepliesCount = 0;
 
         foreach ($messageNumbers as $uid) {
-            $header = @imap_headerinfo($mbox, @imap_msgno($mbox, $uid));
+            $msgNo = @imap_msgno($mbox, (int)$uid);
+            if (!$msgNo || $msgNo <= 0) {
+                continue;
+            }
+
+            $header = @imap_headerinfo($mbox, $msgNo);
             if (!$header) {
                 continue;
             }
@@ -108,7 +113,7 @@ class InboundReplySyncService
             }
 
             // Fetch email body text
-            $body = @imap_body($mbox, @imap_msgno($mbox, $uid));
+            $body = @imap_body($mbox, $msgNo) ?: '';
 
             // Categorize sentiment
             $sentiment = $this->classifyReplySentiment($subject . ' ' . $body);

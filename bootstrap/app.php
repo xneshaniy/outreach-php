@@ -66,6 +66,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, Request $request) {
+            if ($request->header('X-Inertia')) {
+                return back()->with([
+                    'error' => 'Your session expired due to inactivity. Please try again.',
+                ]);
+            }
+            return redirect()->back()->with('error', 'Your session expired due to inactivity. Please try again.');
+        });
+
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Not found'], 404);

@@ -64,12 +64,34 @@ class InboxController extends Controller
                 'emailAccount:id,name,email',
             ]);
 
+        // Folder filter
+        $folder = $request->input('folder', 'all');
+        if ($folder === 'inbox') {
+            $query->where(function ($q) {
+                $q->where('status', 'replied')
+                  ->orWhereNotNull('replied_at');
+            });
+        } elseif ($folder === 'sent') {
+            $query->whereNotNull('sent_at')->where('status', '!=', 'replied');
+        } elseif ($folder === 'starred') {
+            $query->where(function ($q) {
+                $q->where('status', 'opened')
+                  ->orWhere('status', 'replied');
+            });
+        } elseif ($folder === 'bounced') {
+            $query->where(function ($q) {
+                $q->where('status', 'bounced')
+                  ->orWhere('status', 'failed');
+            });
+        }
+
         // Search filter
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('subject', 'like', "%{$search}%")
                     ->orWhere('from_email', 'like', "%{$search}%")
+                    ->orWhere('body_text', 'like', "%{$search}%")
                     ->orWhereHas('lead', function ($lq) use ($search) {
                         $lq->where('first_name', 'like', "%{$search}%")
                             ->orWhere('last_name', 'like', "%{$search}%")
@@ -110,14 +132,40 @@ class InboxController extends Controller
         ];
 
         $campaigns = Campaign::where('workspace_id', $workspace->id)->select('id', 'name')->get();
-        $emailAccounts = EmailAccount::where('workspace_id', $workspace->id)->select('id', 'name', 'email')->get();
+
+        $emailAccounts = EmailAccount::where(function ($q) use ($workspace) {
+                $q->where('workspace_id', $workspace->id)->orWhereNull('workspace_id');
+            })
+            ->where('is_active', true)
+            ->select('id', 'name', 'email', 'from_name', 'daily_send_limit', 'sent_today', 'is_active')
+            ->get();
+
+        if ($emailAccounts->isEmpty()) {
+            $emailAccounts = EmailAccount::where('is_active', true)
+                ->select('id', 'name', 'email', 'from_name', 'daily_send_limit', 'sent_today', 'is_active')
+                ->get();
+        }
+
+        $recentLeads = Lead::where('workspace_id', $workspace->id)
+            ->whereNotNull('email')
+            ->select('id', 'first_name', 'last_name', 'email', 'company_name')
+            ->latest('id')
+            ->limit(100)
+            ->get()
+            ->map(fn($l) => [
+                'id' => $l->id,
+                'name' => trim(($l->first_name ?? '') . ' ' . ($l->last_name ?? '')) ?: 'Prospect',
+                'email' => $l->email,
+                'company' => $l->company_name ?? '',
+            ]);
 
         return Inertia::render('Inbox/Index', [
             'messages' => $messages,
-            'filters' => $request->only(['search', 'status', 'campaign_id', 'email_account_id']),
+            'filters' => $request->only(['search', 'status', 'campaign_id', 'email_account_id', 'folder']),
             'stats' => $stats,
             'campaigns' => $campaigns,
             'emailAccounts' => $emailAccounts,
+            'recentLeads' => $recentLeads,
             'statuses' => ['all', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'queued'],
         ]);
     }
@@ -169,7 +217,8 @@ class InboxController extends Controller
 
         $account = null;
         if (!empty($validated['email_account_id'])) {
-            $account = EmailAccount::where('workspace_id', $workspace->id)->find($validated['email_account_id']);
+            $account = EmailAccount::where('workspace_id', $workspace->id)->find($validated['email_account_id'])
+                ?? EmailAccount::find($validated['email_account_id']);
         }
         if (!$account && $message->email_account_id) {
             $account = EmailAccount::where('workspace_id', $workspace->id)->find($message->email_account_id);
@@ -255,7 +304,8 @@ class InboxController extends Controller
 
         $account = null;
         if (!empty($validated['email_account_id'])) {
-            $account = EmailAccount::where('workspace_id', $workspace->id)->find($validated['email_account_id']);
+            $account = EmailAccount::where('workspace_id', $workspace->id)->find($validated['email_account_id'])
+                ?? EmailAccount::find($validated['email_account_id']);
         }
         if (!$account) {
             $account = EmailAccount::where('workspace_id', $workspace->id)->where('is_active', true)->first()

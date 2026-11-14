@@ -49,4 +49,37 @@ class InboxAndCampaignTest extends TestCase
         $campaign->refresh();
         $this->assertEquals(Campaign::STATUS_COMPLETED, $campaign->status);
     }
+
+    public function test_user_can_send_direct_email_from_inbox(): void
+    {
+        $account = EmailAccount::factory()->create([
+            'workspace_id' => $this->workspace->id,
+            'is_active' => true,
+        ]);
+
+        $mockEmailService = $this->mock(\App\Services\EmailService::class);
+        $mockEmailService->shouldReceive('send')->once()->andReturn([
+            'success' => true,
+            'message_id' => 'test-message-id-123',
+        ]);
+
+        $response = $this->post(route('inbox.send'), [
+            'email_account_id' => $account->id,
+            'to_email' => 'prospect@example.com',
+            'to_name' => 'John Prospect',
+            'subject' => 'Hello from Inbox',
+            'body' => 'This is a direct test email body.',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('messages', [
+            'workspace_id' => $this->workspace->id,
+            'email_account_id' => $account->id,
+            'subject' => 'Hello from Inbox',
+        ]);
+        $this->assertDatabaseHas('leads', [
+            'workspace_id' => $this->workspace->id,
+            'email' => 'prospect@example.com',
+        ]);
+    }
 }
