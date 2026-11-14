@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Automation;
 use App\Models\AutomationLog;
 use App\Models\Campaign;
+use App\Models\EmailAccount;
+use App\Models\Lead;
 use App\Models\Workspace;
 use App\Services\WorkflowAutomationService;
 use Illuminate\Http\Request;
@@ -49,13 +51,16 @@ class AutomationController extends Controller
 
         if (!$workspace) {
             return Inertia::render('Automations/Index', [
-                'automations' => [],
-                'pendingLogs' => [],
-                'campaigns'   => [],
+                'automations'   => [],
+                'pendingLogs'   => [],
+                'recentLogs'    => [],
+                'campaigns'     => [],
+                'emailAccounts' => [],
+                'recentLeads'   => [],
+                'stats'         => ['active' => 0, 'total_runs' => 0, 'pending' => 0],
             ]);
         }
 
-        // Auto-run migrations if automations tables are not yet created on this deployment
         if (!Schema::hasTable('automations') || !Schema::hasTable('automation_logs')) {
             try {
                 Artisan::call('migrate', ['--force' => true]);
@@ -66,7 +71,10 @@ class AutomationController extends Controller
 
         $automations = collect();
         $pendingLogs = collect();
+        $recentLogs = collect();
         $campaigns = collect();
+        $emailAccounts = collect();
+        $recentLeads = collect();
 
         try {
             if (Schema::hasTable('automations')) {
@@ -84,10 +92,20 @@ class AutomationController extends Controller
                 $pendingLogs = AutomationLog::where('workspace_id', $workspace->id)
                     ->where('status', 'pending_approval')
                     ->with([
-                        'automation:id,name,action_type',
-                        'lead:id,first_name,last_name,email',
+                        'automation:id,name,action_type,trigger_event',
+                        'lead:id,first_name,last_name,email,company_name',
                     ])
                     ->latest()
+                    ->get();
+
+                // Recent 50 execution runs for n8n Executions view
+                $recentLogs = AutomationLog::where('workspace_id', $workspace->id)
+                    ->with([
+                        'automation:id,name,action_type,trigger_event',
+                        'lead:id,first_name,last_name,email,company_name',
+                    ])
+                    ->latest()
+                    ->limit(50)
                     ->get();
             }
         } catch (\Throwable $e) {
@@ -96,16 +114,58 @@ class AutomationController extends Controller
 
         try {
             if (Schema::hasTable('campaigns')) {
-                $campaigns = Campaign::where('workspace_id', $workspace->id)->select('id', 'name')->get();
+                $campaigns = Campaign::where('workspace_id', $workspace->id)
+                    ->select('id', 'name', 'status')
+                    ->get();
             }
         } catch (\Throwable $e) {
             Log::warning('Failed loading campaigns for automations: ' . $e->getMessage());
         }
 
+        try {
+            if (Schema::hasTable('email_accounts')) {
+                $emailAccounts = EmailAccount::where('is_active', true)
+                    ->select('id', 'name', 'email', 'from_name')
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed loading email accounts for automations: ' . $e->getMessage());
+        }
+
+        try {
+            if (Schema::hasTable('leads')) {
+                $recentLeads = Lead::where('workspace_id', $workspace->id)
+                    ->select('id', 'first_name', 'last_name', 'email', 'company_name', 'score', 'pipeline_stage')
+                    ->latest('id')
+                    ->limit(20)
+                    ->get()
+                    ->map(fn($l) => [
+                        'id' => $l->id,
+                        'name' => trim(($l->first_name ?? '') . ' ' . ($l->last_name ?? '')) ?: 'Prospect',
+                        'email' => $l->email,
+                        'company' => $l->company_name ?? '',
+                        'score' => $l->score ?? 0,
+                        'stage' => $l->pipeline_stage ?? 'new',
+                    ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed loading recent leads: ' . $e->getMessage());
+        }
+
+        $stats = [
+            'active'     => $automations->where('is_active', true)->count(),
+            'total_runs' => $recentLogs->count(),
+            'pending'    => $pendingLogs->count(),
+        ];
+
         return Inertia::render('Automations/Index', [
-            'automations' => $automations->values()->all(),
-            'pendingLogs' => $pendingLogs->values()->all(),
-            'campaigns'   => $campaigns->values()->all(),
+            'automations'   => $automations->values()->all(),
+            'pendingLogs'   => $pendingLogs->values()->all(),
+            'recentLogs'    => $recentLogs->values()->all(),
+            'campaigns'     => $campaigns->values()->all(),
+            'emailAccounts' => $emailAccounts->values()->all(),
+            'recentLeads'   => $recentLeads->values()->all(),
+            'stats'         => $stats,
         ]);
     }
 
@@ -113,23 +173,15 @@ class AutomationController extends Controller
     {
         $request->validate([
             'name'              => 'required|string|max:255',
-            'trigger_event'     => 'required|in:lead_created,score_reached,reply_received',
+            'trigger_event'     => 'required|string',
             'trigger_config'    => 'nullable|array',
-            'action_type'       => 'required|in:assign_campaign,create_task,notify_owner,update_stage',
+            'action_type'       => 'required|string',
             'action_config'     => 'nullable|array',
             'requires_approval' => 'boolean',
         ]);
 
         $workspace = $this->getWorkspace($request);
         abort_if(!$workspace, 403, 'No workspace found.');
-
-        if (!Schema::hasTable('automations')) {
-            try {
-                Artisan::call('migrate', ['--force' => true]);
-            } catch (\Throwable $e) {
-                Log::error('Automations migration failed on store: ' . $e->getMessage());
-            }
-        }
 
         Automation::create([
             'workspace_id'      => $workspace->id,
@@ -143,7 +195,66 @@ class AutomationController extends Controller
             'is_active'         => true,
         ]);
 
-        return back()->with('success', 'Automation workflow created successfully.');
+        return back()->with('success', 'Workflow automation created successfully.');
+    }
+
+    public function update(Request $request, Automation $automation)
+    {
+        $workspace = $this->getWorkspace($request);
+        abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
+
+        $request->validate([
+            'name'              => 'required|string|max:255',
+            'trigger_event'     => 'required|string',
+            'trigger_config'    => 'nullable|array',
+            'action_type'       => 'required|string',
+            'action_config'     => 'nullable|array',
+            'requires_approval' => 'boolean',
+            'is_active'         => 'boolean',
+        ]);
+
+        $automation->update([
+            'name'              => $request->name,
+            'trigger_event'     => $request->trigger_event,
+            'trigger_config'    => $request->trigger_config ?: [],
+            'action_type'       => $request->action_type,
+            'action_config'     => $request->action_config ?: [],
+            'requires_approval' => $request->boolean('requires_approval', false),
+            'is_active'         => $request->boolean('is_active', true),
+        ]);
+
+        return back()->with('success', 'Workflow automation updated successfully.');
+    }
+
+    public function testRun(Request $request, Automation $automation)
+    {
+        $workspace = $this->getWorkspace($request);
+        abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
+
+        $leadId = $request->input('lead_id');
+        $lead = null;
+
+        if ($leadId) {
+            $lead = Lead::where('workspace_id', $workspace->id)->find($leadId);
+        }
+
+        if (!$lead) {
+            $lead = Lead::where('workspace_id', $workspace->id)->latest('id')->first();
+        }
+
+        if (!$lead) {
+            return back()->with('error', 'No lead found in workspace to test the automation with. Please create or import a lead first.');
+        }
+
+        try {
+            $ok = $this->automationService->executeAction($automation, $lead, $request->user());
+            if ($ok) {
+                return back()->with('success', "Workflow executed successfully for test lead {$lead->email}!");
+            }
+            return back()->with('error', "Workflow test execution encountered an issue. Check execution logs.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Test run failed: ' . $e->getMessage());
+        }
     }
 
     public function toggle(Request $request, Automation $automation)
@@ -152,7 +263,7 @@ class AutomationController extends Controller
         abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->update(['is_active' => !$automation->is_active]);
 
-        return back()->with('success', "Automation is now " . ($automation->is_active ? 'Active' : 'Paused') . ".");
+        return back()->with('success', "Workflow is now " . ($automation->is_active ? 'Active' : 'Paused') . ".");
     }
 
     public function destroy(Request $request, Automation $automation)
@@ -161,7 +272,7 @@ class AutomationController extends Controller
         abort_if(!$workspace || $automation->workspace_id !== $workspace->id, 403);
         $automation->delete();
 
-        return back()->with('success', 'Automation deleted.');
+        return back()->with('success', 'Workflow deleted.');
     }
 
     public function approve(Request $request, AutomationLog $log)
@@ -186,7 +297,7 @@ class AutomationController extends Controller
             'approved_at' => now(),
         ]);
 
-        return back()->with('success', 'Automation action approved and executed.');
+        return back()->with('success', 'Workflow action approved and executed.');
     }
 
     public function reject(Request $request, AutomationLog $log)
@@ -200,7 +311,6 @@ class AutomationController extends Controller
             'approved_at' => now(),
         ]);
 
-        return back()->with('success', 'Automation action rejected.');
+        return back()->with('success', 'Workflow action rejected.');
     }
 }
-

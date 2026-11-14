@@ -305,7 +305,9 @@ Route::middleware(['auth', 'workspace.selected', 'workspace.auth'])->group(funct
     Route::prefix('automations')->name('automations.')->group(function () {
         Route::get('/', [AutomationController::class, 'index'])->name('index');
         Route::post('/', [AutomationController::class, 'store'])->name('store');
+        Route::put('/{automation}', [AutomationController::class, 'update'])->name('update');
         Route::post('/{automation}/toggle', [AutomationController::class, 'toggle'])->name('toggle');
+        Route::post('/{automation}/test', [AutomationController::class, 'testRun'])->name('test');
         Route::delete('/{automation}', [AutomationController::class, 'destroy'])->name('destroy');
         Route::post('/logs/{log}/approve', [AutomationController::class, 'approve'])->name('approve');
         Route::post('/logs/{log}/reject', [AutomationController::class, 'reject'])->name('reject');
